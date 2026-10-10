@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #0b2e4f;
+  --color-navy-dark: #072033;
+  --color-dotblue: #0f5c99;
+  --color-dotblue-dark: #0c4a7d;
+  --color-highway: #f5c400;
+  --color-charcoal: #22303c;
+  --color-steel: #5b6b7b;
+  --color-mist: #f4f7fa;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #ffffff;
+  color: var(--color-charcoal);
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 3px solid var(--color-dotblue);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Shared form + UI primitives */
+.input {
+  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-charcoal placeholder:text-slate-400;
+}
+.input:focus {
+  border-color: var(--color-dotblue);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(15, 92, 153, 0.15);
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-highway px-6 py-3 text-base font-bold text-charcoal transition hover:brightness-95 active:brightness-90;
+}
+.btn-dark {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-navy px-6 py-3 text-base font-bold text-white transition hover:bg-navy-dark;
+}
+.btn-outline-light {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/80 px-6 py-3 text-base font-bold text-white transition hover:bg-white hover:text-navy;
+}
+.btn-outline-dark {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-navy px-6 py-3 text-base font-bold text-navy transition hover:bg-navy hover:text-white;
+}
+.card {
+  @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_14px_rgba(11,46,79,0.06)];
+}
+.eyebrow {
+  @apply text-xs font-bold uppercase tracking-[0.18em] text-dotblue;
+}
+.badge-placeholder {
+  @apply inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800;
+}
+.badge-sample {
+  @apply inline-block rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-600;
+}
