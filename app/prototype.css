@@ -698,7 +698,7 @@
   box-shadow: var(--shadow);
 }
 .res-img {
-  height: 220px;
+  height: 360px;
   display: grid;
   place-items: center;
   font-size: 52px;

@@ -198,7 +198,6 @@ const SEED_PACKAGES: Package[] = [
       'Annual Driver Query',
       'IFTA Quarterly Filing (carrier IFTA taxes not included)',
       'Priority email support',
-      'Priced per power unit — add trucks anytime',
     ],
     fees: [
       { label: 'Our monthly service fee', amount: 89, kind: 'ours' },
@@ -423,6 +422,43 @@ export function saveIntake(orderId: string, data: Record<string, string>) {
 export function getOrder(id: string | null | undefined): OrderRecord | undefined {
   if (!id) return undefined;
   return load().orders.find((o) => o.id === id);
+}
+
+/* ------------------------- kickoff call bookings ------------------------ */
+
+export interface CallBooking {
+  orderId: string;
+  date: string; // YYYY-MM-DD
+  time: string; // display label, e.g. "10:30 AM"
+  createdAt: string; // ISO
+}
+
+const BOOKINGS_KEY = 'ttb_call_bookings_v1';
+
+function loadBookings(): CallBooking[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(BOOKINGS_KEY) ?? '[]') as CallBooking[];
+  } catch {
+    return [];
+  }
+}
+
+export function saveCallBooking(orderId: string, date: string, time: string): CallBooking {
+  const rest = loadBookings().filter((b) => b.orderId !== orderId);
+  const booking: CallBooking = { orderId, date, time, createdAt: new Date().toISOString() };
+  try {
+    localStorage.setItem(BOOKINGS_KEY, JSON.stringify([booking, ...rest]));
+  } catch {
+    /* storage unavailable — demo only */
+  }
+  // Phase 2: POST to /api/orders/[id]/call-booking (Supabase + calendar invite email)
+  return booking;
+}
+
+export function getCallBooking(orderId: string | null | undefined): CallBooking | undefined {
+  if (!orderId) return undefined;
+  return loadBookings().find((b) => b.orderId === orderId);
 }
 
 export function setPortalEmail(email: string | null) {

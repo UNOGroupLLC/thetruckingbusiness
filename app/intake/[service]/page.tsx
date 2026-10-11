@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { getOrder, saveIntake } from '@/lib/store';
 import Field from '@/components/Field';
+import ScheduleCall from '@/components/ScheduleCall';
 
 interface FieldDef {
   key: string;
@@ -59,6 +60,7 @@ function IntakeInner() {
   const fields = service === 'compliance' ? COMPLIANCE_FIELDS : AUTHORITY_FIELDS;
   const [values, setValues] = useState<Record<string, string>>({});
   const [error, setError] = useState('');
+  const [step, setStep] = useState<'form' | 'schedule'>('form');
 
   if (service !== 'authority' && service !== 'compliance') {
     return (
@@ -102,7 +104,30 @@ function IntakeInner() {
     }
     saveIntake(current.id, values);
     // Phase 2: POST to /api/orders/[id]/intake -> Supabase + owner email notification
+    if (current.packageSlug === 'complete') {
+      // Complete Package includes a kickoff call — offer scheduling before fulfillment.
+      setStep('schedule');
+      return;
+    }
     router.push(`/fulfillment?order=${current.id}`);
+  }
+
+  if (step === 'schedule') {
+    return (
+      <div className="bg-mist py-14">
+        <div className="mx-auto max-w-2xl px-4">
+          <p className="eyebrow">Intake received ✓</p>
+          <h1 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">Want a kickoff call?</h1>
+          <p className="mt-2 text-steel">
+            Your Complete Package includes a one-on-one walkthrough of your filings and next steps.
+            Pick a time that works for you — or skip it and we&apos;ll handle everything by email.
+          </p>
+          <div className="mt-6">
+            <ScheduleCall orderId={order!.id} onDone={() => router.push(`/fulfillment?order=${order!.id}`)} />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

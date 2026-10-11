@@ -3,11 +3,12 @@
 import { Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { getOrder, formatUSD, formatDate } from '@/lib/store';
+import { getOrder, getCallBooking, formatUSD, formatDate } from '@/lib/store';
 
 function FulfillmentInner() {
   const search = useSearchParams();
   const order = getOrder(search.get('order'));
+  const booking = getCallBooking(search.get('order'));
 
   if (!order) {
     return (
@@ -43,6 +44,23 @@ function FulfillmentInner() {
             <div><dt className="text-steel">Email</dt><dd className="font-semibold">{order.buyerEmail}</dd></div>
           </dl>
         </div>
+
+        {booking && (
+          <div className="card mt-6 border-green-200 bg-green-50">
+            <h2 className="text-lg font-extrabold text-navy">📅 Kickoff call scheduled</h2>
+            <p className="mt-2 text-sm text-steel">
+              <span className="font-bold text-charcoal">
+                {new Date(`${booking.date}T12:00:00`).toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'long',
+                  day: 'numeric',
+                })}
+              </span>{' '}
+              at <span className="font-bold text-charcoal">{booking.time} Eastern</span> — we&apos;ll call
+              the number from your intake form.
+            </p>
+          </div>
+        )}
 
         <div className="card mt-6">
           <h2 className="text-lg font-extrabold text-navy">Submitted intake details</h2>

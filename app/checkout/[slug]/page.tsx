@@ -50,6 +50,17 @@ function CheckoutInner() {
           <h1 className="mt-2 text-2xl font-extrabold text-navy">{pkg.name}</h1>
           <p className="mt-1 text-sm text-steel">{pkg.tagline}</p>
           <div className="mt-4 border-t border-slate-200 pt-4">
+            <p className="text-sm font-bold text-navy">What&apos;s included</p>
+            <ul className="mt-2 space-y-1.5">
+              {pkg.inclusions.map((item) => (
+                <li key={item} className="flex gap-2 text-sm text-steel">
+                  <span aria-hidden="true" className="font-bold text-green-600">✓</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="mt-4 border-t border-slate-200 pt-4">
             <div className="flex justify-between text-sm">
               <span>Package price (all-in)</span>
               <span className="font-bold">{formatUSD(pkg.price)} {pkg.billing}</span>
