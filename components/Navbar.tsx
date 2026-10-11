@@ -19,7 +19,7 @@ export default function Navbar() {
       <div className="wrap nav-in">
         <Link href="/" className="brand" aria-label="The Trucking Business — home">
           <span className="brand-mark" aria-hidden="true">
-            ▦
+            <img src="/logo-mark.png" alt="" />
           </span>
           <span>
             THE TRUCKING
