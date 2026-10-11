@@ -188,7 +188,7 @@ export const SEED_PACKAGES: Package[] = [
     price: 139,
     billing: 'one-time',
     placeholder: false,
-    category: 'alacarte',
+    category: 'package',
     cta: 'Buy Audit Kit',
     intake: 'compliance',
     inclusions: [
@@ -210,7 +210,7 @@ export const SEED_PACKAGES: Package[] = [
     price: 539,
     billing: 'one-time',
     placeholder: false,
-    category: 'alacarte',
+    category: 'package',
     cta: 'Buy Audit Plus',
     intake: 'compliance',
     inclusions: [
