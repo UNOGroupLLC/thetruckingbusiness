@@ -78,7 +78,7 @@ export async function dbUpsert(
 }
 
 /** Send an email via Resend. No-op when email isn't configured. */
-export async function sendOwnerEmail(subject: string, html: string): Promise<DbResult> {
+async function sendEmail(to: string, subject: string, html: string): Promise<DbResult> {
   if (!emailConfigured()) return { ok: false, status: 0, error: 'email not configured' };
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -87,7 +87,7 @@ export async function sendOwnerEmail(subject: string, html: string): Promise<DbR
         Authorization: `Bearer ${RESEND_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: EMAIL_FROM, to: [OWNER_EMAIL], subject, html }),
+      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -98,3 +98,51 @@ export async function sendOwnerEmail(subject: string, html: string): Promise<DbR
     return { ok: false, status: 0, error: e instanceof Error ? e.message : 'fetch failed' };
   }
 }
+
+/** Notify the owner. */
+export async function sendOwnerEmail(subject: string, html: string): Promise<DbResult> {
+  return sendEmail(OWNER_EMAIL, subject, html);
+}
+
+/** Notify the customer. */
+export async function sendClientEmail(
+  to: string,
+  subject: string,
+  html: string
+): Promise<DbResult> {
+  if (!to || !to.includes('@')) return { ok: false, status: 0, error: 'bad recipient' };
+  return sendEmail(to.trim(), subject, html);
+}
+
+/**
+ * Upload bytes to the private Supabase Storage bucket.
+ * Returns the storage path on success. Service-role key bypasses RLS.
+ */
+export async function storageUpload(
+  bucket: string,
+  path: string,
+  bytes: ArrayBuffer,
+  contentType: string
+): Promise<DbResult> {
+  if (!backendConfigured()) return { ok: false, status: 0, error: 'backend not configured' };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': contentType,
+      },
+      body: bytes,
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { ok: false, status: res.status, error: text.slice(0, 300) };
+    }
+    return { ok: true, status: res.status };
+  } catch (e) {
+    return { ok: false, status: 0, error: e instanceof Error ? e.message : 'fetch failed' };
+  }
+}
+
+/** Notify the customer. */

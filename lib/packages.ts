@@ -28,12 +28,19 @@ export type IntakeKind =
   | 'clearinghouse-query'
   | 'mcs150';
 
+export interface ExpectedDocument {
+  key: string;
+  label: string;
+  /** Auto-attached at purchase (e.g. the audit prep kit) — no owner upload needed. */
+  auto?: boolean;
+}
+
 export interface Package {
   slug: string;
   name: string;
   tagline: string;
   price: number; // USD — default price (first option when options exist)
-  billing: 'one-time' | '/mo' | '/yr';
+  billing: 'one-time' | '/month' | '/year';
   placeholder: boolean; // true until the owner approves real pricing
   category: 'package' | 'alacarte';
   inclusions: string[];
@@ -41,6 +48,9 @@ export interface Package {
   intake: IntakeKind;
   cta: string; // pricing-page button label (kept as "Buy ..." per owner)
   options?: PriceOption[];
+  /** Filing outputs the customer should expect in their portal. Services (calls,
+   *  sessions, memberships) never appear here — documents only. Admin-editable. */
+  expectedDocuments: ExpectedDocument[];
 }
 
 export const SEED_PACKAGES: Package[] = [
@@ -53,6 +63,13 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'package',
     cta: 'Buy Complete Package',
+    expectedDocuments: [
+      { key: 'mc-grant', label: 'MC Authority grant letter' },
+      { key: 'dot-confirm', label: 'DOT number assignment confirmation' },
+      { key: 'boc3', label: 'BOC-3 filing confirmation' },
+      { key: 'ucr-confirm', label: 'UCR registration confirmation (1st year)' },
+      { key: 'audit-kit', label: 'Audit prep kit (digital download)', auto: true },
+    ],
     intake: 'authority',
     inclusions: [
       'Motor Carrier Authority (FMCSA $300 filing fee included)',
@@ -79,6 +96,12 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'package',
     cta: 'Buy Authority Startup',
+    expectedDocuments: [
+      { key: 'mc-grant', label: 'MC Authority grant letter' },
+      { key: 'dot-confirm', label: 'DOT number assignment confirmation' },
+      { key: 'boc3', label: 'BOC-3 filing confirmation' },
+      { key: 'ucr-confirm', label: 'UCR registration confirmation' },
+    ],
     intake: 'authority',
     inclusions: [
       'Motor Carrier Authority (FMCSA $300 filing fee included)',
@@ -100,6 +123,9 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'package',
     cta: 'Buy Intrastate Filing',
+    expectedDocuments: [
+      { key: 'dot-confirm', label: 'DOT number assignment confirmation' },
+    ],
     intake: 'authority',
     inclusions: [
       'USDOT number registration for intrastate operation',
@@ -116,6 +142,9 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'package',
     cta: 'Buy Reinstatement',
+    expectedDocuments: [
+      { key: 'reinstatement-confirm', label: 'DOT reinstatement confirmation' },
+    ],
     intake: 'authority',
     inclusions: [
       'Reinstatement filing handled for you',
@@ -132,6 +161,9 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'package',
     cta: 'Buy State Permit Filing',
+    expectedDocuments: [
+      { key: 'state-permit-confirm', label: 'State permit confirmation' },
+    ],
     intake: 'state-permit',
     options: [
       { id: 'all3', label: 'All 3 states', price: 179 },
@@ -158,10 +190,14 @@ export const SEED_PACKAGES: Package[] = [
     name: 'Compliance Subscription',
     tagline: 'Ongoing compliance peace of mind. Cancel anytime.',
     price: 89,
-    billing: '/mo',
+    billing: '/month',
     placeholder: false,
     category: 'package',
     cta: 'Buy Compliance Subscription',
+    expectedDocuments: [
+      { key: 'ucr-confirm-annual', label: 'UCR registration confirmation (annual)' },
+      { key: 'mcs150-confirm', label: 'MCS-150 update confirmation' },
+    ],
     intake: 'compliance',
     inclusions: [
       'Drug & Alcohol Consortium membership included',
@@ -190,6 +226,9 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'package',
     cta: 'Buy Audit Kit',
+    expectedDocuments: [
+      { key: 'audit-kit', label: 'Audit prep kit (digital download)', auto: true },
+    ],
     intake: 'compliance',
     inclusions: [
       'Folder 1 — Driver List + Equipment List (PDF + Excel)',
@@ -212,6 +251,7 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'package',
     cta: 'Buy Audit Plus',
+    expectedDocuments: [],
     intake: 'compliance',
     inclusions: [
       'Everything in the Audit Assistance Kit',
@@ -230,6 +270,9 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'alacarte',
     cta: 'Buy MOTUS Set-up',
+    expectedDocuments: [
+      { key: 'setup-confirm', label: 'MOTUS account setup confirmation' },
+    ],
     intake: 'motus',
     inclusions: [
       'Carrier MOTUS account setup',
@@ -246,6 +289,9 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'alacarte',
     cta: 'Buy Clearinghouse Setup',
+    expectedDocuments: [
+      { key: 'setup-confirm', label: 'Clearinghouse account setup confirmation' },
+    ],
     intake: 'compliance',
     inclusions: ['Clearinghouse account registration', 'Setup guidance'],
     fees: [{ label: 'Our service fee', amount: 139, kind: 'ours' }],
@@ -255,10 +301,13 @@ export const SEED_PACKAGES: Package[] = [
     name: 'FMCSA Drug & Alcohol Clearinghouse Annual Query',
     tagline: 'We conduct your driver’s annual Clearinghouse query.',
     price: 39,
-    billing: '/yr',
+    billing: '/year',
     placeholder: false,
     category: 'alacarte',
     cta: 'Buy Annual Query',
+    expectedDocuments: [
+      { key: 'query-result', label: 'Annual Clearinghouse query result' },
+    ],
     intake: 'clearinghouse-query',
     inclusions: [
       'Annual driver query conducted in the FMCSA Clearinghouse',
@@ -271,10 +320,13 @@ export const SEED_PACKAGES: Package[] = [
     name: 'Unified Carrier Registration (UCR)',
     tagline: 'Annual UCR renewal, 0–2 units, 2027 government fee included.',
     price: 79,
-    billing: '/yr',
+    billing: '/year',
     placeholder: false,
     category: 'alacarte',
     cta: 'Buy UCR Filing',
+    expectedDocuments: [
+      { key: 'ucr-confirm', label: 'UCR registration confirmation' },
+    ],
     intake: 'compliance',
     inclusions: [
       'UCR registration renewed each year',
@@ -294,6 +346,9 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'alacarte',
     cta: 'Buy MCS-150 Update',
+    expectedDocuments: [
+      { key: 'mcs150-confirm', label: 'MCS-150 update confirmation' },
+    ],
     intake: 'mcs150',
     inclusions: ['MCS-150 biennial update filed', 'Carrier information updated'],
     fees: [{ label: 'Our service fee', amount: 79, kind: 'ours' }],

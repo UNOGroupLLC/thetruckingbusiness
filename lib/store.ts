@@ -44,6 +44,29 @@ export interface SiteCopy {
   contactPhone: string;
 }
 
+export type IntakeStatus = 'submitted' | 'corrected' | 'certified' | 'filing';
+
+export interface IntakeVersion {
+  version: number;
+  data: Record<string, string>;
+  submittedAt: string; // ISO
+  /** E-signature attestation when corrections were certified as final. */
+  certifiedAt?: string; // ISO
+  certifiedName?: string;
+  certifiedDate?: string; // YYYY-MM-DD as typed
+}
+
+export interface OrderDocument {
+  id: string;
+  slotKey: string;
+  slotLabel: string;
+  fileName: string;
+  uploadedAt: string; // ISO
+  auto?: boolean;
+  /** Demo storage: base64 data URL. Production: Supabase Storage path via API. */
+  dataUrl?: string;
+}
+
 export interface OrderRecord {
   id: string;
   packageSlug: string;
@@ -55,11 +78,22 @@ export interface OrderRecord {
   buyerEmail: string;
   createdAt: string; // ISO
   intakeService: IntakeKind;
+  /** Latest intake answers (kept for compatibility). */
   intake?: Record<string, string>;
+  /** Intake lifecycle: submitted -> corrected -> certified -> filing. */
+  intakeStatus?: IntakeStatus;
+  /** Immutable version history: v1 submitted, v2 corrected+certified. */
+  intakeVersions?: IntakeVersion[];
+  /** 0 or 1 — customers get exactly one correction. */
+  correctionsUsed?: number;
+  filingStartedAt?: string; // ISO
+  documents?: OrderDocument[];
 }
 
 interface State {
   packages: Package[];
+  /** Admin edits, keyed by package slug — layered over the seed so catalog updates always flow through. */
+  packageOverrides: Record<string, Partial<Package>>;
   copy: SiteCopy;
   orders: OrderRecord[];
   portalEmail: string | null;
@@ -84,6 +118,7 @@ const SEED_COPY: SiteCopy = {
 function seeds(): State {
   return {
     packages: SEED_PACKAGES,
+    packageOverrides: {},
     copy: SEED_COPY,
     orders: [],
     portalEmail: null,
@@ -103,14 +138,18 @@ function load(): State {
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<State>;
           const base = seeds();
+          const overrides =
+            parsed.packageOverrides && typeof parsed.packageOverrides === 'object'
+              ? parsed.packageOverrides
+              : {};
           state = {
             ...base,
             ...parsed,
             copy: { ...base.copy, ...(parsed.copy ?? {}) },
-            packages:
-              Array.isArray(parsed.packages) && parsed.packages.length > 0
-                ? parsed.packages
-                : base.packages,
+            // Catalog always comes from the seed + admin overrides — never from a
+            // stale saved snapshot — so pricing/category updates apply on deploy.
+            packageOverrides: overrides,
+            packages: base.packages.map((p) => ({ ...p, ...(overrides[p.slug] ?? {}) })),
             orders: Array.isArray(parsed.orders) ? parsed.orders : [],
           };
         }
@@ -153,6 +192,10 @@ export function updatePackage(slug: string, patch: Partial<Package>) {
   load();
   state = {
     ...state,
+    packageOverrides: {
+      ...state.packageOverrides,
+      [slug]: { ...(state.packageOverrides[slug] ?? {}), ...patch },
+    },
     packages: state.packages.map((p) => (p.slug === slug ? { ...p, ...patch } : p)),
   };
   persist();
@@ -193,13 +236,107 @@ export function createOrder(input: {
 }
 
 export function saveIntake(orderId: string, data: Record<string, string>) {
+  saveIntakeSubmission(orderId, data);
+}
+
+/** First intake submission -> v1, status 'submitted'. */
+export function saveIntakeSubmission(orderId: string, data: Record<string, string>) {
   load();
+  const now = new Date().toISOString();
   state = {
     ...state,
-    orders: state.orders.map((o) => (o.id === orderId ? { ...o, intake: data } : o)),
+    orders: state.orders.map((o) =>
+      o.id === orderId
+        ? {
+            ...o,
+            intake: data,
+            intakeStatus: 'submitted' as IntakeStatus,
+            intakeVersions: [{ version: 1, data, submittedAt: now }],
+            correctionsUsed: 0,
+          }
+        : o
+    ),
   };
   persist();
   // Phase 2: also POST to /api/orders/[id]/intake (Supabase update + owner email)
+}
+
+/** The one allowed correction -> v2, status 'corrected'. */
+export function saveIntakeCorrection(orderId: string, data: Record<string, string>) {
+  load();
+  const now = new Date().toISOString();
+  state = {
+    ...state,
+    orders: state.orders.map((o) => {
+      if (o.id !== orderId) return o;
+      const versions = [...(o.intakeVersions ?? [])];
+      // Preserve v1 if it was saved before versioning existed.
+      if (versions.length === 0 && o.intake) {
+        versions.push({ version: 1, data: o.intake, submittedAt: o.createdAt });
+      }
+      versions.push({ version: versions.length + 1, data, submittedAt: now });
+      return {
+        ...o,
+        intake: data,
+        intakeStatus: 'corrected' as IntakeStatus,
+        intakeVersions: versions,
+        correctionsUsed: 1,
+      };
+    }),
+  };
+  persist();
+}
+
+/** Customer certifies their corrections as final -> locked for them. */
+export function certifyIntake(orderId: string, name: string, date: string) {
+  load();
+  const now = new Date().toISOString();
+  state = {
+    ...state,
+    orders: state.orders.map((o) => {
+      if (o.id !== orderId) return o;
+      const versions = (o.intakeVersions ?? []).map((v, i, arr) =>
+        i === arr.length - 1 ? { ...v, certifiedAt: now, certifiedName: name, certifiedDate: date } : v
+      );
+      return { ...o, intakeStatus: 'certified' as IntakeStatus, intakeVersions: versions };
+    }),
+  };
+  persist();
+}
+
+/** Owner starts filing -> fully locked. */
+export function startFiling(orderId: string) {
+  load();
+  const now = new Date().toISOString();
+  state = {
+    ...state,
+    orders: state.orders.map((o) =>
+      o.id === orderId ? { ...o, intakeStatus: 'filing' as IntakeStatus, filingStartedAt: now } : o
+    ),
+  };
+  persist();
+}
+
+export function addDocument(orderId: string, doc: OrderDocument) {
+  load();
+  state = {
+    ...state,
+    orders: state.orders.map((o) =>
+      o.id === orderId ? { ...o, documents: [...(o.documents ?? []), doc] } : o
+    ),
+  };
+  persist();
+}
+
+export function removeDocument(orderId: string, docId: string) {
+  load();
+  state = {
+    ...state,
+    orders: state.orders.map((o) =>
+      o.id === orderId ? { ...o, documents: (o.documents ?? []).filter((d) => d.id !== docId) } : o
+    ),
+  };
+  persist();
 }
 
 export function getOrder(id: string | null | undefined): OrderRecord | undefined {

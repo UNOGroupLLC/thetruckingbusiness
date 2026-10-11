@@ -1,0 +1,64 @@
+import { NextRequest, NextResponse } from 'next/server';
+import {
+  backendConfigured,
+  dbInsert,
+  storageUpload,
+  sendClientEmail,
+  emailConfigured,
+} from '@/lib/server';
+import { documentReadyEmail, type OrderInfo } from '@/lib/email';
+
+/**
+ * POST /api/orders/[id]/documents — owner uploads a filing document.
+ * Multipart form: file, slotKey, slotLabel, orderInfo (JSON OrderInfo).
+ * Stores bytes in the private Storage bucket, inserts an order_documents row,
+ * and emails the customer "your document is ready". Always ok:true.
+ */
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const form = await req.formData().catch(() => null);
+  const file = form?.get('file');
+  const slotKey = String(form?.get('slotKey') ?? '');
+  const slotLabel = String(form?.get('slotLabel') ?? '');
+  let orderInfo: OrderInfo | null = null;
+  try {
+    orderInfo = JSON.parse(String(form?.get('orderInfo') ?? 'null'));
+  } catch {
+    orderInfo = null;
+  }
+
+  if (!id || !(file instanceof File) || !slotKey || !orderInfo) {
+    return NextResponse.json({ ok: false, error: 'Missing file, slot, or order.' }, { status: 400 });
+  }
+
+  let persisted = false;
+  let emailed = false;
+
+  if (backendConfigured()) {
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `${id}/${slotKey}-${Date.now()}-${safeName}`;
+    const bytes = await file.arrayBuffer();
+    const up = await storageUpload('order-documents', path, bytes, file.type || 'application/pdf');
+    if (up.ok) {
+      persisted = (
+        await dbInsert('order_documents', {
+          order_id: id,
+          slot_key: slotKey,
+          slot_label: slotLabel || slotKey,
+          file_name: file.name,
+          storage_path: path,
+        })
+      ).ok;
+    }
+  }
+
+  if (emailConfigured() && orderInfo) {
+    const proto = req.headers.get('x-forwarded-proto') ?? 'https';
+    const host = req.headers.get('host') ?? 'thetruckingbusiness.vercel.app';
+    const portalUrl = `${proto}://${host}/portal/login`;
+    const { subject, html } = documentReadyEmail(orderInfo, slotLabel || slotKey, portalUrl);
+    emailed = (await sendClientEmail(orderInfo.buyerEmail, subject, html)).ok;
+  }
+
+  return NextResponse.json({ ok: true, persisted, emailed });
+}

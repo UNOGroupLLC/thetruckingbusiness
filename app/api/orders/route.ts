@@ -4,10 +4,11 @@ import {
   backendConfigured,
   dbUpsert,
   sendOwnerEmail,
+  sendClientEmail,
   emailConfigured,
   ownerEmail,
 } from '@/lib/server';
-import { purchaseEmail } from '@/lib/email';
+import { purchaseEmail, clientPurchaseEmail } from '@/lib/email';
 
 /**
  * POST /api/orders — record a purchase server-side + notify the owner.
@@ -27,6 +28,7 @@ export async function POST(req: NextRequest) {
   const amount = formatUSD(pkg.price);
   let persisted = false;
   let emailed = false;
+  let clientEmailed = false;
 
   if (backendConfigured()) {
     const r = await dbUpsert(
@@ -47,19 +49,26 @@ export async function POST(req: NextRequest) {
   }
 
   if (emailConfigured()) {
-    const { subject, html } = purchaseEmail({
+    const info = {
       id,
       packageName: pkg.name,
       amount: `${amount} ${pkg.billing === 'one-time' ? 'one-time' : pkg.billing}`,
       buyerName: String(buyerName).trim(),
       buyerEmail: String(buyerEmail).trim(),
       createdAt: new Date().toLocaleString('en-US'),
-    });
+    };
+    const proto = req.headers.get('x-forwarded-proto') ?? 'https';
+    const host = req.headers.get('host') ?? 'thetruckingbusiness.vercel.app';
+    const { subject, html } = purchaseEmail(info, `${proto}://${host}/admin`);
     emailed = (await sendOwnerEmail(subject, html)).ok;
+    // Client confirmation with intake link.
+    const intakeUrl = `${proto}://${host}/intake/${pkg.intake}?order=${encodeURIComponent(id)}`;
+    const client = clientPurchaseEmail(info, intakeUrl, pkg.inclusions);
+    clientEmailed = (await sendClientEmail(info.buyerEmail, client.subject, client.html)).ok;
   }
 
   // Phase 2 hardening: verify payment via Stripe webhook before notifying.
-  return NextResponse.json({ ok: true, persisted, emailed, ownerNotified: emailed });
+  return NextResponse.json({ ok: true, persisted, emailed, ownerNotified: emailed, clientEmailed });
 }
 
 /**

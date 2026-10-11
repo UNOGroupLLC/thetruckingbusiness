@@ -2,7 +2,20 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useTtb, updatePackage, updateCopy, getCallBooking, formatUSD, formatDate } from '@/lib/store';
+import {
+  useTtb,
+  updatePackage,
+  updateCopy,
+  getCallBooking,
+  getPackage,
+  startFiling,
+  addDocument,
+  removeDocument,
+  formatUSD,
+  formatDate,
+  type OrderDocument,
+} from '@/lib/store';
+import { syncFiling, syncDocument } from '@/lib/sync';
 import type { Package, OrderRecord } from '@/lib/store';
 import Field from '@/components/Field';
 
@@ -65,8 +78,8 @@ function PackageEditor({ pkg }: { pkg: Package }) {
           <Field label="Billing">
             <select className="input" value={billing} onChange={(e) => setBilling(e.target.value as Package['billing'])}>
               <option value="one-time">one-time</option>
-              <option value="/mo">/mo</option>
-              <option value="/yr">/yr</option>
+              <option value="/month">/month</option>
+              <option value="/year">/year</option>
             </select>
           </Field>
         </div>
@@ -149,6 +162,137 @@ function CopyEditor() {
   );
 }
 
+const STATUS_META: Record<string, { label: string; cls: string }> = {
+  submitted: { label: 'Intake submitted', cls: 'bg-amber-100 text-amber-800' },
+  corrected: { label: 'Correction saved', cls: 'bg-amber-100 text-amber-800' },
+  certified: { label: 'Certified final', cls: 'bg-green-100 text-green-800' },
+  filing: { label: 'Filing in progress', cls: 'bg-sky-100 text-sky-800' },
+};
+
+function StatusBadge({ status }: { status?: string }) {
+  if (!status) {
+    return (
+      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+        Intake pending
+      </span>
+    );
+  }
+  const meta = STATUS_META[status] ?? STATUS_META.submitted;
+  return (
+    <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${meta.cls}`}>{meta.label}</span>
+  );
+}
+
+/** Per-order document slots: expected docs from the package + upload/remove. */
+function OrderDocuments({ order }: { order: OrderRecord }) {
+  const pkg = getPackage(order.packageSlug);
+  const slots = pkg?.expectedDocuments ?? [];
+  const [uploading, setUploading] = useState<string | null>(null);
+
+  if (slots.length === 0) return null;
+
+  async function onFile(slotKey: string, slotLabel: string, file: File | undefined) {
+    if (!file) return;
+    setUploading(slotKey);
+    try {
+      // Demo persistence: base64 data URL in localStorage (small PDFs).
+      // Production: the API route stores bytes in Supabase Storage.
+      let dataUrl: string | undefined;
+      if (file.size <= 3 * 1024 * 1024) {
+        dataUrl = await new Promise<string>((resolve, reject) => {
+          const r = new FileReader();
+          r.onload = () => resolve(String(r.result));
+          r.onerror = reject;
+          r.readAsDataURL(file);
+        });
+      }
+      const doc: OrderDocument = {
+        id: `${Date.now()}-${slotKey}`,
+        slotKey,
+        slotLabel,
+        fileName: file.name,
+        uploadedAt: new Date().toISOString(),
+        dataUrl,
+      };
+      addDocument(order.id, doc);
+      syncDocument(
+        order.id,
+        {
+          id: order.id,
+          packageName: order.packageName,
+          amount: formatUSD(order.amount),
+          buyerName: order.buyerName,
+          buyerEmail: order.buyerEmail,
+          createdAt: order.createdAt,
+        },
+        slotKey,
+        slotLabel,
+        file
+      );
+    } finally {
+      setUploading(null);
+    }
+  }
+
+  return (
+    <div className="mt-4 border-t border-slate-200 pt-4">
+      <p className="text-xs font-bold uppercase tracking-wider text-steel">Documents</p>
+      <ul className="mt-2 space-y-2">
+        {slots.map((s) => {
+          const doc = order.documents?.find((d) => d.slotKey === s.key);
+          const inputId = `doc-${order.id}-${s.key}`;
+          return (
+            <li key={s.key} className="flex items-center justify-between gap-3 rounded-lg bg-mist px-3 py-2.5 text-sm">
+              <div>
+                <p className="font-semibold text-navy">{s.label}</p>
+                {doc ? (
+                  <p className="text-xs text-steel">
+                    {doc.fileName} · {formatDate(doc.uploadedAt)}
+                  </p>
+                ) : (
+                  <p className="text-xs text-steel">
+                    {s.auto ? 'Auto-attached at purchase' : 'Waiting for upload'}
+                  </p>
+                )}
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {doc && (
+                  <button
+                    className="text-xs font-bold text-red-700 hover:underline"
+                    onClick={() => removeDocument(order.id, doc.id)}
+                  >
+                    Remove
+                  </button>
+                )}
+                <label
+                  htmlFor={inputId}
+                  className="cursor-pointer rounded-lg bg-navy px-3 py-1.5 text-xs font-bold text-white"
+                >
+                  {uploading === s.key ? 'Uploading…' : doc ? 'Replace' : 'Upload'}
+                </label>
+                <input
+                  id={inputId}
+                  type="file"
+                  accept=".pdf,.png,.jpg,.jpeg"
+                  className="hidden"
+                  onChange={(e) => {
+                    onFile(s.key, s.label, e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="mt-2 text-xs text-steel">
+        Uploading notifies the customer by email — the file appears in their portal under “Your
+        documents”.
+      </p>
+    </div>
+  );
+}
+
 function OrderInbox({ orders }: { orders: OrderRecord[] }) {
   const [openId, setOpenId] = useState<string | null>(null);
   if (orders.length === 0) {
@@ -161,12 +305,21 @@ function OrderInbox({ orders }: { orders: OrderRecord[] }) {
       </div>
     );
   }
+
+  function handleStartFiling(o: OrderRecord) {
+    if (!window.confirm(`Start filing for order ${o.id}? The intake will be fully locked.`)) return;
+    startFiling(o.id);
+    syncFiling(o.id);
+  }
+
   return (
     <div className="space-y-4">
       {orders.map((o) => {
         const booking = getCallBooking(o.id);
         const intakeCount = o.intake ? Object.keys(o.intake).length : 0;
         const open = openId === o.id;
+        const latestCert = o.intakeVersions?.[o.intakeVersions.length - 1];
+        const canFile = o.intakeStatus === 'submitted' || o.intakeStatus === 'certified';
         return (
           <div key={o.id} className="card">
             <button
@@ -175,33 +328,52 @@ function OrderInbox({ orders }: { orders: OrderRecord[] }) {
               aria-expanded={open}
             >
               <div>
-                <p className="font-extrabold text-navy">
+                <p className="flex flex-wrap items-center gap-2 font-extrabold text-navy">
                   {o.id} · {o.packageName}
+                  <StatusBadge status={o.intakeStatus} />
                 </p>
                 <p className="mt-1 text-sm text-steel">
                   {o.buyerName} ({o.buyerEmail}) · {formatUSD(o.amount)} · {formatDate(o.createdAt)}
                 </p>
                 <p className="mt-1 text-xs font-semibold">
                   <span className={intakeCount > 0 ? 'text-green-700' : 'text-amber-700'}>
-                    {intakeCount > 0 ? `✓ Intake submitted (${intakeCount} answers)` : '○ Intake pending'}
+                    {intakeCount > 0 ? `✓ Intake answers (${intakeCount})` : '○ Intake pending'}
                   </span>
                   {' · '}
                   <span className={booking ? 'text-green-700' : 'text-steel'}>
                     {booking ? `✓ Call booked: ${booking.date} ${booking.time} ET` : '○ No call booked'}
                   </span>
+                  {o.documents && o.documents.length > 0 && (
+                    <span className="text-dotblue"> · ✓ {o.documents.length} document{o.documents.length > 1 ? 's' : ''}</span>
+                  )}
                 </p>
               </div>
               <span className="text-xl text-steel" aria-hidden="true">{open ? '−' : '+'}</span>
             </button>
-            {open && o.intake && (
-              <dl className="mt-4 divide-y divide-slate-100 border-t border-slate-200 pt-4 text-sm">
-                {Object.entries(o.intake).map(([k, v]) => (
-                  <div key={k} className="flex justify-between gap-4 py-1.5">
-                    <dt className="font-semibold text-steel">{k}</dt>
-                    <dd className="text-right font-medium">{v === 'yes' ? 'Yes — agreed/signed' : v || '—'}</dd>
-                  </div>
-                ))}
-              </dl>
+            {open && (
+              <div className="mt-4 border-t border-slate-200 pt-4">
+                {latestCert?.certifiedAt && (
+                  <p className="mb-3 rounded-lg bg-green-50 px-3 py-2 text-xs font-semibold text-green-800">
+                    🔒 Certified final by {latestCert.certifiedName} on {latestCert.certifiedDate} — safe to file.
+                  </p>
+                )}
+                {canFile && (
+                  <button className="btn-primary mb-3" onClick={() => handleStartFiling(o)}>
+                    Start filing — lock intake
+                  </button>
+                )}
+                {o.intake && (
+                  <dl className="divide-y divide-slate-100 text-sm">
+                    {Object.entries(o.intake).map(([k, v]) => (
+                      <div key={k} className="flex justify-between gap-4 py-1.5">
+                        <dt className="font-semibold text-steel">{k}</dt>
+                        <dd className="text-right font-medium">{v === 'yes' ? 'Yes — agreed/signed' : v || '—'}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+                <OrderDocuments order={o} />
+              </div>
             )}
           </div>
         );

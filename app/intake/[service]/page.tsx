@@ -3,7 +3,14 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { getOrder, saveIntake, formatUSD } from '@/lib/store';
+import {
+  getOrder,
+  saveIntakeSubmission,
+  saveIntakeCorrection,
+  certifyIntake,
+  formatUSD,
+  type IntakeStatus,
+} from '@/lib/store';
 import { syncIntake } from '@/lib/sync';
 import Field from '@/components/Field';
 import ScheduleCall from '@/components/ScheduleCall';
@@ -217,9 +224,37 @@ function IntakeInner() {
   const fields = INTAKES[service]?.fields ?? [];
   const intakeMeta = INTAKES[service];
   const today = new Date().toISOString().slice(0, 10);
-  const [values, setValues] = useState<Record<string, string>>({ signDate: today });
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    // Pre-fill name/email from checkout so nothing is typed twice.
+    // Saved intake answers always win when present.
+    const [first = '', ...rest] = (order?.buyerName ?? '').trim().split(/\s+/);
+    return {
+      signDate: today,
+      firstName: first,
+      lastName: rest.join(' '),
+      email: order?.buyerEmail ?? '',
+      ...(order?.intake ?? {}),
+    };
+  });
   const [error, setError] = useState('');
-  const [step, setStep] = useState<'form' | 'schedule'>('form');
+  // Lifecycle: form -> (correction) -> certify -> locked. 'schedule' is the
+  // Complete Package kickoff-call offer shown right after first submission.
+  const [step, setStep] = useState<'form' | 'certify' | 'schedule'>(() =>
+    order?.intakeStatus === 'corrected' ? 'certify' : 'form'
+  );
+  // Certification screen state.
+  const [certChecked, setCertChecked] = useState(false);
+  const [certSig, setCertSig] = useState('');
+  const [certDate, setCertDate] = useState(today);
+
+  /** Fresh order on every render (store persists synchronously). */
+  const fresh = getOrder(orderId);
+  const status: IntakeStatus | undefined =
+    fresh?.intakeStatus ?? (fresh?.intake && Object.keys(fresh.intake).length > 0 ? 'submitted' : undefined);
+  const alreadySubmitted = status !== undefined;
+  const correctionsUsed = fresh?.correctionsUsed ?? 0;
+  const canCorrect = alreadySubmitted && correctionsUsed === 0 && status === 'submitted';
+  const isLocked = status === 'certified' || status === 'filing';
 
   /** Fields currently visible (conditional fields only show when their trigger matches). */
   const visibleFields = fields.filter((f) => !f.showIf || values[f.showIf.key] === f.showIf.value);
@@ -249,6 +284,18 @@ function IntakeInner() {
     setValues((v) => ({ ...v, [key]: value }));
   }
 
+  function orderInfo() {
+    const current = getOrder(orderId)!;
+    return {
+      id: current.id,
+      packageName: current.packageName,
+      amount: formatUSD(current.amount),
+      buyerName: current.buyerName,
+      buyerEmail: current.buyerEmail,
+      createdAt: current.createdAt,
+    };
+  }
+
   function submit(e: React.FormEvent) {
     e.preventDefault();
     const current = getOrder(orderId);
@@ -264,21 +311,24 @@ function IntakeInner() {
     // Only persist answers to currently-visible questions.
     const visibleKeys = new Set(visibleFields.map((f) => f.key));
     const data = Object.fromEntries(Object.entries(values).filter(([k]) => visibleKeys.has(k)));
-    saveIntake(current.id, data);
+    const labels = Object.fromEntries(visibleFields.map((f) => [f.key, f.label]));
+
+    const doingCorrection =
+      canCorrect && current.intake && Object.keys(current.intake).length > 0;
+
+    if (doingCorrection) {
+      // The one allowed correction -> v2, then certification.
+      saveIntakeCorrection(current.id, data);
+      syncIntake(current.id, orderInfo(), data, labels, { status: 'corrected', version: 2 });
+      setError('');
+      setStep('certify');
+      window.scrollTo(0, 0);
+      return;
+    }
+
+    saveIntakeSubmission(current.id, data);
     // Phase 2: persist server-side + email answers to the owner (best-effort).
-    syncIntake(
-      current.id,
-      {
-        id: current.id,
-        packageName: current.packageName,
-        amount: formatUSD(current.amount),
-        buyerName: current.buyerName,
-        buyerEmail: current.buyerEmail,
-        createdAt: current.createdAt,
-      },
-      data,
-      Object.fromEntries(visibleFields.map((f) => [f.key, f.label]))
-    );
+    syncIntake(current.id, orderInfo(), data, labels, { status: 'submitted', version: 1 });
     // Phase 2: POST to /api/orders/[id]/intake -> Supabase + owner email notification
     if (current.packageSlug === 'complete') {
       // Complete Package includes a kickoff call — offer scheduling before fulfillment.
@@ -286,6 +336,36 @@ function IntakeInner() {
       return;
     }
     router.push(`/fulfillment?order=${current.id}`);
+  }
+
+  function certify(e: React.FormEvent) {
+    e.preventDefault();
+    const current = getOrder(orderId);
+    if (!current) {
+      setError('Order not found. Please restart checkout.');
+      return;
+    }
+    if (!certChecked) {
+      setError('Please check the certification box to continue.');
+      return;
+    }
+    if (!certSig.trim() || !certDate) {
+      setError('Please type your full legal name and the date.');
+      return;
+    }
+    certifyIntake(current.id, certSig.trim(), certDate);
+    const latest = getOrder(orderId);
+    const data = latest?.intake ?? {};
+    const labels = Object.fromEntries(fields.map((f) => [f.key, f.label]));
+    const version = latest?.intakeVersions?.length ?? 2;
+    syncIntake(current.id, orderInfo(), data, labels, {
+      status: 'certified',
+      version,
+      certified: { name: certSig.trim(), date: certDate },
+    });
+    setError('');
+    setStep('form'); // re-render -> locked view
+    window.scrollTo(0, 0);
   }
 
   if (step === 'schedule') {
@@ -308,10 +388,105 @@ function IntakeInner() {
                 buyerName: order!.buyerName,
                 buyerEmail: order!.buyerEmail,
                 createdAt: order!.createdAt,
+                buyerPhone: values.phone ?? '',
               }}
               onDone={() => router.push(`/fulfillment?order=${order!.id}`)}
             />
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  const latestVersion = fresh?.intakeVersions?.[fresh.intakeVersions.length - 1];
+  const reviewData = fresh?.intake ?? {};
+  const reviewRows = fields
+    .filter((f) => reviewData[f.key]?.trim())
+    .map((f) => ({ label: f.label, value: reviewData[f.key] === 'yes' ? 'Yes — agreed/signed' : reviewData[f.key] }));
+
+  if (isLocked) {
+    const cert = latestVersion?.certifiedAt
+      ? `${latestVersion.certifiedName} · ${latestVersion.certifiedDate}`
+      : 'Certified final';
+    return (
+      <div className="bg-mist py-14">
+        <div className="mx-auto max-w-2xl px-4">
+          <p className="eyebrow">Intake locked</p>
+          <h1 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">Your intake is certified final</h1>
+          <p className="mt-2 text-steel">
+            Order <span className="font-bold text-charcoal">{order.id}</span> · {order.packageName}
+          </p>
+          <div className="mt-4 rounded-lg border border-navy/20 bg-white px-4 py-3">
+            <p className="text-sm font-bold text-navy">🔒 {cert}</p>
+            <p className="mt-1 text-sm text-steel">
+              {status === 'filing'
+                ? 'We have started your filing — your information can no longer be changed.'
+                : 'Your answers are locked. We will use them to start your filing.'}{' '}
+              Need a change? Contact us and we&rsquo;ll handle it.
+            </p>
+          </div>
+          <div className="card mt-6">
+            <p className="text-xs font-bold uppercase tracking-wider text-steel">Your certified answers</p>
+            <dl className="mt-3 space-y-1">
+              {reviewRows.map((r) => (
+                <div key={r.label} className="flex justify-between gap-4 border-b border-slate-100 py-2 text-sm">
+                  <dt className="text-steel">{r.label}</dt>
+                  <dd className="text-right font-medium text-charcoal">{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === 'certify') {
+    return (
+      <div className="bg-mist py-14">
+        <div className="mx-auto max-w-2xl px-4">
+          <p className="eyebrow">Final step — certify your corrections</p>
+          <h1 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">Review &amp; certify</h1>
+          <p className="mt-2 text-steel">
+            You updated your intake. Please review the corrected answers below, then certify them as
+            final. After certification your intake locks and we start your filing.
+          </p>
+          <div className="card mt-6">
+            <p className="text-xs font-bold uppercase tracking-wider text-steel">Your corrected answers</p>
+            <dl className="mt-3 space-y-1">
+              {reviewRows.map((r) => (
+                <div key={r.label} className="flex justify-between gap-4 border-b border-slate-100 py-2 text-sm">
+                  <dt className="text-steel">{r.label}</dt>
+                  <dd className="text-right font-medium text-charcoal">{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <form onSubmit={certify} className="card mt-6 space-y-4">
+            <label className="flex cursor-pointer gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 shrink-0 accent-[#0f2a4a]"
+                checked={certChecked}
+                onChange={(e) => setCertChecked(e.target.checked)}
+              />
+              <span className="text-sm font-medium text-charcoal">
+                I certify that these corrections are final and correct, and I authorize The Trucking
+                Business to proceed with my filing using this information.
+              </span>
+            </label>
+            <Field label="Type your full legal name as your electronic signature">
+              <input className="input" value={certSig} onChange={(e) => setCertSig(e.target.value)} placeholder="Jane Doe" />
+            </Field>
+            <Field label="Date">
+              <input className="input" type="date" value={certDate} onChange={(e) => setCertDate(e.target.value)} />
+            </Field>
+            {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+            <button type="submit" className="btn-primary w-full">Certify corrections as final</button>
+            <p className="text-center text-xs text-steel">
+              Your electronic signature is legally binding under the federal ESIGN Act.
+            </p>
+          </form>
         </div>
       </div>
     );
@@ -326,6 +501,15 @@ function IntakeInner() {
           Order <span className="font-bold text-charcoal">{order.id}</span> · {order.packageName}
         </p>
         <p className="mt-2 text-sm text-steel">{intro}</p>
+        {alreadySubmitted && !isLocked && (
+          <div className="mt-4 rounded-lg border border-highway/60 bg-highway/10 px-4 py-3">
+            <p className="text-sm font-bold text-navy">You&rsquo;ve already submitted this intake ✓</p>
+            <p className="mt-1 text-sm text-steel">
+              Your answers are loaded below. You have <strong>one correction</strong> left — edit
+              and save, then you&rsquo;ll certify the corrections as final.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={submit} className="card mt-6 space-y-4">
           {visibleFields.map((f, i) => (
@@ -379,7 +563,7 @@ function IntakeInner() {
           ))}
           {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
           <button type="submit" className="btn-primary w-full">
-            Submit details
+            {alreadySubmitted ? 'Save corrections' : 'Submit details'}
           </button>
           <p className="text-center text-xs text-steel">
             Demo only — in production this is delivered to our team to start your filing.

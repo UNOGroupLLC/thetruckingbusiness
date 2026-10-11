@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backendConfigured, dbInsert, sendOwnerEmail, emailConfigured } from '@/lib/server';
-import { bookingEmail, type OrderInfo } from '@/lib/email';
+import { backendConfigured, dbInsert, sendOwnerEmail, sendClientEmail, emailConfigured } from '@/lib/server';
+import { bookingEmail, clientBookingEmail, type OrderInfo } from '@/lib/email';
 
 /**
  * POST /api/orders/[id]/call-booking — persist a kickoff-call booking + notify the owner.
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   let persisted = false;
   let emailed = false;
+  let clientEmailed = false;
 
   if (backendConfigured()) {
     persisted = (await dbInsert('call_bookings', { order_id: id, date, time })).ok;
@@ -31,7 +32,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (emailConfigured()) {
     const { subject, html } = bookingEmail(order, date, time);
     emailed = (await sendOwnerEmail(subject, html)).ok;
+    const client = clientBookingEmail(order, date, time);
+    clientEmailed = (await sendClientEmail(order.buyerEmail, client.subject, client.html)).ok;
   }
 
-  return NextResponse.json({ ok: true, persisted, emailed });
+  return NextResponse.json({ ok: true, persisted, emailed, clientEmailed });
 }

@@ -114,7 +114,7 @@ function CheckoutInner() {
             </div>
             {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
             <button type="submit" className="btn-primary w-full">
-              Pay {formatUSD(price)} {pkg.billing === '/mo' ? 'per month' : ''}
+              Pay {formatUSD(price)} {pkg.billing === '/month' ? 'per month' : ''}
             </button>
           </form>
         </div>
