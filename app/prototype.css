@@ -698,7 +698,7 @@
   box-shadow: var(--shadow);
 }
 .res-img {
-  height: 168px;
+  height: 220px;
   display: grid;
   place-items: center;
   font-size: 52px;
@@ -708,7 +708,7 @@
 .res-img img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   display: block;
 }
 .res-body {
