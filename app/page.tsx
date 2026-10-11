@@ -214,12 +214,12 @@ export default function HomePage() {
             path forward.
           </p>
           <div className="mt-10 grid gap-6 md:grid-cols-2">
-            <div className="card">
+            <div className="card flex flex-col">
               <p className="eyebrow">New carriers</p>
               <h3 className="mt-2 text-2xl font-extrabold text-navy">
                 I want to start a trucking company
               </h3>
-              <ol className="mt-5 space-y-2.5">
+              <ol className="mt-5 flex-1 space-y-2.5">
                 {STARTUP_STEPS.map((step, i) => (
                   <li key={step} className="flex items-center gap-3 text-sm">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">
@@ -233,12 +233,12 @@ export default function HomePage() {
                 Start with a package
               </Link>
             </div>
-            <div className="card">
+            <div className="card flex flex-col">
               <p className="eyebrow">Existing carriers</p>
               <h3 className="mt-2 text-2xl font-extrabold text-navy">
                 I already have a trucking company
               </h3>
-              <ul className="mt-5 space-y-2.5">
+              <ul className="mt-5 flex-1 space-y-2.5">
                 {EXISTING_STEPS.map((step) => (
                   <li key={step} className="flex items-center gap-3 text-sm">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-dotblue text-xs font-bold text-white" aria-hidden="true">
