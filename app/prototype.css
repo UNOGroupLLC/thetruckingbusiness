@@ -62,7 +62,14 @@
   place-items: center;
   border-radius: 9px;
   font-size: 18px;
+  overflow: hidden;
   flex-shrink: 0;
+}
+.brand-mark img {
+  width: 82%;
+  height: 82%;
+  object-fit: contain;
+  display: block;
 }
 .brand small {
   display: block;
