@@ -214,12 +214,14 @@ export function createOrder(input: {
   /** Override for purchasable variants (e.g. State Permit single-state $89). */
   priceOverride?: number;
   optionLabel?: string;
+  /** Preset id (e.g. the TTB id generated for a Stripe session) — generated when omitted. */
+  id?: string;
 }): OrderRecord {
   load();
   const pkg = state.packages.find((p) => p.slug === input.packageSlug);
   if (!pkg) throw new Error(`Unknown package: ${input.packageSlug}`);
   const order: OrderRecord = {
-    id: `TTB-${Date.now().toString().slice(-6)}`,
+    id: input.id ?? `TTB-${Date.now().toString().slice(-6)}`,
     packageSlug: pkg.slug,
     packageName: pkg.name,
     amount: input.priceOverride ?? pkg.price,

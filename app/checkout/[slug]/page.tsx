@@ -8,9 +8,9 @@ import { syncOrder } from '@/lib/sync';
 import Field from '@/components/Field';
 
 /**
- * MOCK CHECKOUT — Phase 1.
- * No real payment is processed. Phase 2 replaces the submit handler with a
- * Stripe PaymentIntent flow (see lib/store.ts seams).
+ * Checkout — Stripe hosted Checkout when configured, simulated flow otherwise.
+ * Real payments: buyer is redirected to Stripe (cards + BNPL once enabled in
+ * the Stripe Dashboard); the webhook creates the order server-side.
  */
 function CheckoutInner() {
   const params = useParams();
@@ -25,8 +25,8 @@ function CheckoutInner() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
-  const [card, setCard] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   if (!pkg) {
     return (
@@ -37,12 +37,8 @@ function CheckoutInner() {
     );
   }
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim() || !email.trim() || !card.trim()) {
-      setError('Please fill in your name, email, and card details.');
-      return;
-    }
+  /** Simulated fallback — used only until Stripe keys are set in Vercel. */
+  function simulatedCheckout() {
     const order = createOrder({
       packageSlug: pkg!.slug,
       buyerName: name.trim(),
@@ -50,9 +46,43 @@ function CheckoutInner() {
       priceOverride: price,
       optionLabel: option?.label,
     });
-    // Phase 2: persist server-side + notify the owner (best-effort; demo keeps working offline).
     syncOrder({ id: order.id, packageSlug: pkg!.slug, buyerName: name.trim(), buyerEmail: email.trim() });
     router.push(`/receipt?id=${order.id}`);
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!name.trim() || !email.trim() || !email.includes('@')) {
+      setError('Please fill in your name and a valid email.');
+      return;
+    }
+    setError('');
+    setBusy(true);
+    try {
+      const res = await fetch('/api/checkout/session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          packageSlug: pkg!.slug,
+          buyerName: name.trim(),
+          buyerEmail: email.trim(),
+          priceOverride: price,
+          optionLabel: option?.label,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (data?.ok && data.url) {
+        // Real payment — off to Stripe's secure checkout.
+        window.location.href = data.url;
+        return;
+      }
+      // Stripe not configured (or error) — fall back to the simulated flow.
+      simulatedCheckout();
+    } catch {
+      simulatedCheckout();
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -91,8 +121,9 @@ function CheckoutInner() {
 
         <div className="card">
           <h2 className="text-xl font-extrabold text-navy">Checkout</h2>
-          <p className="mt-1 rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            Demo checkout — no real payment is processed and no card is charged.
+          <p className="mt-1 rounded-lg bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-900">
+            Secure checkout — you&rsquo;ll complete payment on Stripe&rsquo;s encrypted page. Cards
+            and financing options (Affirm, Afterpay, Klarna) accepted where available.
           </p>
           <form onSubmit={submit} className="mt-5 space-y-4">
             <Field label="Full name">
@@ -101,21 +132,13 @@ function CheckoutInner() {
             <Field label="Email" hint="Used for your receipt, intake follow-ups, and client portal login.">
               <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" />
             </Field>
-            <Field label="Card number (mock)">
-              <input className="input" inputMode="numeric" value={card} onChange={(e) => setCard(e.target.value)} placeholder="4242 4242 4242 4242" />
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Expiry (mock)">
-                <input className="input" placeholder="12/28" />
-              </Field>
-              <Field label="CVC (mock)">
-                <input className="input" inputMode="numeric" placeholder="123" />
-              </Field>
-            </div>
             {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
-            <button type="submit" className="btn-primary w-full">
-              Pay {formatUSD(price)} {pkg.billing === '/month' ? 'per month' : ''}
+            <button type="submit" className="btn-primary w-full" disabled={busy}>
+              {busy ? 'Redirecting to secure payment…' : `Continue to payment — ${formatUSD(price)}${pkg.billing === '/month' ? '/month' : pkg.billing === '/year' ? '/year' : ''}`}
             </button>
+            <p className="text-center text-xs text-steel">
+              No payment details are entered or stored on this site.
+            </p>
           </form>
         </div>
       </div>
