@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useTtb, createOrder, formatUSD } from '@/lib/store';
 import { syncOrder } from '@/lib/sync';
 import Field from '@/components/Field';
@@ -15,9 +15,13 @@ import Field from '@/components/Field';
 function CheckoutInner() {
   const params = useParams();
   const router = useRouter();
+  const search = useSearchParams();
   const slug = params.slug as string;
   const { packages } = useTtb();
   const pkg = packages.find((p) => p.slug === slug);
+  // Purchasable variant (e.g. State Permit: all 3 states vs single state).
+  const option = pkg?.options?.find((o) => o.id === search.get('opt')) ?? pkg?.options?.[0];
+  const price = option?.price ?? pkg?.price ?? 0;
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,7 +43,13 @@ function CheckoutInner() {
       setError('Please fill in your name, email, and card details.');
       return;
     }
-    const order = createOrder({ packageSlug: pkg!.slug, buyerName: name.trim(), buyerEmail: email.trim() });
+    const order = createOrder({
+      packageSlug: pkg!.slug,
+      buyerName: name.trim(),
+      buyerEmail: email.trim(),
+      priceOverride: price,
+      optionLabel: option?.label,
+    });
     // Phase 2: persist server-side + notify the owner (best-effort; demo keeps working offline).
     syncOrder({ id: order.id, packageSlug: pkg!.slug, buyerName: name.trim(), buyerEmail: email.trim() });
     router.push(`/receipt?id=${order.id}`);
@@ -52,6 +62,11 @@ function CheckoutInner() {
           <p className="eyebrow">Order summary</p>
           <h1 className="mt-2 text-2xl font-extrabold text-navy">{pkg.name}</h1>
           <p className="mt-1 text-sm text-steel">{pkg.tagline}</p>
+          {option && (
+            <p className="mt-2 inline-block rounded-full bg-navy/10 px-3 py-1 text-xs font-bold text-navy">
+              {option.label}
+            </p>
+          )}
           <div className="mt-4 border-t border-slate-200 pt-4">
             <p className="text-sm font-bold text-navy">What&apos;s included</p>
             <ul className="mt-2 space-y-1.5">
@@ -66,7 +81,7 @@ function CheckoutInner() {
           <div className="mt-4 border-t border-slate-200 pt-4">
             <div className="flex justify-between text-sm">
               <span>Package price (all-in)</span>
-              <span className="font-bold">{formatUSD(pkg.price)} {pkg.billing}</span>
+              <span className="font-bold">{formatUSD(price)} {pkg.billing}</span>
             </div>
             <p className="mt-2 text-xs text-steel">
               Includes our service fee and government filing fees, remitted on your behalf.
@@ -99,7 +114,7 @@ function CheckoutInner() {
             </div>
             {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
             <button type="submit" className="btn-primary w-full">
-              Pay {formatUSD(pkg.price)} {pkg.billing === '/mo' ? 'per month' : ''}
+              Pay {formatUSD(price)} {pkg.billing === '/mo' ? 'per month' : ''}
             </button>
           </form>
         </div>

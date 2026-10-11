@@ -90,6 +90,122 @@ const COMPLIANCE_FIELDS: FieldDef[] = [
   { key: 'audit', label: 'Safety audit history', type: 'select', options: ['Never audited', 'New-entrant audit scheduled', 'New-entrant audit passed', 'Compliance review in past'] },
 ];
 
+/**
+ * STATE PERMIT INTAKE — for State Permit Application Filing (OR / NM / KY).
+ * Asks only what a state permit filing needs.
+ */
+const STATE_PERMIT_FIELDS: FieldDef[] = [
+  { key: 'firstName', label: 'First name' },
+  { key: 'lastName', label: 'Last name' },
+  { key: 'email', label: 'Email', type: 'email' },
+  { key: 'phone', label: 'Cell phone', type: 'tel' },
+  { key: 'legalName', label: 'Legal business name', section: 'Your business' },
+  { key: 'usdot', label: 'USDOT number' },
+  { key: 'statesNeeded', label: 'Which state permit(s) do you need?', section: 'Your permits', type: 'select', options: ['Oregon — PUC permit', 'New Mexico — Weight-Distance Tax (WDT) permit', 'Kentucky — KYU number', 'All three states'] },
+  { key: 'feeNote', label: 'I understand the service fee covers filing only — state permit fees, if any, are billed separately, and the Oregon surety bond must be provided by my company.', section: 'Confirm & authorize', type: 'checkbox' },
+  { key: 'permitAuth', label: 'I authorize The Trucking Business to prepare and submit my state permit application(s) on my behalf.', type: 'checkbox' },
+  { key: 'signature', label: 'Type your full legal name as your electronic signature' },
+  { key: 'signDate', label: 'Date', type: 'date' },
+];
+
+/**
+ * MOTUS INTAKE — for MOTUS Set-up. The company official must be an owner or
+ * officer; MOTUS identity (biometric) verification can only be done by them.
+ */
+const MOTUS_FIELDS: FieldDef[] = [
+  { key: 'firstName', label: 'First name', section: 'Company official', hint: 'Must be an owner or officer of the company — MOTUS requires it.' },
+  { key: 'lastName', label: 'Last name' },
+  { key: 'email', label: 'Email', type: 'email', hint: 'Used for the MOTUS account.' },
+  { key: 'phone', label: 'Cell phone', type: 'tel' },
+  { key: 'legalName', label: 'Legal business name', section: 'Your business' },
+  { key: 'usdot', label: 'USDOT number', required: false, hint: 'If you already have one.' },
+  { key: 'verifyAck', label: 'I understand MOTUS requires identity verification (including biometric verification) completed by the company owner or officer themselves, and The Trucking Business cannot complete that verification step on my behalf.', section: 'Confirm & authorize', type: 'checkbox' },
+  { key: 'motusAuth', label: 'I authorize The Trucking Business to set up my carrier MOTUS account and guide me through the verification process.', type: 'checkbox' },
+  { key: 'signature', label: 'Type your full legal name as your electronic signature' },
+  { key: 'signDate', label: 'Date', type: 'date' },
+];
+
+/**
+ * CLEARINGHOUSE ANNUAL QUERY INTAKE — for the $39 annual driver query.
+ * Only for carriers with an established Clearinghouse account.
+ */
+const CLEARINGHOUSE_QUERY_FIELDS: FieldDef[] = [
+  { key: 'firstName', label: 'First name' },
+  { key: 'lastName', label: 'Last name' },
+  { key: 'email', label: 'Email', type: 'email' },
+  { key: 'phone', label: 'Cell phone', type: 'tel' },
+  { key: 'companyName', label: 'Company legal name', section: 'Your company' },
+  { key: 'usdot', label: 'USDOT number' },
+  { key: 'hasAccount', label: 'Is your FMCSA Clearinghouse account established?', type: 'select', options: ['Yes — established', 'No — I need help setting one up first'], hint: 'This service is only for carriers with an established FMCSA Clearinghouse account.' },
+  { key: 'driverName', label: 'Driver full name', section: 'Driver for this query' },
+  { key: 'cdlNumber', label: 'CDL number' },
+  { key: 'cdlState', label: 'CDL issuing state' },
+  { key: 'queryAuth', label: 'I authorize The Trucking Business to conduct the annual FMCSA Clearinghouse query for the driver listed above.', section: 'Confirm & authorize', type: 'checkbox' },
+  { key: 'signature', label: 'Type your full legal name as your electronic signature' },
+  { key: 'signDate', label: 'Date', type: 'date' },
+];
+
+/**
+ * MCS-150 INTAKE — for the Motor Carrier Identification Report biennial update.
+ */
+const MCS150_FIELDS: FieldDef[] = [
+  { key: 'firstName', label: 'First name' },
+  { key: 'lastName', label: 'Last name' },
+  { key: 'email', label: 'Email', type: 'email' },
+  { key: 'phone', label: 'Cell phone', type: 'tel' },
+  { key: 'legalName', label: 'Legal business name', section: 'Your business' },
+  { key: 'usdot', label: 'USDOT number' },
+  { key: 'street', label: 'Street address', section: 'Updated address', hint: 'Your current principal address as it should appear on file.' },
+  { key: 'city', label: 'City' },
+  { key: 'state', label: 'State' },
+  { key: 'zip', label: 'ZIP code' },
+  { key: 'trucks', label: 'Number of trucks (power units)', section: 'Fleet', type: 'number' },
+  { key: 'drivers', label: 'Number of drivers', type: 'number' },
+  { key: 'operation', label: 'Operation type', type: 'select', options: ['Interstate', 'Intrastate'] },
+  { key: 'mcs150Auth', label: 'I authorize The Trucking Business to prepare and submit my MCS-150 biennial update on my behalf.', section: 'Confirm & authorize', type: 'checkbox' },
+  { key: 'signature', label: 'Type your full legal name as your electronic signature' },
+  { key: 'signDate', label: 'Date', type: 'date' },
+];
+
+/** Intake registry — each product's `intake` key maps to its dedicated form. */
+const INTAKES: Record<string, { title: string; intro: string; fields: FieldDef[] }> = {
+  authority: {
+    title: 'Operating authority intake',
+    intro:
+      'These are the details we need to prepare your FMCSA operating authority filings — based on the official OP-1 application, in plain language. At the end you\u2019ll authorize us to file on your behalf. Double-check spelling: filings use exactly what you enter.',
+    fields: AUTHORITY_FIELDS,
+  },
+  compliance: {
+    title: 'Compliance intake',
+    intro: 'These details let us set up your compliance program correctly from day one.',
+    fields: COMPLIANCE_FIELDS,
+  },
+  'state-permit': {
+    title: 'State permit intake',
+    intro:
+      'These are the details we need to file your Oregon, New Mexico, or Kentucky permit application. State permit fees, if any, are billed separately.',
+    fields: STATE_PERMIT_FIELDS,
+  },
+  motus: {
+    title: 'MOTUS setup intake',
+    intro:
+      'These are the details we need to set up your FMCSA MOTUS account. Note: MOTUS identity verification must be completed by a company owner or officer — we\u2019ll walk you through it.',
+    fields: MOTUS_FIELDS,
+  },
+  'clearinghouse-query': {
+    title: 'Clearinghouse annual query intake',
+    intro:
+      'These are the details we need to run your driver\u2019s annual FMCSA Clearinghouse query. This service is only for carriers with an established Clearinghouse account.',
+    fields: CLEARINGHOUSE_QUERY_FIELDS,
+  },
+  mcs150: {
+    title: 'MCS-150 update intake',
+    intro:
+      'These are the details we need to file your MCS-150 biennial update and keep your carrier record current.',
+    fields: MCS150_FIELDS,
+  },
+};
+
 function IntakeInner() {
   const params = useParams();
   const search = useSearchParams();
@@ -98,7 +214,8 @@ function IntakeInner() {
   const orderId = search.get('order');
   const order = getOrder(orderId);
 
-  const fields = service === 'compliance' ? COMPLIANCE_FIELDS : AUTHORITY_FIELDS;
+  const fields = INTAKES[service]?.fields ?? [];
+  const intakeMeta = INTAKES[service];
   const today = new Date().toISOString().slice(0, 10);
   const [values, setValues] = useState<Record<string, string>>({ signDate: today });
   const [error, setError] = useState('');
@@ -107,7 +224,7 @@ function IntakeInner() {
   /** Fields currently visible (conditional fields only show when their trigger matches). */
   const visibleFields = fields.filter((f) => !f.showIf || values[f.showIf.key] === f.showIf.value);
 
-  if (service !== 'authority' && service !== 'compliance') {
+  if (!intakeMeta) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="text-2xl font-extrabold text-navy">Unknown service</h1>
@@ -125,11 +242,8 @@ function IntakeInner() {
     );
   }
 
-  const title = service === 'authority' ? 'Operating authority intake' : 'Compliance intake';
-  const intro =
-    service === 'authority'
-      ? 'These are the details we need to prepare your FMCSA operating authority filings — based on the official OP-1 application, in plain language. At the end you\u2019ll authorize us to file on your behalf. Double-check spelling: filings use exactly what you enter.'
-      : 'These details let us set up your compliance program correctly from day one.';
+  const title = intakeMeta.title;
+  const intro = intakeMeta.intro;
 
   function set(key: string, value: string) {
     setValues((v) => ({ ...v, [key]: value }));

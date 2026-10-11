@@ -33,7 +33,7 @@ function ReceiptInner() {
           <dl className="mt-3 space-y-2 text-sm">
             <div className="flex justify-between"><dt className="text-steel">Order</dt><dd className="font-bold">{order.id}</dd></div>
             <div className="flex justify-between"><dt className="text-steel">Date</dt><dd className="font-semibold">{formatDate(order.createdAt)}</dd></div>
-            <div className="flex justify-between"><dt className="text-steel">Package</dt><dd className="font-semibold">{order.packageName}</dd></div>
+            <div className="flex justify-between"><dt className="text-steel">Package</dt><dd className="font-semibold">{order.packageName}{order.optionLabel ? ` — ${order.optionLabel}` : ''}</dd></div>
             <div className="flex justify-between"><dt className="text-steel">Buyer</dt><dd className="font-semibold">{order.buyerName} ({order.buyerEmail})</dd></div>
             <div className="flex justify-between border-t border-slate-200 pt-2 text-base"><dt className="font-bold">Charged</dt><dd className="font-extrabold text-navy">{formatUSD(order.amount)}</dd></div>
           </dl>
