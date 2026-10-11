@@ -2,9 +2,12 @@
 
 import { useMemo, useState } from 'react';
 import { saveCallBooking, getCallBooking } from '@/lib/store';
+import { syncBooking, type SyncOrderInfo } from '@/lib/sync';
 
 interface Props {
   orderId: string;
+  /** Customer/order details for the owner notification email (optional in demo). */
+  order?: SyncOrderInfo;
   /** Continue to the fulfillment summary (used after booking or skipping). */
   onDone: () => void;
 }
@@ -68,7 +71,7 @@ function isoDay(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function ScheduleCall({ orderId, onDone }: Props) {
+export default function ScheduleCall({ orderId, order, onDone }: Props) {
   const days = useMemo(() => nextBusinessDays(DAYS_AHEAD), []);
   const slots = useMemo(() => buildSlots(), []);
   const [dayIdx, setDayIdx] = useState(0);
@@ -83,6 +86,8 @@ export default function ScheduleCall({ orderId, onDone }: Props) {
     const date = isoDay(days[dayIdx]);
     const time = slots[slotIdx].label;
     saveCallBooking(orderId, date, time);
+    // Phase 2: persist server-side + notify the owner (best-effort).
+    if (order) syncBooking(orderId, order, date, time);
     // Phase 2: also create a real calendar event + send the invite email here.
     // The backend must enforce one booking per slot (no double-booking).
     setBooked({ date, time });
