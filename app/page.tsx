@@ -84,7 +84,7 @@ const FAQS = [
 const GUIDES = [
   {
     tag: 'Guide',
-    icon: '🗺️',
+    photo: '/guide-startup-checklist.jpg',
     bg: 'linear-gradient(135deg,#dbeafe,#bfdbfe)',
     title: 'How to Start a Trucking Company: The Complete Checklist',
     desc: 'Business setup → authority → insurance → first load, in the right order.',
@@ -93,7 +93,7 @@ const GUIDES = [
   },
   {
     tag: 'Compliance',
-    icon: '🧾',
+    photo: '/guide-safety-audit.jpg',
     bg: 'linear-gradient(135deg,#fef3c7,#fde68a)',
     title: 'New Entrant Safety Audit: What Investigators Actually Check',
     desc: 'Driver files, maintenance records, drug & alcohol program — demystified.',
@@ -102,7 +102,7 @@ const GUIDES = [
   },
   {
     tag: 'Money',
-    icon: '⛽',
+    photo: '/guide-cost-per-mile.jpg',
     bg: 'linear-gradient(135deg,#dcfce7,#bbf7d0)',
     title: 'Cost Per Mile, Explained: Price Every Lane With Confidence',
     desc: 'Fixed vs. variable costs, deadhead, and the margin most new carriers miss.',
@@ -335,8 +335,8 @@ export default function HomePage() {
           <div className="res-grid">
             {GUIDES.map((g) => (
               <article key={g.title} className="res">
-                <div className="res-img" style={{ background: g.bg }} aria-hidden="true">
-                  {g.icon}
+                <div className="res-img" style={{ background: g.bg }}>
+                  <img src={g.photo} alt={g.title} loading="lazy" />
                 </div>
                 <div className="res-body">
                   <span className="path-tag">{g.tag}</span>
