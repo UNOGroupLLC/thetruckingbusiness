@@ -1,8 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { useTtb } from '@/lib/store';
 import Faq from '@/components/Faq';
+import Roadmap from '@/components/Roadmap';
+import HeroRoadmapCard from '@/components/HeroRoadmapCard';
+import AuditChecker from '@/components/AuditChecker';
+import HomePricing from '@/components/HomePricing';
+import { STEPS } from '@/components/roadmap-steps';
 
 const STARTUP_STEPS = [
   'Business formation',
@@ -75,19 +81,51 @@ const FAQS = [
   },
 ];
 
-function Check({ children }: { children: React.ReactNode }) {
-  return (
-    <li className="flex items-start gap-2 text-sm font-semibold text-white">
-      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-highway text-xs font-extrabold text-navy" aria-hidden="true">
-        ✓
-      </span>
-      <span>{children}</span>
-    </li>
-  );
-}
+const GUIDES = [
+  {
+    tag: 'Guide',
+    icon: '🗺️',
+    bg: 'linear-gradient(135deg,#dbeafe,#bfdbfe)',
+    title: 'How to Start a Trucking Company: The Complete Checklist',
+    desc: 'Business setup → authority → insurance → first load, in the right order.',
+    link: '/#start',
+    linkLabel: 'Read the guide →',
+  },
+  {
+    tag: 'Compliance',
+    icon: '🧾',
+    bg: 'linear-gradient(135deg,#fef3c7,#fde68a)',
+    title: 'New Entrant Safety Audit: What Investigators Actually Check',
+    desc: 'Driver files, maintenance records, drug & alcohol program — demystified.',
+    link: '/pricing',
+    linkLabel: 'See audit help →',
+  },
+  {
+    tag: 'Money',
+    icon: '⛽',
+    bg: 'linear-gradient(135deg,#dcfce7,#bbf7d0)',
+    title: 'Cost Per Mile, Explained: Price Every Lane With Confidence',
+    desc: 'Fixed vs. variable costs, deadhead, and the margin most new carriers miss.',
+    link: '/calculators/cost-per-mile',
+    linkLabel: 'Open the calculator →',
+  },
+];
 
 export default function HomePage() {
   const { copy } = useTtb();
+  const [activeStep, setActiveStep] = useState(1);
+  const [explored, setExplored] = useState<boolean[]>(() =>
+    STEPS.map((_, i) => i <= 1),
+  );
+
+  const selectStep = (i: number) => {
+    setExplored((prev) => prev.map((v, j) => v || j === i));
+    setActiveStep(i);
+  };
+
+  const headlineWords = copy.heroHeadline.trim().split(/\s+/);
+  const headlineLast = headlineWords.pop();
+  const headlineRest = headlineWords.join(' ');
 
   return (
     <>
@@ -108,24 +146,58 @@ export default function HomePage() {
           className="absolute inset-0 bg-gradient-to-t from-navy via-transparent to-navy/40"
           aria-hidden="true"
         />
-        <div className="relative mx-auto w-full max-w-6xl px-4 py-24">
-          <p className="eyebrow text-highway!">Trucking Startup + DOT Compliance</p>
-          <h1 className="mt-4 max-w-3xl text-5xl font-extrabold leading-tight text-white md:text-7xl">
-            {copy.heroHeadline}
-          </h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-slate-200">{copy.heroSub}</p>
-          <ul className="mt-6 space-y-2">
-            {copy.trustNotes.map((note) => (
-              <Check key={note}>{note}</Check>
-            ))}
-          </ul>
-          <div className="mt-8 flex flex-wrap gap-4">
-            <Link href="/pricing" className="btn-primary">
-              View Packages
-            </Link>
-            <Link href="/calculators" className="btn-outline-light">
-              Free Calculators
-            </Link>
+        <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-24">
+          <div className="hero-grid">
+            <div>
+              <span className="eyebrow-pill">
+                <i aria-hidden="true" />
+                Trucking Startup • DOT Compliance • Education
+              </span>
+              <h1 className="hero-h1">
+                {headlineRest} <em>{headlineLast}</em>
+              </h1>
+              <p className="hero-sub">{copy.heroSub}</p>
+              <div className="hero-actions">
+                <Link href="/checkout/authority-startup" className="btn btn-y">
+                  Get Operating Authority →
+                </Link>
+                <Link href="/pricing" className="btn btn-ghost">
+                  See Packages &amp; Prices
+                </Link>
+              </div>
+              <div className="hero-note">
+                {copy.trustNotes.map((note) => (
+                  <span key={note}>{note}</span>
+                ))}
+              </div>
+            </div>
+            <HeroRoadmapCard active={activeStep} explored={explored} onSelect={selectStep} />
+          </div>
+          <div className="hero-stats">
+            <div className="hstat">
+              <b>
+                7 <em>steps</em>
+              </b>
+              <span>From business idea to legally operating on the road</span>
+            </div>
+            <div className="hstat">
+              <b>
+                2 <em>free tools</em>
+              </b>
+              <span>Startup cost &amp; cost-per-mile calculators, built for owner-operators</span>
+            </div>
+            <div className="hstat">
+              <b>
+                100<em>%</em>
+              </b>
+              <span>All-in pricing — our fee and government fees included</span>
+            </div>
+            <div className="hstat">
+              <b>
+                EN <em>/ ES</em>
+              </b>
+              <span>English here • Español at NegocioDeCamionero.com</span>
+            </div>
           </div>
           <p className="mt-6 text-xs text-slate-300">
             Demo site — no real payments are processed.
@@ -134,7 +206,7 @@ export default function HomePage() {
       </section>
 
       {/* TWO PATHS */}
-      <section className="bg-mist py-16">
+      <section id="start" className="bg-mist py-16">
         <div className="mx-auto max-w-6xl px-4">
           <h2 className="text-center text-3xl font-extrabold text-navy md:text-4xl">Choose your road</h2>
           <p className="mx-auto mt-3 max-w-2xl text-center text-steel">
@@ -184,8 +256,13 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* SERVICES */}
+      {/* ROADMAP — How it works */}
       <section className="py-16">
+        <Roadmap active={activeStep} explored={explored} onSelect={selectStep} />
+      </section>
+
+      {/* SERVICES */}
+      <section id="compliance" className="py-16">
         <div className="mx-auto max-w-6xl px-4">
           <h2 className="text-center text-3xl font-extrabold text-navy md:text-4xl">What we help with</h2>
           <p className="mx-auto mt-3 max-w-2xl text-center text-steel">
@@ -234,6 +311,46 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* AUDIT READINESS CHECKER */}
+      <AuditChecker />
+
+      {/* HOMEPAGE PRICING — Buy Online */}
+      <HomePricing />
+
+      {/* RESOURCES */}
+      <section id="resources" className="py-16" style={{ background: 'var(--bg2)' }}>
+        <div className="wrap">
+          <div className="sec-head">
+            <div className="kicker">Free Resources</div>
+            <h2>
+              Learn it once.
+              <br />
+              <em>Do it right.</em>
+            </h2>
+            <p>
+              Guides written like a compliance professional would explain them to a friend — with
+              official sources cited.
+            </p>
+          </div>
+          <div className="res-grid">
+            {GUIDES.map((g) => (
+              <article key={g.title} className="res">
+                <div className="res-img" style={{ background: g.bg }} aria-hidden="true">
+                  {g.icon}
+                </div>
+                <div className="res-body">
+                  <span className="path-tag">{g.tag}</span>
+                  <h3>{g.title}</h3>
+                  <p>{g.desc}</p>
+                  <Link href={g.link} className="res-link">
+                    {g.linkLabel}
+                  </Link>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
       {/* FAQ */}
       <section className="bg-mist py-16">
         <div className="mx-auto max-w-3xl px-4">

@@ -18,8 +18,14 @@ html {
 body {
   background: #ffffff;
   color: var(--color-charcoal);
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  font-family: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3 {
+  font-family: "Libre Franklin", ui-sans-serif, system-ui, sans-serif;
 }
 
 :focus-visible {
