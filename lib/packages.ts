@@ -33,7 +33,7 @@ export interface Package {
   name: string;
   tagline: string;
   price: number; // USD — default price (first option when options exist)
-  billing: 'one-time' | '/month' | '/year';
+  billing: 'one-time' | '/mo' | '/yr';
   placeholder: boolean; // true until the owner approves real pricing
   category: 'package' | 'alacarte';
   inclusions: string[];
@@ -158,7 +158,7 @@ export const SEED_PACKAGES: Package[] = [
     name: 'Compliance Subscription',
     tagline: 'Ongoing compliance peace of mind. Cancel anytime.',
     price: 89,
-    billing: '/month',
+    billing: '/mo',
     placeholder: false,
     category: 'package',
     cta: 'Buy Compliance Subscription',
@@ -188,7 +188,7 @@ export const SEED_PACKAGES: Package[] = [
     price: 139,
     billing: 'one-time',
     placeholder: false,
-    category: 'package',
+    category: 'alacarte',
     cta: 'Buy Audit Kit',
     intake: 'compliance',
     inclusions: [
@@ -210,7 +210,7 @@ export const SEED_PACKAGES: Package[] = [
     price: 539,
     billing: 'one-time',
     placeholder: false,
-    category: 'package',
+    category: 'alacarte',
     cta: 'Buy Audit Plus',
     intake: 'compliance',
     inclusions: [
@@ -255,7 +255,7 @@ export const SEED_PACKAGES: Package[] = [
     name: 'FMCSA Drug & Alcohol Clearinghouse Annual Query',
     tagline: 'We conduct your driver’s annual Clearinghouse query.',
     price: 39,
-    billing: '/year',
+    billing: '/yr',
     placeholder: false,
     category: 'alacarte',
     cta: 'Buy Annual Query',
@@ -271,7 +271,7 @@ export const SEED_PACKAGES: Package[] = [
     name: 'Unified Carrier Registration (UCR)',
     tagline: 'Annual UCR renewal, 0–2 units, 2027 government fee included.',
     price: 79,
-    billing: '/year',
+    billing: '/yr',
     placeholder: false,
     category: 'alacarte',
     cta: 'Buy UCR Filing',
