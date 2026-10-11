@@ -11,26 +11,66 @@ interface FieldDef {
   key: string;
   label: string;
   hint?: string;
-  type?: string;
+  type?: 'text' | 'email' | 'tel' | 'number' | 'date' | 'select' | 'checkbox' | 'textarea';
   options?: string[];
   required?: boolean;
+  /** Section header shown above the first field of each group. */
+  section?: string;
+  /** Only show (and validate) this field when another field has this value. */
+  showIf?: { key: string; value: string };
 }
 
+/**
+ * MC AUTHORITY INTAKE — modeled on FMCSA Form OP-1 (Application for Motor
+ * Property Carrier Authority), rewritten in plain language. Serves every
+ * package that includes MC authority (Complete, Authority Plus, Authority
+ * Startup). Section 6 captures the limited-POA + consortium/TPA authorizations.
+ */
 const AUTHORITY_FIELDS: FieldDef[] = [
-  { key: 'firstName', label: 'First name' },
+  // Section 1 — About you
+  { key: 'firstName', label: 'First name', section: 'About you' },
   { key: 'lastName', label: 'Last name' },
-  { key: 'email', label: 'Email', type: 'email' },
-  { key: 'phone', label: 'Phone', type: 'tel' },
-  { key: 'legalName', label: 'Company legal name', hint: 'Exactly as registered with the state.' },
-  { key: 'dba', label: 'DBA / trade name', required: false, hint: 'If different from the legal name.' },
+  { key: 'email', label: 'Email', type: 'email', hint: 'Filing confirmations and your receipt go here.' },
+  { key: 'phone', label: 'Cell phone', type: 'tel', hint: 'For filing updates and your kickoff call.' },
+
+  // Section 2 — Your business (OP-1 Section 1: Applicant Information)
+  { key: 'legalName', label: 'Legal business name', section: 'Your business', hint: 'Exactly as it appears on your state registration and IRS records — filings are rejected over spelling differences.' },
+  { key: 'dba', label: 'DBA / trade name', required: false, hint: 'Only if different from the legal name.' },
   { key: 'structure', label: 'Business structure', type: 'select', options: ['LLC', 'Corporation', 'Sole proprietorship', 'Partnership'] },
-  { key: 'ein', label: 'EIN', hint: 'Employer Identification Number from the IRS.' },
-  { key: 'street', label: 'Business street address' },
+  { key: 'formationState', label: 'State where the business is registered' },
+  { key: 'ein', label: 'EIN', hint: 'Your Employer Identification Number from the IRS (XX-XXXXXXX).' },
+
+  // Section 3 — Business address (OP-1: Principal place of business)
+  { key: 'street', label: 'Street address', section: 'Business address', hint: 'Physical address — no P.O. Box. FMCSA uses this for safety audits.' },
   { key: 'city', label: 'City' },
   { key: 'state', label: 'State' },
-  { key: 'zip', label: 'ZIP code', type: 'text' },
-  { key: 'trucks', label: 'Number of trucks', type: 'number' },
-  { key: 'drivers', label: 'Number of drivers', type: 'number' },
+  { key: 'zip', label: 'ZIP code' },
+  { key: 'mailingSame', label: 'Is your mailing address the same as above?', type: 'select', options: ['Yes', 'No'] },
+  { key: 'mailingStreet', label: 'Mailing street address', showIf: { key: 'mailingSame', value: 'No' } },
+  { key: 'mailingCity', label: 'Mailing city', showIf: { key: 'mailingSame', value: 'No' } },
+  { key: 'mailingState', label: 'Mailing state', showIf: { key: 'mailingSame', value: 'No' } },
+  { key: 'mailingZip', label: 'Mailing ZIP code', showIf: { key: 'mailingSame', value: 'No' } },
+
+  // Section 4 — Your operating authority (OP-1 Sections 2 & 3)
+  { key: 'hasDot', label: 'Do you already have a USDOT number?', section: 'Your operating authority', type: 'select', options: ['No — I need one', 'Yes'] },
+  { key: 'dotNumber', label: 'USDOT number', showIf: { key: 'hasDot', value: 'Yes' } },
+  { key: 'cargoType', label: 'What will you haul?', type: 'select', options: ['General freight (non-hazardous)', 'Hazardous materials'], hint: 'This sets your required insurance level.' },
+  { key: 'carrierType', label: 'How will you operate?', type: 'select', options: ['Haul for anyone — common carrier', 'Under contract with specific customers — contract carrier', 'Not sure — please advise me'] },
+  { key: 'trucks', label: 'Number of trucks (power units)', type: 'number' },
+  { key: 'drivers', label: 'Number of drivers (including yourself)', type: 'number' },
+  { key: 'driverDetails', label: 'Driver details for consortium enrollment', type: 'textarea', required: false, hint: 'One driver per line: full name, CDL number, issuing state. We need this to enroll your drivers in the drug & alcohol consortium.' },
+
+  // Section 5 — History check (OP-1 Section 5: Affiliations)
+  { key: 'affiliated', label: 'In the last 3 years, have you owned, managed, or been connected to another trucking company?', section: 'History check', type: 'select', options: ['No', 'Yes'], hint: 'FMCSA requires us to disclose this on your application.' },
+  { key: 'affiliateName', label: 'Company name', showIf: { key: 'affiliated', value: 'Yes' } },
+  { key: 'affiliateMc', label: 'MC number (if known)', required: false, showIf: { key: 'affiliated', value: 'Yes' } },
+
+  // Section 6 — Confirm & authorize (OP-1 Section 8: Applicant's Oath, adapted)
+  { key: 'confirmTrue', label: 'I confirm that the information I provided is true and correct.', section: 'Confirm & authorize', type: 'checkbox' },
+  { key: 'poaAuth', label: 'I authorize The Trucking Business to prepare and submit my FMCSA operating authority application (OP-1), BOC-3 designation, UCR registration, and related state filings on my behalf under a limited power of attorney.', type: 'checkbox', hint: 'Our attorney-drafted limited power of attorney will be sent for your signature before anything is filed.' },
+  { key: 'consortiumAuth', label: 'I authorize The Trucking Business to enroll my drivers in a DOT drug & alcohol consortium and coordinate my FMCSA Clearinghouse registration, including designation of a Third-Party Administrator to conduct required queries on my behalf.', type: 'checkbox' },
+  { key: 'signature', label: 'Type your full legal name as your electronic signature' },
+  { key: 'signDate', label: 'Date', type: 'date' },
 ];
 
 const COMPLIANCE_FIELDS: FieldDef[] = [
@@ -58,9 +98,13 @@ function IntakeInner() {
   const order = getOrder(orderId);
 
   const fields = service === 'compliance' ? COMPLIANCE_FIELDS : AUTHORITY_FIELDS;
-  const [values, setValues] = useState<Record<string, string>>({});
+  const today = new Date().toISOString().slice(0, 10);
+  const [values, setValues] = useState<Record<string, string>>({ signDate: today });
   const [error, setError] = useState('');
   const [step, setStep] = useState<'form' | 'schedule'>('form');
+
+  /** Fields currently visible (conditional fields only show when their trigger matches). */
+  const visibleFields = fields.filter((f) => !f.showIf || values[f.showIf.key] === f.showIf.value);
 
   if (service !== 'authority' && service !== 'compliance') {
     return (
@@ -83,7 +127,7 @@ function IntakeInner() {
   const title = service === 'authority' ? 'Operating authority intake' : 'Compliance intake';
   const intro =
     service === 'authority'
-      ? 'These are the details we need to prepare your FMCSA filings. Double-check spelling — filings use exactly what you enter.'
+      ? 'These are the details we need to prepare your FMCSA operating authority filings — based on the official OP-1 application, in plain language. At the end you\u2019ll authorize us to file on your behalf. Double-check spelling: filings use exactly what you enter.'
       : 'These details let us set up your compliance program correctly from day one.';
 
   function set(key: string, value: string) {
@@ -97,12 +141,15 @@ function IntakeInner() {
       setError('Order not found. Please restart checkout.');
       return;
     }
-    const missing = fields.filter((f) => f.required !== false && !values[f.key]?.trim());
+    const missing = visibleFields.filter((f) => f.required !== false && !values[f.key]?.trim());
     if (missing.length > 0) {
       setError(`Please complete: ${missing.map((f) => f.label).join(', ')}.`);
       return;
     }
-    saveIntake(current.id, values);
+    // Only persist answers to currently-visible questions.
+    const visibleKeys = new Set(visibleFields.map((f) => f.key));
+    const data = Object.fromEntries(Object.entries(values).filter(([k]) => visibleKeys.has(k)));
+    saveIntake(current.id, data);
     // Phase 2: POST to /api/orders/[id]/intake -> Supabase + owner email notification
     if (current.packageSlug === 'complete') {
       // Complete Package includes a kickoff call — offer scheduling before fulfillment.
@@ -141,24 +188,54 @@ function IntakeInner() {
         <p className="mt-2 text-sm text-steel">{intro}</p>
 
         <form onSubmit={submit} className="card mt-6 space-y-4">
-          {fields.map((f) => (
-            <Field key={f.key} label={f.label + (f.required === false ? ' (optional)' : '')} hint={f.hint}>
-              {f.type === 'select' ? (
-                <select className="input" value={values[f.key] ?? ''} onChange={(e) => set(f.key, e.target.value)}>
-                  <option value="">Select…</option>
-                  {f.options!.map((o) => (
-                    <option key={o} value={o}>{o}</option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  className="input"
-                  type={f.type ?? 'text'}
-                  value={values[f.key] ?? ''}
-                  onChange={(e) => set(f.key, e.target.value)}
-                />
+          {visibleFields.map((f, i) => (
+            <div key={f.key}>
+              {f.section && (i === 0 || visibleFields[i - 1].section !== f.section) && (
+                <h2 className="mb-3 border-b border-slate-200 pb-2 text-lg font-extrabold text-navy">
+                  {f.section}
+                </h2>
               )}
-            </Field>
+              {f.type === 'checkbox' ? (
+                <div>
+                  <label className="flex cursor-pointer gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 accent-[#0f2a4a]"
+                      checked={values[f.key] === 'yes'}
+                      onChange={(e) => set(f.key, e.target.checked ? 'yes' : '')}
+                    />
+                    <span className="text-sm font-medium text-charcoal">{f.label}</span>
+                  </label>
+                  {f.hint && <p className="ml-7 mt-1 text-xs text-steel">{f.hint}</p>}
+                </div>
+              ) : (
+                <Field label={f.label + (f.required === false ? ' (optional)' : '')} hint={f.hint}>
+                  {f.type === 'select' ? (
+                    <select className="input" value={values[f.key] ?? ''} onChange={(e) => set(f.key, e.target.value)}>
+                      <option value="">Select…</option>
+                      {f.options!.map((o) => (
+                        <option key={o} value={o}>{o}</option>
+                      ))}
+                    </select>
+                  ) : f.type === 'textarea' ? (
+                    <textarea
+                      className="input"
+                      rows={3}
+                      value={values[f.key] ?? ''}
+                      onChange={(e) => set(f.key, e.target.value)}
+                      placeholder="Jane Doe, CDL 1234567, TX"
+                    />
+                  ) : (
+                    <input
+                      className="input"
+                      type={f.type ?? 'text'}
+                      value={values[f.key] ?? ''}
+                      onChange={(e) => set(f.key, e.target.value)}
+                    />
+                  )}
+                </Field>
+              )}
+            </div>
           ))}
           {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
           <button type="submit" className="btn-primary w-full">

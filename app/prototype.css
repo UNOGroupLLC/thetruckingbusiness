@@ -897,6 +897,7 @@
   margin: 16px 0 20px;
   display: grid;
   gap: 9px;
+  align-content: start;
   font-size: 14px;
   color: var(--muted);
   flex: 1;
