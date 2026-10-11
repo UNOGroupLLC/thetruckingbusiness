@@ -30,10 +30,10 @@
  */
 
 import { useSyncExternalStore } from 'react';
-import type { FeeLine, Package } from './packages';
+import type { FeeLine, Package, IntakeKind } from './packages';
 import { SEED_PACKAGES, formatUSD as _formatUSD, getPackage as _getPackage } from './packages';
 
-export type { FeeLine, Package };
+export type { FeeLine, Package, IntakeKind };
 export { _formatUSD as formatUSD, _getPackage as getPackage };
 
 export interface SiteCopy {
@@ -49,10 +49,12 @@ export interface OrderRecord {
   packageSlug: string;
   packageName: string;
   amount: number;
+  /** Purchasable variant label, e.g. "Single state" for State Permit Filing. */
+  optionLabel?: string;
   buyerName: string;
   buyerEmail: string;
   createdAt: string; // ISO
-  intakeService: 'authority' | 'compliance';
+  intakeService: IntakeKind;
   intake?: Record<string, string>;
 }
 
@@ -166,6 +168,9 @@ export function createOrder(input: {
   packageSlug: string;
   buyerName: string;
   buyerEmail: string;
+  /** Override for purchasable variants (e.g. State Permit single-state $89). */
+  priceOverride?: number;
+  optionLabel?: string;
 }): OrderRecord {
   load();
   const pkg = state.packages.find((p) => p.slug === input.packageSlug);
@@ -174,7 +179,8 @@ export function createOrder(input: {
     id: `TTB-${Date.now().toString().slice(-6)}`,
     packageSlug: pkg.slug,
     packageName: pkg.name,
-    amount: pkg.price,
+    amount: input.priceOverride ?? pkg.price,
+    optionLabel: input.optionLabel,
     buyerName: input.buyerName,
     buyerEmail: input.buyerEmail,
     createdAt: new Date().toISOString(),

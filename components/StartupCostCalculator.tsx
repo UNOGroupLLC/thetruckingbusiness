@@ -104,14 +104,14 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-/* UCR 2026 fee brackets — kept exactly as published in the source file */
+/* UCR 2027 fee brackets — FMCSA final rule 91 FR 56063; 2027 registration year opened Oct 1, 2026 */
 function ucrFee(count: number): number {
-  if (count <= 2) return 46;
-  if (count <= 5) return 138;
-  if (count <= 20) return 276;
-  if (count <= 100) return 963;
-  if (count <= 1000) return 4592;
-  return 44836;
+  if (count <= 2) return 55;
+  if (count <= 5) return 167;
+  if (count <= 20) return 333;
+  if (count <= 100) return 1163;
+  if (count <= 1000) return 5548;
+  return 54165;
 }
 
 /* ------------------------------------------------------------------ */
@@ -470,12 +470,12 @@ export default function StartupCostCalculator() {
               {interstate ? (
                 <div className="flex flex-col gap-3 rounded-xl border border-dotblue/25 bg-mist p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                   <div>
-                    <strong className="text-navy">2026 UCR Registration</strong>
+                    <strong className="text-navy">2027 UCR Registration</strong>
                     <div className="mt-1 text-xs leading-relaxed text-steel">
                       Fee automatically calculated based on the number of vehicles entered ({truckCount}).
                     </div>
                     <span className="mt-1.5 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-green-800">
-                      Official 2026 Fee
+                      Official 2027 Fee
                     </span>
                   </div>
                   <div className="text-xl font-extrabold text-navy sm:text-lg">{money(ucr)}</div>
@@ -483,13 +483,13 @@ export default function StartupCostCalculator() {
               ) : (
                 <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 opacity-60 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                   <div>
-                    <strong className="text-navy">2026 UCR Registration</strong>
+                    <strong className="text-navy">2027 UCR Registration</strong>
                     <div className="mt-1 text-xs leading-relaxed text-steel">
                       Not automatically added when &quot;Intrastate Only&quot; is selected. Verify
                       whether UCR applies to your operation.
                     </div>
                     <span className="mt-1.5 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-green-800">
-                      Official 2026 Fee
+                      Official 2027 Fee
                     </span>
                   </div>
                   <div className="text-xl font-extrabold text-navy sm:text-lg">$0</div>
