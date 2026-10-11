@@ -7,7 +7,7 @@ const LINKS = [
   { href: '/#start', label: 'Start Your Business' },
   { href: '/#compliance', label: 'DOT Compliance' },
   { href: '/calculators', label: 'Calculators' },
-  { href: '/pricing', label: 'Pricing' },
+  { href: '/pricing', label: 'Services' },
   { href: '/#resources', label: 'Resources' },
 ];
 
@@ -45,11 +45,8 @@ export default function Navbar() {
           >
             Español ↗
           </a>
-          <Link className="btn btn-o btn-s" href="/portal/login">
+          <Link className="btn btn-y btn-s" href="/portal/login">
             Client Login
-          </Link>
-          <Link className="btn btn-y btn-s" href="/pricing">
-            Services
           </Link>
           <button
             className="menu-btn"
@@ -76,7 +73,7 @@ export default function Navbar() {
         <Link
           href="/portal/login"
           onClick={() => setOpen(false)}
-          className="btn btn-o"
+          className="btn btn-y"
         >
           Client Login
         </Link>
@@ -89,13 +86,6 @@ export default function Navbar() {
         >
           Español ↗
         </a>
-        <Link
-          href="/pricing"
-          onClick={() => setOpen(false)}
-          className="btn btn-y"
-        >
-          Services
-        </Link>
       </nav>
     </header>
   );

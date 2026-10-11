@@ -44,7 +44,7 @@ export default function HomePricing() {
               </div>
               <p style={{ color: 'var(--muted)', fontSize: 14, margin: 0 }}>{p.tagline}</p>
               <ul>
-                {p.inclusions.slice(0, 5).map((inc) => (
+                {p.inclusions.map((inc) => (
                   <li key={inc}>{inc}</li>
                 ))}
               </ul>
