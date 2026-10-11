@@ -60,6 +60,8 @@ export interface OrderRecord {
 
 interface State {
   packages: Package[];
+  /** Admin edits, keyed by package slug — layered over the seed so catalog updates always flow through. */
+  packageOverrides: Record<string, Partial<Package>>;
   copy: SiteCopy;
   orders: OrderRecord[];
   portalEmail: string | null;
@@ -84,6 +86,7 @@ const SEED_COPY: SiteCopy = {
 function seeds(): State {
   return {
     packages: SEED_PACKAGES,
+    packageOverrides: {},
     copy: SEED_COPY,
     orders: [],
     portalEmail: null,
@@ -103,14 +106,18 @@ function load(): State {
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<State>;
           const base = seeds();
+          const overrides =
+            parsed.packageOverrides && typeof parsed.packageOverrides === 'object'
+              ? parsed.packageOverrides
+              : {};
           state = {
             ...base,
             ...parsed,
             copy: { ...base.copy, ...(parsed.copy ?? {}) },
-            packages:
-              Array.isArray(parsed.packages) && parsed.packages.length > 0
-                ? parsed.packages
-                : base.packages,
+            // Catalog always comes from the seed + admin overrides — never from a
+            // stale saved snapshot — so pricing/category updates apply on deploy.
+            packageOverrides: overrides,
+            packages: base.packages.map((p) => ({ ...p, ...(overrides[p.slug] ?? {}) })),
             orders: Array.isArray(parsed.orders) ? parsed.orders : [],
           };
         }
@@ -153,6 +160,10 @@ export function updatePackage(slug: string, patch: Partial<Package>) {
   load();
   state = {
     ...state,
+    packageOverrides: {
+      ...state.packageOverrides,
+      [slug]: { ...(state.packageOverrides[slug] ?? {}), ...patch },
+    },
     packages: state.packages.map((p) => (p.slug === slug ? { ...p, ...patch } : p)),
   };
   persist();
