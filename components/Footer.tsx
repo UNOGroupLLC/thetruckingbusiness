@@ -1,54 +1,49 @@
 import Link from 'next/link';
 
+/* Footer with the full menu columns from the approved prototype. */
 export default function Footer() {
   return (
-    <footer className="bg-navy-dark text-slate-300">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-4">
-        <div>
-          <p className="text-lg font-extrabold text-white">
-            The Trucking <span className="text-highway">Business</span>
-          </p>
-          <p className="mt-2 text-sm leading-relaxed">
-            Trucking business startup + DOT compliance, education, and ongoing support — from idea to
-            the open road.
-          </p>
-          <p className="mt-3 text-sm font-semibold text-highway">Stay Compliant.</p>
+    <footer className="site-footer">
+      <div className="wrap">
+        <div className="foot-grid">
+          <div>
+            <b>The Trucking Business</b>
+            <span>
+              TheTruckingBusiness.com — Start, operate &amp; stay compliant. English counterpart of
+              NegocioDeCamionero.com.
+            </span>
+          </div>
+          <div>
+            <b>Start</b>
+            <Link href="/#start">How It Works</Link>
+            <Link href="/pricing">Packages &amp; Pricing</Link>
+            <Link href="/calculators/startup-cost">Startup Calculator</Link>
+          </div>
+          <div>
+            <b>Compliance</b>
+            <Link href="/#compliance">All Services</Link>
+            <Link href="/#checker">Audit Readiness Check</Link>
+            <Link href="/calculators/cost-per-mile">Cost-Per-Mile Tool</Link>
+          </div>
+          <div>
+            <b>Company</b>
+            <Link href="/#resources">Free Guides</Link>
+            <a href="mailto:hello@thetruckingbusiness.com">Talk to us</a>
+            <a href="https://negociodecamionero.com" target="_blank" rel="noopener">
+              Español ↗
+            </a>
+          </div>
         </div>
-        <div>
-          <p className="mb-3 text-sm font-bold uppercase tracking-wider text-white">Explore</p>
-          <ul className="space-y-2 text-sm">
-            <li><Link href="/pricing" className="hover:text-highway">Pricing</Link></li>
-            <li><Link href="/calculators" className="hover:text-highway">Calculators</Link></li>
-            <li><Link href="/portal/login" className="hover:text-highway">Client Login</Link></li>
-          </ul>
-        </div>
-        <div>
-          <p className="mb-3 text-sm font-bold uppercase tracking-wider text-white">Talk to us</p>
-          <ul className="space-y-2 text-sm">
-            <li>
-              <a href="mailto:hello@thetruckingbusiness.com" className="hover:text-highway">
-                hello@thetruckingbusiness.com
-              </a>
-            </li>
-            <li>
-              <a href="tel:+15550104477" className="hover:text-highway">
-                (555) 010-4477
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div>
-          <p className="mb-3 text-sm font-bold uppercase tracking-wider text-white">Demo</p>
-          <ul className="space-y-2 text-sm">
-            <li><Link href="/admin" className="hover:text-highway">Admin panel (mock)</Link></li>
-          </ul>
-        </div>
-      </div>
-      <div className="border-t border-white/10">
-        <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 text-xs text-slate-400 md:flex-row md:justify-between">
-          <span>© 2026 The Trucking Business. Phase 1 demo — no real payments are processed.</span>
-          <span>Educational content only; not legal advice.</span>
-        </div>
+        <p className="disclaimer">
+          <strong>Disclaimer:</strong> The Trucking Business is an independent private company and
+          is not affiliated with FMCSA, the U.S. Department of Transportation, or any government
+          agency. Information on this site is educational and for planning only; always verify
+          current requirements, fees, and deadlines with FMCSA, the eCFR, IRS, and your state
+          agencies before filing. Phase 1 demo — checkout is simulated and no payment is processed.
+        </p>
+        <p style={{ fontSize: 12, marginTop: 12 }}>
+          © 2026 The Trucking Business. Educational content only; not legal advice.
+        </p>
       </div>
     </footer>
   );
