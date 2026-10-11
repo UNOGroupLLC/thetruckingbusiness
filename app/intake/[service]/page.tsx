@@ -3,7 +3,8 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { getOrder, saveIntake } from '@/lib/store';
+import { getOrder, saveIntake, formatUSD } from '@/lib/store';
+import { syncIntake } from '@/lib/sync';
 import Field from '@/components/Field';
 import ScheduleCall from '@/components/ScheduleCall';
 
@@ -150,6 +151,20 @@ function IntakeInner() {
     const visibleKeys = new Set(visibleFields.map((f) => f.key));
     const data = Object.fromEntries(Object.entries(values).filter(([k]) => visibleKeys.has(k)));
     saveIntake(current.id, data);
+    // Phase 2: persist server-side + email answers to the owner (best-effort).
+    syncIntake(
+      current.id,
+      {
+        id: current.id,
+        packageName: current.packageName,
+        amount: formatUSD(current.amount),
+        buyerName: current.buyerName,
+        buyerEmail: current.buyerEmail,
+        createdAt: current.createdAt,
+      },
+      data,
+      Object.fromEntries(visibleFields.map((f) => [f.key, f.label]))
+    );
     // Phase 2: POST to /api/orders/[id]/intake -> Supabase + owner email notification
     if (current.packageSlug === 'complete') {
       // Complete Package includes a kickoff call — offer scheduling before fulfillment.
@@ -170,7 +185,18 @@ function IntakeInner() {
             Pick a time that works for you — or skip it and we&apos;ll handle everything by email.
           </p>
           <div className="mt-6">
-            <ScheduleCall orderId={order!.id} onDone={() => router.push(`/fulfillment?order=${order!.id}`)} />
+            <ScheduleCall
+              orderId={order!.id}
+              order={{
+                id: order!.id,
+                packageName: order!.packageName,
+                amount: formatUSD(order!.amount),
+                buyerName: order!.buyerName,
+                buyerEmail: order!.buyerEmail,
+                createdAt: order!.createdAt,
+              }}
+              onDone={() => router.push(`/fulfillment?order=${order!.id}`)}
+            />
           </div>
         </div>
       </div>

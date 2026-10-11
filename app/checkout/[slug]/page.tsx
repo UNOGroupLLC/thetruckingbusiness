@@ -4,6 +4,7 @@ import { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useTtb, createOrder, formatUSD } from '@/lib/store';
+import { syncOrder } from '@/lib/sync';
 import Field from '@/components/Field';
 
 /**
@@ -39,6 +40,8 @@ function CheckoutInner() {
       return;
     }
     const order = createOrder({ packageSlug: pkg!.slug, buyerName: name.trim(), buyerEmail: email.trim() });
+    // Phase 2: persist server-side + notify the owner (best-effort; demo keeps working offline).
+    syncOrder({ id: order.id, packageSlug: pkg!.slug, buyerName: name.trim(), buyerEmail: email.trim() });
     router.push(`/receipt?id=${order.id}`);
   }
 
