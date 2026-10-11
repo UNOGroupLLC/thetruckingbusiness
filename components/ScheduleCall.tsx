@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { saveCallBooking } from '@/lib/store';
+import { saveCallBooking, getCallBooking } from '@/lib/store';
 
 interface Props {
   orderId: string;
@@ -9,11 +9,37 @@ interface Props {
   onDone: () => void;
 }
 
+/* ------------------------------------------------------------------ */
+/* OWNER SETTINGS — change your availability here.                     */
+/* ------------------------------------------------------------------ */
+const DAY_START_HOUR = 9; // first slot shown each day (9 AM)
+const DAY_END_HOUR = 17; // last slot shown each day (5 PM)
+const AVAILABLE_FROM_HOUR = 11; // first bookable slot (11 AM)
+const AVAILABLE_TO_HOUR = 15; // last bookable slot (3 PM)
+const DAYS_AHEAD = 10; // number of bookable business days shown
+/* ------------------------------------------------------------------ */
+
+interface SlotDef {
+  label: string;
+  available: boolean;
+}
+
+/** Hourly slots across the day; only the owner's window is bookable. One client per slot. */
+function buildSlots(): SlotDef[] {
+  const out: SlotDef[] = [];
+  for (let h = DAY_START_HOUR; h <= DAY_END_HOUR; h++) {
+    const hour12 = h > 12 ? h - 12 : h;
+    const label = `${hour12}:00 ${h >= 12 ? 'PM' : 'AM'}`;
+    out.push({ label, available: h >= AVAILABLE_FROM_HOUR && h <= AVAILABLE_TO_HOUR });
+  }
+  return out;
+}
+
 /** Next N business days (Mon–Fri), starting tomorrow. */
 function nextBusinessDays(count: number): Date[] {
   const days: Date[] = [];
   const d = new Date();
-  d.setDate(d.getDate() + 1);
+  d.setDate(d.getDate() + 1); // tomorrow is the first available day
   while (days.length < count) {
     const dow = d.getDay();
     if (dow !== 0 && dow !== 6) days.push(new Date(d));
@@ -21,18 +47,6 @@ function nextBusinessDays(count: number): Date[] {
   }
   return days;
 }
-
-/** 30-minute slots, 9:00 AM – 4:30 PM Eastern. */
-const SLOTS: string[] = (() => {
-  const out: string[] = [];
-  for (let h = 9; h <= 16; h++) {
-    for (const m of [0, 30]) {
-      const hour12 = h > 12 ? h - 12 : h;
-      out.push(`${hour12}:${m === 0 ? '00' : '30'} ${h >= 12 ? 'PM' : 'AM'}`);
-    }
-  }
-  return out;
-})();
 
 function fmtDay(d: Date): string {
   return d.toLocaleDateString('en-US', { weekday: 'short' });
@@ -50,22 +64,28 @@ function fmtLong(isoDate: string): string {
   });
 }
 
+function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function ScheduleCall({ orderId, onDone }: Props) {
-  const days = useMemo(() => nextBusinessDays(10), []);
+  const days = useMemo(() => nextBusinessDays(DAYS_AHEAD), []);
+  const slots = useMemo(() => buildSlots(), []);
   const [dayIdx, setDayIdx] = useState(0);
-  const [slot, setSlot] = useState<number | null>(null);
-  const [booked, setBooked] = useState<{ date: string; time: string } | null>(null);
+  const [slotIdx, setSlotIdx] = useState<number | null>(null);
+  const existing = useMemo(() => getCallBooking(orderId), [orderId]);
+  const [booked, setBooked] = useState<{ date: string; time: string } | null>(
+    existing ? { date: existing.date, time: existing.time } : null
+  );
 
   function confirm() {
-    if (slot === null) return;
-    const day = days[dayIdx];
-    const iso = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(
-      day.getDate()
-    ).padStart(2, '0')}`;
-    const time = SLOTS[slot];
-    saveCallBooking(orderId, iso, time);
+    if (slotIdx === null || !slots[slotIdx].available) return;
+    const date = isoDay(days[dayIdx]);
+    const time = slots[slotIdx].label;
+    saveCallBooking(orderId, date, time);
     // Phase 2: also create a real calendar event + send the invite email here.
-    setBooked({ date: iso, time });
+    // The backend must enforce one booking per slot (no double-booking).
+    setBooked({ date, time });
   }
 
   if (booked) {
@@ -97,7 +117,7 @@ export default function ScheduleCall({ orderId, onDone }: Props) {
             type="button"
             onClick={() => {
               setDayIdx(i);
-              setSlot(null);
+              setSlotIdx(null);
             }}
             className={`min-w-[76px] rounded-xl border px-3 py-2 text-center transition ${
               i === dayIdx
@@ -112,26 +132,33 @@ export default function ScheduleCall({ orderId, onDone }: Props) {
         ))}
       </div>
 
-      <h2 className="mt-6 text-xl font-extrabold text-navy">Pick a time <span className="text-sm font-semibold text-steel">(Eastern)</span></h2>
-      <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-        {SLOTS.map((t, i) => (
+      <h2 className="mt-6 text-xl font-extrabold text-navy">
+        Pick a time <span className="text-sm font-semibold text-steel">(Eastern — one client per hour)</span>
+      </h2>
+      <div className="mt-3 grid grid-cols-3 gap-2">
+        {slots.map((s, i) => (
           <button
-            key={t}
+            key={s.label}
             type="button"
-            onClick={() => setSlot(i)}
-            className={`rounded-xl border px-2 py-2 text-sm font-semibold transition ${
-              i === slot
-                ? 'border-navy bg-navy text-white'
-                : 'border-slate-200 bg-white text-charcoal hover:border-navy'
+            disabled={!s.available}
+            onClick={() => setSlotIdx(i)}
+            className={`rounded-xl border px-2 py-2 text-center transition ${
+              !s.available
+                ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
+                : i === slotIdx
+                  ? 'border-navy bg-navy text-white'
+                  : 'border-slate-200 bg-white text-charcoal hover:border-navy'
             }`}
-            aria-pressed={i === slot}
+            aria-pressed={i === slotIdx}
+            aria-disabled={!s.available}
           >
-            {t}
+            <span className="block text-sm font-semibold">{s.label}</span>
+            {!s.available && <span className="block text-[11px] font-medium">Booked</span>}
           </button>
         ))}
       </div>
 
-      <button onClick={confirm} disabled={slot === null} className="btn-primary mt-6 w-full disabled:opacity-40">
+      <button onClick={confirm} disabled={slotIdx === null} className="btn-primary mt-6 w-full disabled:opacity-40">
         Schedule my call
       </button>
       <button onClick={onDone} className="mt-3 w-full text-center text-sm font-semibold text-steel underline">
