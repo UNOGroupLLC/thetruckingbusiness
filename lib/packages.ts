@@ -33,7 +33,7 @@ export interface Package {
   name: string;
   tagline: string;
   price: number; // USD — default price (first option when options exist)
-  billing: 'one-time' | '/mo' | '/yr';
+  billing: 'one-time' | '/month' | '/year';
   placeholder: boolean; // true until the owner approves real pricing
   category: 'package' | 'alacarte';
   inclusions: string[];
@@ -158,7 +158,7 @@ export const SEED_PACKAGES: Package[] = [
     name: 'Compliance Subscription',
     tagline: 'Ongoing compliance peace of mind. Cancel anytime.',
     price: 89,
-    billing: '/mo',
+    billing: '/month',
     placeholder: false,
     category: 'package',
     cta: 'Buy Compliance Subscription',
