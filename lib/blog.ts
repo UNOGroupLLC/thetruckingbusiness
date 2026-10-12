@@ -6,6 +6,7 @@
 
 import { marked } from 'marked';
 import { timingSafeEqual } from 'crypto';
+import { supabaseRestHeaders } from './server';
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
@@ -40,8 +41,7 @@ async function sb(path: string, init: RequestInit = {}): Promise<Response> {
     return await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
       ...init,
       headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
+        ...supabaseRestHeaders(SUPABASE_KEY),
         'Content-Type': 'application/json',
         Prefer: 'return=representation',
         ...(init.headers || {}),

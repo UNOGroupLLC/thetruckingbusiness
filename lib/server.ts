@@ -41,13 +41,28 @@ interface DbResult {
   error?: string;
 }
 
+
+/**
+ * Headers for Supabase REST / Storage / Auth calls.
+ * New sb_* keys are opaque (not JWTs) and must travel on the `apikey`
+ * header only — sending one as `Authorization: Bearer` is rejected (401).
+ * Legacy eyJ... JWT keys carry the role inside the token, so they keep
+ * both headers for backward compatibility.
+ */
+export function supabaseRestHeaders(key: string): Record<string, string> {
+  const headers: Record<string, string> = { apikey: key };
+  if (key.startsWith('eyJ')) {
+    headers.Authorization = `Bearer ${key}`;
+  }
+  return headers;
+}
+
 async function supa(path: string, init?: RequestInit): Promise<DbResult> {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
       ...init,
       headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
+        ...supabaseRestHeaders(SUPABASE_KEY),
         'Content-Type': 'application/json',
         Prefer: 'return=representation',
         ...(init?.headers ?? {}),
@@ -170,8 +185,7 @@ export async function storageUpload(
     const res = await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}/${path}`, {
       method: 'POST',
       headers: {
-        apikey: SUPABASE_KEY,
-        Authorization: `Bearer ${SUPABASE_KEY}`,
+        ...supabaseRestHeaders(SUPABASE_KEY),
         'Content-Type': contentType,
       },
       body: bytes,
