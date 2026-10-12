@@ -42,6 +42,22 @@ export default function HomePricing() {
                 ${p.price.toLocaleString()}
                 <span>{billingLabel(p.billing)}</span>
               </div>
+              {p.billing === 'one-time' && (
+                <>
+                  <p style={{ fontSize: 13.5, fontWeight: 700, margin: '10px 0 0' }}>
+                    or 4 interest-free payments of{' '}
+                    {(p.price / 4).toLocaleString('en-US', {
+                      style: 'currency',
+                      currency: 'USD',
+                      minimumFractionDigits: 2,
+                    })}{' '}
+                    <span style={{ color: '#0f7a3d' }}>with Afterpay</span>
+                  </p>
+                  <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>
+                    Affirm &amp; Klarna also available at checkout · subject to eligibility
+                  </p>
+                </>
+              )}
               <p style={{ color: 'var(--muted)', fontSize: 14, margin: 0 }}>{p.tagline}</p>
               <ul>
                 {p.inclusions.map((inc) => (

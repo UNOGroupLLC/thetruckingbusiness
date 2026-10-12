@@ -11,6 +11,12 @@ function PackageCard({ pkg }: { pkg: Package }) {
   const option = pkg.options?.find((o) => o.id === optId) ?? pkg.options?.[0];
   const price = option?.price ?? pkg.price;
   const checkoutHref = option ? `/checkout/${pkg.slug}?opt=${option.id}` : `/checkout/${pkg.slug}`;
+  const showFinancing = pkg.billing === 'one-time';
+  const installment = (price / 4).toLocaleString('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+  });
 
   return (
     <div className="card flex flex-col">
@@ -20,6 +26,18 @@ function PackageCard({ pkg }: { pkg: Package }) {
         <span className="text-4xl font-extrabold text-navy">{formatUSD(price)}</span>
         <span className="text-sm font-semibold text-steel"> {pkg.billing}</span>
       </p>
+
+      {showFinancing && (
+        <div className="mt-3 border-t border-dashed border-slate-200 pt-3">
+          <p className="text-sm font-bold text-navy">
+            or 4 interest-free payments of {installment}{' '}
+            <span className="text-[#0f7a3d]">with Afterpay</span>
+          </p>
+          <p className="mt-1 text-xs text-steel">
+            Affirm &amp; Klarna also available at checkout · subject to eligibility
+          </p>
+        </div>
+      )}
 
       {pkg.options && (
         <div className="mt-4 flex flex-wrap gap-2" role="radiogroup" aria-label="Choose an option">
