@@ -6,7 +6,7 @@ export default function EmbedStartupRoadmap() {
   return (
     <div style={{ padding: 20, maxWidth: 860, margin: '0 auto' }}>
       <h2 style={{ color: '#0b2e4f', fontSize: 20, fontWeight: 900, margin: '0 0 4px' }}>
-        Your startup roadmap — tap through the 14 steps
+        Your startup roadmap — tap through the 15 steps
       </h2>
       <p style={{ color: '#5b6b7b', fontSize: 14, margin: '0 0 16px' }}>
         Tap a step to see what it costs and where to file it. Check steps off as you finish them; your progress saves on this device.

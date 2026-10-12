@@ -254,7 +254,8 @@ const EMBED_HEIGHTS: Record<string, number> = {
   'calculators/startup-cost': 1100,
   'calculators/cost-per-mile': 1100,
   'visuals/sleeper-berth': 760,
-  'visuals/startup-roadmap': 1300,
+  'visuals/startup-roadmap': 1380,
+  'visuals/truck-markings': 900,
   'visuals/hos-clocks': 720,
   'visuals/authority-timeline': 640,
 };

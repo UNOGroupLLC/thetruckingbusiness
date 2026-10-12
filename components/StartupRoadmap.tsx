@@ -87,6 +87,11 @@ const STEPS: Step[] = [
     cost: 'About $20 to $100',
     d: 'Company name and USDOT number on both doors, in contrasting letters legible from 50 feet. Required by 49 CFR 390.21 before you roll.',
   },
+  {
+    t: 'Pack your DOT folder',
+    cost: 'Free (paperwork)',
+    d: 'CDL, ELD packet with 8 blank logs, last DVIR, inspection reports, IRP cab card, IFTA license, lease or rental agreement, medical variance if any, BOLs, and state permits. Keep it in the cab.',
+  },
 ];
 
 const NAVY = '#0b2e4f';
