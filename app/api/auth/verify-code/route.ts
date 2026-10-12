@@ -9,8 +9,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const email = String(body?.email ?? '').trim().toLowerCase();
   const code = String(body?.code ?? '').trim();
-  if (!email || !email.includes('@') || !/^\d{6}$/.test(code)) {
-    return NextResponse.json({ ok: false, error: 'Enter the 6-digit code.' }, { status: 400 });
+  if (!email || !email.includes('@') || !/^\d{4,10}$/.test(code)) {
+    return NextResponse.json({ ok: false, error: 'Enter the code from your email.' }, { status: 400 });
   }
   if (!authConfigured()) {
     return NextResponse.json(

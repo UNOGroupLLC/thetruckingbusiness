@@ -7,7 +7,7 @@ import Field from '@/components/Field';
 
 /**
  * Passwordless portal login — real Supabase Auth OTP via /api/auth/*.
- * The 6-digit code goes to the customer's email inbox.
+ * The login code goes to the customer's email inbox.
  */
 export default function PortalLoginPage() {
   const router = useRouter();
@@ -60,8 +60,8 @@ export default function PortalLoginPage() {
 
   async function verify(e: React.FormEvent) {
     e.preventDefault();
-    if (!/^\d{6}$/.test(code.trim())) {
-      setError('Enter the 6-digit code.');
+    if (!/^\d{4,10}$/.test(code.trim())) {
+      setError('Enter the code from your email.');
       return;
     }
     setError('');
@@ -97,8 +97,7 @@ export default function PortalLoginPage() {
           {step === 'email' ? (
             <>
               <p className="mt-2 text-sm text-steel">
-                Enter the email you used at purchase. We&apos;ll send you a 6-digit code — no
-                password needed.
+                Enter the email you used at purchase. We&apos;ll email you a login code — no password needed.
               </p>
               <form onSubmit={sendCode} className="mt-5 space-y-4">
                 <Field label="Email">
@@ -120,19 +119,19 @@ export default function PortalLoginPage() {
           ) : (
             <>
               <p className="mt-2 text-sm text-steel">
-                We sent a 6-digit code to <span className="font-bold text-charcoal">{email}</span>.
+                We sent a login code to <span className="font-bold text-charcoal">{email}</span>.
                 It may take a minute to arrive — check spam if you don&apos;t see it.
               </p>
               <form onSubmit={verify} className="mt-5 space-y-4">
-                <Field label="6-digit code">
+                <Field label="Login code">
                   <input
                     className="input text-center text-2xl font-bold tracking-[0.5em]"
                     inputMode="numeric"
-                    maxLength={6}
+                    maxLength={10}
                     value={code}
                     onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
                     placeholder="••••••"
-                    aria-label="6-digit login code"
+                    aria-label="Login code from your email"
                   />
                 </Field>
                 {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
