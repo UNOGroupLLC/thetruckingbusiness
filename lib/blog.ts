@@ -35,19 +35,24 @@ export function blogConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_KEY);
 }
 
-async function sb(path: string, init: RequestInit = {}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
-    ...init,
-    headers: {
-      apikey: SUPABASE_KEY,
-      Authorization: `Bearer ${SUPABASE_KEY}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation',
-      ...(init.headers || {}),
-    },
-    cache: 'no-store',
-  });
-  return res;
+async function sb(path: string, init: RequestInit = {}): Promise<Response> {
+  try {
+    return await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      ...init,
+      headers: {
+        apikey: SUPABASE_KEY,
+        Authorization: `Bearer ${SUPABASE_KEY}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=representation',
+        ...(init.headers || {}),
+      },
+      cache: 'no-store',
+    });
+  } catch {
+    // Network-level failure (bad URL, DNS, offline): never crash the page.
+    // Callers treat !ok as "no data".
+    return new Response(null, { status: 599 });
+  }
 }
 
 /** Verify the shared BLOG_API_KEY from an Authorization: Bearer header. */
