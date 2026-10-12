@@ -10,6 +10,10 @@ import { supabaseRestHeaders } from './server';
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+// Public (unauthenticated) reads use the anon/publishable key: the
+// blog_posts table grants SELECT to anon and the RLS policy exposes
+// only published rows. Admin writes keep using the service key.
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? '';
 const BLOG_API_KEY = process.env.BLOG_API_KEY ?? '';
 
 export interface BlogPost {
@@ -55,6 +59,26 @@ async function sb(path: string, init: RequestInit = {}): Promise<Response> {
   }
 }
 
+/**
+ * Public reads (published posts) via the anon key. The table grants
+ * SELECT to anon and the RLS policy exposes only published rows, so
+ * this works even if the service key is misconfigured.
+ */
+async function sbPublic(path: string): Promise<Response> {
+  const key = SUPABASE_ANON_KEY || SUPABASE_KEY;
+  try {
+    return await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: {
+        ...supabaseRestHeaders(key),
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    });
+  } catch {
+    return new Response(null, { status: 599 });
+  }
+}
+
 /** Verify the shared BLOG_API_KEY from an Authorization: Bearer header. */
 export function checkBlogKey(req: Request): boolean {
   if (!BLOG_API_KEY) return false;
@@ -73,7 +97,7 @@ export async function listPublishedPosts(category?: string): Promise<BlogPost[]>
   if (!blogConfigured()) return [];
   let path = `blog_posts?select=${POST_COLS}&status=eq.published&order=published_at.desc.nullslast,created_at.desc`;
   if (category) path += `&category=eq.${encodeURIComponent(category)}`;
-  const res = await sb(path);
+  const res = await sbPublic(path);
   if (!res.ok) return [];
   return (await res.json()) as BlogPost[];
 }
@@ -89,7 +113,7 @@ export async function listAllPosts(): Promise<BlogPost[]> {
 
 export async function getPublishedPost(slug: string): Promise<BlogPost | null> {
   if (!blogConfigured()) return null;
-  const res = await sb(
+  const res = await sbPublic(
     `blog_posts?select=${POST_COLS}&slug=eq.${encodeURIComponent(slug)}&status=eq.published&limit=1`
   );
   if (!res.ok) return null;
