@@ -391,6 +391,11 @@ export default function AdminPage() {
         <div>
           <p className="eyebrow">Owner only (demo)</p>
           <h1 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">Admin panel</h1>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/admin/blog" className="btn btn-y btn-s">
+              ✎ Blog articles
+            </Link>
+          </div>
           <p className="mt-2 rounded-lg bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
             Mock admin — changes save to this browser only (localStorage). In production this is
             protected by owner login and writes to the database/CMS.

@@ -8,7 +8,7 @@ const LINKS = [
   { href: '/#compliance', label: 'DOT Compliance' },
   { href: '/calculators', label: 'Calculators' },
   { href: '/pricing', label: 'Services' },
-  { href: '/#resources', label: 'Resources' },
+  { href: '/resources/blog', label: 'Resources' },
 ];
 
 export default function Navbar() {
