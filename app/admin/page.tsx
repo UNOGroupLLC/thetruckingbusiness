@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   useTtb,
@@ -382,8 +382,124 @@ function OrderInbox({ orders }: { orders: OrderRecord[] }) {
   );
 }
 
+/**
+ * Real orders from the database (created by the Stripe webhook), shown
+ * separately from the localStorage demo orders above. Fetched from
+ * GET /api/orders; only renders once the feed confirms it is configured.
+ */
+function DbOrderInbox({ onRefreshKey }: { onRefreshKey: number }) {
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+  const [filingId, setFilingId] = useState<string | null>(null);
+
+  async function load() {
+    setState('loading');
+    try {
+      const res = await fetch('/api/orders', { cache: 'no-store' });
+      const data = await res.json();
+      if (data?.ok && data?.configured && Array.isArray(data.orders)) {
+        setOrders(data.orders as OrderRecord[]);
+        setState('ready');
+      } else {
+        setState('unavailable');
+      }
+    } catch {
+      setState('unavailable');
+    }
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onRefreshKey]);
+
+  async function handleStartFiling(o: OrderRecord) {
+    if (!window.confirm(`Start filing for order ${o.id}?`)) return;
+    setFilingId(o.id);
+    try {
+      await fetch(`/api/orders/${encodeURIComponent(o.id)}/filing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      });
+    } finally {
+      setFilingId(null);
+      load();
+    }
+  }
+
+  if (state === 'loading') {
+    return (
+      <div className="card">
+        <p className="text-sm text-steel">Checking the database for real orders…</p>
+      </div>
+    );
+  }
+  if (state === 'unavailable') return null;
+  if (orders.length === 0) {
+    return (
+      <div className="card">
+        <p className="text-sm text-steel">
+          No real (Stripe) orders in the database yet. Test purchases made with
+          real checkout will appear here automatically.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {orders.map((o) => {
+        const canFile = o.intakeStatus === 'submitted' || o.intakeStatus === 'certified';
+        return (
+          <div key={o.id} className="card">
+            <p className="flex flex-wrap items-center gap-2 font-extrabold text-navy">
+              {o.id} · {o.packageName}
+              <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-800">
+                Real Stripe payment
+              </span>
+              <StatusBadge status={o.intakeStatus} />
+            </p>
+            <p className="mt-1 text-sm text-steel">
+              {o.buyerName} ({o.buyerEmail}) · {formatUSD(o.amount)} · {formatDate(o.createdAt)}
+            </p>
+            <p className="mt-1 text-xs font-semibold">
+              <span className={o.intakeStatus ? 'text-green-700' : 'text-amber-700'}>
+                {o.intakeStatus ? '✓ Intake submitted' : '○ Intake pending'}
+              </span>
+              {' · '}
+              <span className={o.booking ? 'text-green-700' : 'text-steel'}>
+                {o.booking ? `✓ Call booked: ${o.booking.date} ${o.booking.time} ET` : '○ No call booked'}
+              </span>
+              {' · '}
+              <span className={(o.documentCount ?? 0) > 0 ? 'text-dotblue' : 'text-steel'}>
+                {(o.documentCount ?? 0) > 0 ? `✓ ${o.documentCount} document${o.documentCount === 1 ? '' : 's'}` : '○ No documents yet'}
+              </span>
+            </p>
+            {canFile && (
+              <button
+                className="btn-primary mt-3"
+                disabled={filingId === o.id}
+                onClick={() => handleStartFiling(o)}
+              >
+                {filingId === o.id ? 'Starting…' : 'Start filing — lock intake'}
+              </button>
+            )}
+            {o.filingStartedAt && (
+              <p className="mt-2 text-xs font-semibold text-sky-800">
+                Filing started {formatDate(o.filingStartedAt)}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { packages, orders } = useTtb();
+  const [dbRefreshKey, setDbRefreshKey] = useState(0);
 
   return (
     <div className="bg-mist py-12">
@@ -411,6 +527,24 @@ export default function AdminPage() {
             Resend — set the keys in <code>.env</code>).
           </p>
           <OrderInbox orders={orders} />
+        </section>
+
+        <section>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-xl font-extrabold text-navy">Real orders (database)</h2>
+            <button
+              className="btn-outline-dark btn-s"
+              onClick={() => setDbRefreshKey((k) => k + 1)}
+            >
+              Refresh
+            </button>
+          </div>
+          <p className="mb-4 rounded-lg bg-green-50 px-4 py-3 text-sm text-green-900">
+            Orders created by real Stripe payments (via the webhook) appear here —
+            they are <strong>not</strong> in this browser&apos;s localStorage, so they
+            never show in the demo inbox above.
+          </p>
+          <DbOrderInbox onRefreshKey={dbRefreshKey} />
         </section>
 
         <section>

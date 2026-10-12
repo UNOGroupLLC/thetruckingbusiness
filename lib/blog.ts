@@ -32,6 +32,8 @@ export interface BlogPost {
   status: 'draft' | 'published';
   author: string;
   published_at: string | null;
+  /** True = pinned to the top of the blog index, above publish-date order. */
+  pinned: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -91,11 +93,11 @@ export function checkBlogKey(req: Request): boolean {
 }
 
 const POST_COLS =
-  'id,slug,title,excerpt,content_md,cover_image_url,category,tags,seo_title,seo_description,has_affiliate_links,faqs,status,author,published_at,created_at,updated_at';
+  'id,slug,title,excerpt,content_md,cover_image_url,category,tags,seo_title,seo_description,has_affiliate_links,faqs,status,author,published_at,pinned,created_at,updated_at';
 
 export async function listPublishedPosts(category?: string): Promise<BlogPost[]> {
   if (!blogConfigured()) return [];
-  let path = `blog_posts?select=${POST_COLS}&status=eq.published&order=published_at.desc.nullslast,created_at.desc`;
+  let path = `blog_posts?select=${POST_COLS}&status=eq.published&order=pinned.desc,published_at.desc.nullslast,created_at.desc`;
   if (category) path += `&category=eq.${encodeURIComponent(category)}`;
   const res = await sbPublic(path);
   if (!res.ok) return [];
@@ -148,6 +150,7 @@ export type BlogInput = Partial<
     | 'status'
     | 'author'
     | 'published_at'
+    | 'pinned'
   >
 >;
 
@@ -179,6 +182,7 @@ export async function createPost(input: BlogInput): Promise<BlogPost | null> {
     faqs: Array.isArray(input.faqs) ? input.faqs : [],
     status: input.status === 'published' ? 'published' : 'draft',
     author: (input.author || 'The Trucking Business').trim(),
+    pinned: Boolean(input.pinned),
     updated_at: now,
   };
   if (body.status === 'published' && !input.published_at) body.published_at = now;
@@ -209,6 +213,7 @@ export async function updatePost(
     'status',
     'author',
     'published_at',
+    'pinned',
   ] as const) {
     if (input[k] !== undefined) body[k] = input[k];
   }
@@ -249,6 +254,7 @@ const EMBED_HEIGHTS: Record<string, number> = {
   'calculators/startup-cost': 1100,
   'calculators/cost-per-mile': 1100,
   'visuals/sleeper-berth': 760,
+  'visuals/startup-roadmap': 1300,
   'visuals/hos-clocks': 720,
   'visuals/authority-timeline': 640,
 };

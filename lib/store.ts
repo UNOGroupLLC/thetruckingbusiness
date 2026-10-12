@@ -90,6 +90,16 @@ export interface OrderRecord {
   correctionsUsed?: number;
   filingStartedAt?: string; // ISO
   documents?: OrderDocument[];
+  /**
+   * 'database' marks orders that came from the Supabase feed (real Stripe
+   * payments) rather than this browser's localStorage. 'local' is the
+   * default for demo/simulated orders.
+   */
+  source?: 'local' | 'database';
+  /** Call booking for database orders (local orders use getCallBooking). */
+  booking?: { date: string; time: string };
+  /** Uploaded-document count for database orders. */
+  documentCount?: number;
 }
 
 interface State {

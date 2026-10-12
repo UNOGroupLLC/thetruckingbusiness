@@ -3,6 +3,7 @@ import { getPackage, formatUSD } from '@/lib/packages';
 import {
   backendConfigured,
   dbUpsert,
+  dbSelect,
   sendOwnerEmail,
   sendClientEmail,
   emailConfigured,
@@ -74,10 +75,25 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, persisted, emailed, ownerNotified: emailed, clientEmailed });
 }
 
+interface OrderRow {
+  id: string;
+  package_slug: string;
+  package_name: string;
+  amount_cents: number | null;
+  buyer_name: string;
+  buyer_email: string;
+  intake_service: string;
+  filing_status: string | null;
+  filing_started_at: string | null;
+  created_at: string;
+}
+
 /**
  * GET /api/orders — order inbox feed for the admin panel.
  * Demo: { configured:false, orders:[] } (admin falls back to localStorage).
- * Production: set ADMIN_KEY and pass ?key=... or x-admin-key header.
+ * Production: lists real orders from Supabase (newest first) with intake,
+ * booking, and document presence merged in. Set ADMIN_KEY and pass
+ * ?key=... or x-admin-key header to lock it down.
  */
 export async function GET(req: NextRequest) {
   const adminKey = process.env.ADMIN_KEY ?? '';
@@ -91,8 +107,52 @@ export async function GET(req: NextRequest) {
   if (!backendConfigured()) {
     return NextResponse.json({ ok: true, configured: false, orders: [] });
   }
-  // NOTE: production hardening would page + join intake/bookings here.
-  // For the Phase 2 start, the admin inbox reads via this feed; full joins
-  // arrive with the owner-auth milestone.
-  return NextResponse.json({ ok: true, configured: true, orders: [], note: 'order detail feed ships with owner auth' });
+  const [ordersRes, intakeRes, bookingRes, docsRes] = await Promise.all([
+    dbSelect<OrderRow>(
+      'orders?select=id,package_slug,package_name,amount_cents,buyer_name,buyer_email,intake_service,filing_status,filing_started_at,created_at&order=created_at.desc&limit=200'
+    ),
+    dbSelect<{ order_id: string }>('intake_submissions?select=order_id'),
+    dbSelect<{ order_id: string; date: string; time: string }>(
+      'call_bookings?select=order_id,date,time'
+    ),
+    dbSelect<{ order_id: string }>('order_documents?select=order_id'),
+  ]);
+  if (!ordersRes.ok) {
+    return NextResponse.json(
+      { ok: false, error: ordersRes.error ?? 'Order query failed.' },
+      { status: 502 }
+    );
+  }
+  const intakeOrders = new Set(intakeRes.rows.map((r) => r.order_id));
+  const bookingByOrder = new Map(bookingRes.rows.map((r) => [r.order_id, r]));
+  const docCount = new Map<string, number>();
+  for (const d of docsRes.rows) docCount.set(d.order_id, (docCount.get(d.order_id) ?? 0) + 1);
+
+  const orders = ordersRes.rows.map((o) => {
+    const booking = bookingByOrder.get(o.id);
+    return {
+      id: o.id,
+      packageSlug: o.package_slug,
+      packageName: o.package_name,
+      amount: (o.amount_cents ?? 0) / 100,
+      buyerName: o.buyer_name,
+      buyerEmail: o.buyer_email,
+      createdAt: o.created_at,
+      intakeService: o.intake_service,
+      // Shape matches OrderRecord; `source` marks these as database rows so
+      // the admin UI renders them distinctly from localStorage demo orders.
+      isRealPayment: true,
+      source: 'database' as const,
+      intakeStatus:
+        o.filing_status === 'filing'
+          ? ('filing' as const)
+          : intakeOrders.has(o.id)
+            ? ('submitted' as const)
+            : undefined,
+      filingStartedAt: o.filing_started_at ?? undefined,
+      booking: booking ? { date: booking.date, time: booking.time } : undefined,
+      documentCount: docCount.get(o.id) ?? 0,
+    };
+  });
+  return NextResponse.json({ ok: true, configured: true, orders });
 }

@@ -133,6 +133,26 @@ export async function dbUpsert(
   });
 }
 
+/** Select rows via Supabase REST. Returns rows on success (empty when unconfigured). */
+export async function dbSelect<T = Record<string, unknown>>(
+  path: string
+): Promise<{ ok: boolean; status: number; error?: string; rows: T[] }> {
+  if (!backendConfigured()) return { ok: false, status: 0, error: 'backend not configured', rows: [] };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+      headers: { ...supabaseRestHeaders(SUPABASE_KEY), 'Content-Type': 'application/json' },
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { ok: false, status: res.status, error: text.slice(0, 300), rows: [] };
+    }
+    const rows = (await res.json()) as T[];
+    return { ok: true, status: res.status, rows };
+  } catch (e) {
+    return { ok: false, status: 0, error: e instanceof Error ? e.message : 'fetch failed', rows: [] };
+  }
+}
+
 /** Send an email via Resend. No-op when email isn't configured. */
 async function sendEmail(to: string, subject: string, html: string): Promise<DbResult> {
   if (!emailConfigured()) return { ok: false, status: 0, error: 'email not configured' };
