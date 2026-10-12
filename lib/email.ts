@@ -65,6 +65,82 @@ function highlightBox(label: string, value: string): string {
 function note(text: string): string {  return `<p style="font-size:14px;line-height:1.65;color:${CHARCOAL};margin:20px 0 24px;">${text}</p>`;
 }
 
+function fmtCents(cents: number): string {
+  return `$${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function billingLabel(billing?: string): string {
+  if (billing === '/year') return 'Annual';
+  if (billing === '/month') return 'Monthly';
+  return 'One-time';
+}
+
+/**
+ * The customer receipt — matches the approved receipt mockup (v3):
+ * narrow paper card, centered logo + wordmark, dashed dividers,
+ * RECEIPT title, meta rows, line item, subtotal / tax / total,
+ * real payment method from Stripe, thank-you. One font (Libre Franklin),
+ * one blue (#0b2e4f). Sales tax shows $0.00 — none collected at checkout.
+ */
+function receiptCard(o: OrderInfo, logoUrl: string): string {
+  const cents =
+    typeof o.amountCents === 'number' && Number.isFinite(o.amountCents)
+      ? Math.round(o.amountCents)
+      : null;
+  const money = cents === null ? esc(o.amount) : fmtCents(cents);
+  const billingSub =
+    o.billing === '/year'
+      ? 'Annual subscription'
+      : o.billing === '/month'
+        ? 'Monthly subscription'
+        : 'One-time payment';
+  const dash = `<div style="border-top:2px dashed ${BORDER};margin:16px 0 0;"></div>`;
+  const metaRow = (k: string, v: string) =>
+    `<tr><td style="color:${STEEL};padding:3px 0;">${k}</td><td align="right" style="color:${CHARCOAL};padding:3px 0;">${v}</td></tr>`;
+  const sumRow = (k: string, v: string) =>
+    `<tr><td style="color:${STEEL};padding:4px 0;font-size:14px;">${k}</td><td align="right" style="color:${CHARCOAL};padding:4px 0;font-size:14px;">${v}</td></tr>`;
+  return (
+    `<table width="440" cellpadding="0" cellspacing="0" role="presentation" style="max-width:440px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 3px 16px rgba(7,32,51,0.10);">` +
+    `<tr><td style="background:${NAVY};height:6px;line-height:6px;font-size:0;">&nbsp;</td></tr>` +
+    `<tr><td style="padding:30px 36px 8px;" align="center">` +
+    `<img src="${logoUrl}" width="96" alt="The Trucking Business" style="display:block;">` +
+    `<p style="margin:4px 0 0;color:${NAVY};font-family:${HEADING_FONT};font-size:21px;font-weight:900;letter-spacing:-0.04em;line-height:0.95;">THE TRUCKING<br>BUSINESS</p>` +
+    `<p style="margin:8px 0 0;color:${STEEL};font-size:12.5px;letter-spacing:0.5px;">thetruckingbusiness.com</p>` +
+    `<p style="margin:4px 0 0;color:${STEEL};font-size:12px;">orders@thetruckingbusiness.com</p>` +
+    `</td></tr>` +
+    `<tr><td style="padding:18px 36px 0;" align="center">` +
+    `<p style="margin:0;color:${NAVY};font-size:13px;font-weight:800;letter-spacing:4px;">RECEIPT</p>${dash}</td></tr>` +
+    `<tr><td style="padding:16px 36px 0;">` +
+    `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="font-size:13.5px;">` +
+    metaRow('Order', `<strong>${esc(o.id)}</strong>`) +
+    metaRow('Date', esc(o.createdAt)) +
+    metaRow('Billed to', `${esc(o.buyerName)}<br><span style="color:${STEEL};">${esc(o.buyerEmail)}</span>`) +
+    `</table>${dash}</td></tr>` +
+    `<tr><td style="padding:16px 36px 0;">` +
+    `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="font-size:14px;"><tr>` +
+    `<td style="color:${CHARCOAL};padding:4px 0;line-height:1.5;">${esc(o.packageName)}<br><span style="color:${STEEL};font-size:12.5px;">${billingSub}</span></td>` +
+    `<td align="right" valign="top" style="color:${CHARCOAL};font-weight:600;white-space:nowrap;padding:4px 0;">${money}</td>` +
+    `</tr></table><div style="border-top:2px dashed ${BORDER};margin:14px 0 0;"></div></td></tr>` +
+    `<tr><td style="padding:14px 36px 0;">` +
+    `<table width="100%" cellpadding="0" cellspacing="0" role="presentation">` +
+    sumRow('Subtotal', money) +
+    sumRow('Sales tax', fmtCents(0)) +
+    `<tr><td style="color:${NAVY};padding:10px 0 2px;font-size:14px;font-weight:700;">TOTAL</td><td align="right" style="color:${NAVY};padding:10px 0 2px;font-size:14px;font-weight:700;white-space:nowrap;">${money}</td></tr>` +
+    `</table><div style="border-top:2px dashed ${BORDER};margin:14px 0 0;"></div></td></tr>` +
+    `<tr><td style="padding:14px 36px 0;">` +
+    `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="font-size:13.5px;">` +
+    (o.payMethod
+      ? `<tr><td style="color:${STEEL};padding:3px 0;">Payment method</td><td align="right" style="color:${CHARCOAL};font-weight:600;padding:3px 0;">${esc(o.payMethod)}</td></tr>`
+      : '') +
+    `<tr><td style="color:${STEEL};padding:3px 0;">Processed by</td><td align="right" style="color:${CHARCOAL};padding:3px 0;">Stripe</td></tr>` +
+    `</table>${dash}</td></tr>` +
+    `<tr><td align="center" style="padding:18px 36px 30px;">` +
+    `<p style="margin:0;color:${NAVY};font-size:14px;font-weight:700;">Thank you for your business!</p>` +
+    `<p style="margin:8px 0 0;color:${STEEL};font-size:11.5px;line-height:1.6;">Questions? Reply to this email —<br>we typically respond within one business day.</p>` +
+    `</td></tr></table>`
+  );
+}
+
 function sectionTitle(text: string): string {
   return `<h3 style="color:${NAVY};font-family:${HEADING_FONT};font-size:17px;margin:24px 0 6px;">${text}</h3>`;
 }
@@ -76,6 +152,12 @@ export interface OrderInfo {
   id: string;
   packageName: string;
   amount: string;
+  /** Structured receipt fields — preferred over parsing the display `amount`. */
+  amountCents?: number;
+  /** 'one-time' | '/year' | '/month' */
+  billing?: string;
+  /** Real payment method label from Stripe, e.g. "Visa •••• 4242". Never fabricated. */
+  payMethod?: string;
   buyerName: string;
   buyerEmail: string;
   createdAt: string;
@@ -281,29 +363,31 @@ function clientShell(title: string, kicker: string, body: string): string {
 export function clientPurchaseEmail(
   o: OrderInfo,
   intakeUrl: string,
-  inclusions: string[] = []
+  inclusions: string[] = [],
+  logoUrl: string = 'https://www.thetruckingbusiness.com/logo-receipt.png'
 ): { subject: string; html: string } {
+  const F = HEADING_FONT;
+  const nextCard =
+    `<table width="440" cellpadding="0" cellspacing="0" role="presentation" style="max-width:440px;width:100%;margin-top:22px;">` +
+    `<tr><td style="background:#ffffff;border-radius:12px;padding:24px 30px;box-shadow:0 3px 16px rgba(7,32,51,0.08);">` +
+    `<p style="margin:0;color:${NAVY};font-family:${F};font-size:16px;font-weight:800;">What happens next</p>` +
+    `<p style="margin:10px 0 18px;color:${CHARCOAL};font-size:13.5px;line-height:1.65;"><strong>Step 1:</strong> your intake form is below &mdash; it contains everything we need to start your filing. If you need to change anything, just click through and update your answers.</p>` +
+    `<table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;"><tr><td align="center" style="background:${YELLOW};border-radius:10px;"><a href="${esc(intakeUrl)}" style="display:inline-block;padding:14px 34px;color:${NAVY};font-family:${F};font-size:15px;font-weight:800;text-decoration:none;">Your intake form</a></td></tr></table>` +
+    `<p style="margin:18px 0 0;color:${CHARCOAL};font-size:13.5px;line-height:1.65;"><strong>Step 2:</strong> we review everything and get to work. You&rsquo;ll get an email the moment your intake is received.</p>` +
+    `</td></tr></table>`;
   return {
     subject: `Your order is confirmed — ${o.packageName} (Order ${o.id})`,
-    html: clientShell(
-      'Thank you — your order is confirmed',
-      'Here&rsquo;s what happens next.',
-      highlightBox('Order total', esc(o.amount)) +
-        kv([
-          ['Order ID', esc(o.id)],
-          ['Package', esc(o.packageName)],
-          ['Order date', esc(o.createdAt)],
-          ['Email', esc(o.buyerEmail)],
-        ]) +
-        inclusionsList(inclusions) +
-        note(
-          '<strong>Step 1:</strong> your intake form is below &mdash; it contains everything we need to start your filing. If you need to change anything, just click through and update your answers.'
-        ) +
-        ctaButton('Your intake form', intakeUrl) +
-        note(
-          '<strong>Step 2:</strong> we review everything and get to work. You&rsquo;ll get an email the moment your intake is received.'
-        )
-    ),
+    html:
+      `<!DOCTYPE html><html><body style="margin:0;padding:0;background-color:${MIST};font-family:${F};color:${CHARCOAL};">` +
+      `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:${MIST};padding:36px 16px;"><tr><td align="center">` +
+      `<table width="440" cellpadding="0" cellspacing="0" role="presentation" style="max-width:440px;width:100%;margin-bottom:20px;"><tr><td align="center" style="padding:6px 0 0;">` +
+      `<p style="margin:0;color:${NAVY};font-size:15px;font-weight:800;letter-spacing:2px;">YOUR ORDER IS CONFIRMED</p>` +
+      `<p style="margin:8px 0 0;color:${STEEL};font-size:13px;">Thank you &mdash; here is your receipt.</p>` +
+      `</td></tr></table>` +
+      receiptCard(o, logoUrl) +
+      nextCard +
+      `<p style="margin:20px 0 0;color:${STEEL};font-size:11px;line-height:1.6;max-width:440px;">TheTruckingBusiness.com &mdash; an independent private company, not affiliated with FMCSA or USDOT.</p>` +
+      `</td></tr></table></body></html>`,
   };
 }
 

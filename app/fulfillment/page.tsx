@@ -39,7 +39,7 @@ function FulfillmentInner() {
             <div><dt className="text-steel">Order ID</dt><dd className="font-bold">{order.id}</dd></div>
             <div><dt className="text-steel">Date</dt><dd className="font-semibold">{formatDate(order.createdAt)}</dd></div>
             <div><dt className="text-steel">Package</dt><dd className="font-semibold">{order.packageName}</dd></div>
-            <div><dt className="text-steel">Amount</dt><dd className="font-semibold">{formatUSD(order.amount)} (simulated)</dd></div>
+            <div><dt className="text-steel">Amount</dt><dd className="font-semibold">{formatUSD(order.amount)}{order.isRealPayment ? '' : ' (simulated)'}</dd></div>
             <div><dt className="text-steel">Customer</dt><dd className="font-semibold">{order.buyerName}</dd></div>
             <div><dt className="text-steel">Email</dt><dd className="font-semibold">{order.buyerEmail}</dd></div>
           </dl>

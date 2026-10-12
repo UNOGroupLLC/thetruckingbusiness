@@ -6,8 +6,8 @@ import { setPortalEmail } from '@/lib/store';
 import Field from '@/components/Field';
 
 /**
- * MOCK passwordless login — Phase 1.
- * Phase 2: replace with Supabase Auth signInWithOtp (email) + verifyOtp (code).
+ * Passwordless portal login — real Supabase Auth OTP via /api/auth/*.
+ * The 6-digit code goes to the customer's email inbox.
  */
 export default function PortalLoginPage() {
   const router = useRouter();
@@ -15,27 +15,75 @@ export default function PortalLoginPage() {
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
+  const [sending, setSending] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
 
-  function sendCode(e: React.FormEvent) {
-    e.preventDefault();
-    if (!email.includes('@')) {
+  async function sendCode(e?: React.FormEvent) {
+    e?.preventDefault();
+    const addr = email.trim();
+    if (!addr.includes('@')) {
       setError('Enter a valid email address.');
       return;
     }
     setError('');
-    // Phase 2: await supabase.auth.signInWithOtp({ email })
-    setStep('code');
+    setSending(true);
+    try {
+      const res = await fetch('/api/auth/send-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: addr }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setError(data?.error || 'We could not send the code. Please try again.');
+        return;
+      }
+      setStep('code');
+      // 60s cooldown before resend.
+      setCooldown(60);
+      const t = setInterval(() => {
+        setCooldown((c) => {
+          if (c <= 1) {
+            clearInterval(t);
+            return 0;
+          }
+          return c - 1;
+        });
+      }, 1000);
+    } catch {
+      setError('We could not send the code. Please try again.');
+    } finally {
+      setSending(false);
+    }
   }
 
-  function verify(e: React.FormEvent) {
+  async function verify(e: React.FormEvent) {
     e.preventDefault();
     if (!/^\d{6}$/.test(code.trim())) {
       setError('Enter the 6-digit code.');
       return;
     }
-    // Phase 2: await supabase.auth.verifyOtp({ email, token: code, type: 'email' })
-    setPortalEmail(email.trim());
-    router.push('/portal/dashboard');
+    setError('');
+    setVerifying(true);
+    try {
+      const res = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), code: code.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setError(data?.error || 'That code is incorrect or expired. Please try again.');
+        return;
+      }
+      setPortalEmail(email.trim());
+      router.push('/portal/dashboard');
+    } catch {
+      setError('Verification failed. Please try again.');
+    } finally {
+      setVerifying(false);
+    }
   }
 
   return (
@@ -64,16 +112,16 @@ export default function PortalLoginPage() {
                   />
                 </Field>
                 {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
-                <button type="submit" className="btn-dark w-full">Send code</button>
+                <button type="submit" disabled={sending} className="btn-dark w-full disabled:opacity-60">
+                  {sending ? 'Sending…' : 'Send code'}
+                </button>
               </form>
             </>
           ) : (
             <>
               <p className="mt-2 text-sm text-steel">
-                We sent a code to <span className="font-bold text-charcoal">{email}</span>.{' '}
-                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs font-bold text-amber-800">
-                  Demo: any 6 digits work
-                </span>
+                We sent a 6-digit code to <span className="font-bold text-charcoal">{email}</span>.
+                It may take a minute to arrive — check spam if you don&apos;t see it.
               </p>
               <form onSubmit={verify} className="mt-5 space-y-4">
                 <Field label="6-digit code">
@@ -88,10 +136,22 @@ export default function PortalLoginPage() {
                   />
                 </Field>
                 {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
-                <button type="submit" className="btn-dark w-full">Verify &amp; log in</button>
-                <button type="button" onClick={() => setStep('email')} className="w-full text-center text-sm font-semibold text-dotblue hover:underline">
-                  Use a different email
+                <button type="submit" disabled={verifying} className="btn-dark w-full disabled:opacity-60">
+                  {verifying ? 'Verifying…' : 'Verify & log in'}
                 </button>
+                <div className="flex items-center justify-between text-sm">
+                  <button
+                    type="button"
+                    disabled={cooldown > 0 || sending}
+                    onClick={() => sendCode()}
+                    className="font-semibold text-dotblue hover:underline disabled:opacity-50 disabled:no-underline"
+                  >
+                    {cooldown > 0 ? `Resend code (${cooldown}s)` : 'Resend code'}
+                  </button>
+                  <button type="button" onClick={() => setStep('email')} className="font-semibold text-dotblue hover:underline">
+                    Use a different email
+                  </button>
+                </div>
               </form>
             </>
           )}

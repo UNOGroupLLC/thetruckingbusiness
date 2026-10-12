@@ -74,6 +74,8 @@ export interface OrderRecord {
   amount: number;
   /** Purchasable variant label, e.g. "Single state" for State Permit Filing. */
   optionLabel?: string;
+  /** True when the order came from a real Stripe payment (not the simulated flow). */
+  isRealPayment?: boolean;
   buyerName: string;
   buyerEmail: string;
   createdAt: string; // ISO
@@ -216,6 +218,8 @@ export function createOrder(input: {
   optionLabel?: string;
   /** Preset id (e.g. the TTB id generated for a Stripe session) — generated when omitted. */
   id?: string;
+  /** True when mirroring a real Stripe payment (receipt page). */
+  isRealPayment?: boolean;
 }): OrderRecord {
   load();
   const pkg = state.packages.find((p) => p.slug === input.packageSlug);
@@ -230,6 +234,7 @@ export function createOrder(input: {
     buyerEmail: input.buyerEmail,
     createdAt: new Date().toISOString(),
     intakeService: pkg.intake,
+    isRealPayment: input.isRealPayment,
   };
   state = { ...state, orders: [order, ...state.orders] };
   persist();

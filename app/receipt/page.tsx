@@ -63,6 +63,7 @@ function ReceiptInner() {
               buyerEmail: s.buyerEmail,
               priceOverride: s.amountCents / 100,
               optionLabel: s.optionLabel || undefined,
+              isRealPayment: true,
             });
           } catch {
             local = undefined;

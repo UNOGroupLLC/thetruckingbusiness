@@ -20,6 +20,74 @@ import { purchaseEmail, clientPurchaseEmail, type OrderInfo } from '@/lib/email'
  * https://thetruckingbusiness.com/api/webhooks/stripe →
  * select "checkout.session.completed".
  */
+/**
+ * Look up the real payment method used for a Checkout Session (e.g. "Visa •••• 4242").
+ * Returns '' when it can't be determined — the receipt simply omits the row.
+ * Never fabricated: only what Stripe reports.
+ */
+async function getPaymentMethodLabel(
+  stripe: Stripe,
+  session: Stripe.Checkout.Session
+): Promise<string> {
+  try {
+    let pmId: string | null = null;
+    const piRef = session.payment_intent;
+    if (typeof piRef === 'string') {
+      const pi = await stripe.paymentIntents.retrieve(piRef);
+      pmId =
+        typeof pi.payment_method === 'string'
+          ? pi.payment_method
+          : pi.payment_method?.id ?? null;
+    } else if (piRef?.payment_method) {
+      const pm = piRef.payment_method;
+      pmId = typeof pm === 'string' ? pm : pm.id;
+    }
+    // Subscription mode: the payment intent lives on the first invoice.
+    if (!pmId && session.subscription) {
+      const subId =
+        typeof session.subscription === 'string'
+          ? session.subscription
+          : session.subscription.id;
+      const sub = await stripe.subscriptions.retrieve(subId, {
+        expand: ['latest_invoice.payment_intent'],
+      });
+      const inv = sub.latest_invoice as unknown as {
+        payment_intent?: unknown;
+        payments?: { data?: Array<{ payment_intent?: unknown }> };
+      } | null;
+      const invPi = inv?.payment_intent ?? inv?.payments?.data?.[0]?.payment_intent;
+      const invPiId = typeof invPi === 'string' ? invPi : (invPi as { id?: string } | undefined)?.id;
+      if (invPiId) {
+        const pi = await stripe.paymentIntents.retrieve(invPiId);
+        pmId =
+          typeof pi.payment_method === 'string'
+            ? pi.payment_method
+            : pi.payment_method?.id ?? null;
+      }
+    }
+    if (!pmId) return '';
+    const pm = await stripe.paymentMethods.retrieve(pmId);
+    if (pm.type === 'card' && pm.card) {
+      const brand = pm.card.brand
+        .split('_')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
+      return `${brand} \u2022\u2022\u2022\u2022 ${pm.card.last4}`;
+    }
+    const labels: Record<string, string> = {
+      afterpay_clearpay: 'Afterpay',
+      klarna: 'Klarna',
+      affirm: 'Affirm',
+      us_bank_account: 'Bank account',
+      link: 'Link',
+      cashapp: 'Cash App',
+    };
+    return labels[pm.type] ?? pm.type;
+  } catch {
+    return '';
+  }
+}
+
 export async function POST(req: NextRequest) {
   const secret = process.env.STRIPE_SECRET_KEY;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -73,10 +141,14 @@ export async function POST(req: NextRequest) {
       const amountLabel = `$${(amountCents / 100).toLocaleString('en-US')}${
         billing === 'one-time' ? ' one-time' : billing
       }`;
+      const payMethod = await getPaymentMethodLabel(stripe, session);
       const info: OrderInfo = {
         id: orderId,
         packageName,
         amount: amountLabel,
+        amountCents,
+        billing,
+        payMethod: payMethod || undefined,
         buyerName,
         buyerEmail,
         createdAt: new Date().toLocaleString('en-US'),
@@ -88,7 +160,8 @@ export async function POST(req: NextRequest) {
       await sendOwnerEmail(owner.subject, owner.html);
 
       const intakeUrl = `${proto}://${host}/intake/${intakeService}?order=${encodeURIComponent(orderId)}`;
-      const client = clientPurchaseEmail(info, intakeUrl, pkg?.inclusions ?? []);
+      const logoUrl = `${proto}://${host}/logo-receipt.png`;
+      const client = clientPurchaseEmail(info, intakeUrl, pkg?.inclusions ?? [], logoUrl);
       await sendClientEmail(buyerEmail, client.subject, client.html);
     }
   }

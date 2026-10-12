@@ -13,12 +13,18 @@
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? '';
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? '';
 const RESEND_KEY = process.env.RESEND_API_KEY ?? '';
 const OWNER_EMAIL = process.env.OWNER_EMAIL ?? '';
 const EMAIL_FROM = process.env.EMAIL_FROM ?? 'orders@thetruckingbusiness.com';
 
 export function backendConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_KEY);
+}
+
+/** Supabase Auth (OTP codes) is usable when the anon key is set. */
+export function authConfigured(): boolean {
+  return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 }
 
 export function emailConfigured(): boolean {
@@ -55,6 +61,41 @@ async function supa(path: string, init?: RequestInit): Promise<DbResult> {
   } catch (e) {
     return { ok: false, status: 0, error: e instanceof Error ? e.message : 'fetch failed' };
   }
+}
+
+/**
+ * Supabase Auth (GoTrue) call with the anon key — used for OTP login codes.
+ * The anon key is public by design; RLS still protects the data.
+ */
+async function supaAuth(path: string, body: unknown): Promise<DbResult> {
+  if (!authConfigured()) return { ok: false, status: 0, error: 'auth not configured' };
+  try {
+    const res = await fetch(`${SUPABASE_URL}/auth/v1/${path}`, {
+      method: 'POST',
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { ok: false, status: res.status, error: text.slice(0, 300) };
+    }
+    return { ok: true, status: res.status };
+  } catch (e) {
+    return { ok: false, status: 0, error: e instanceof Error ? e.message : 'fetch failed' };
+  }
+}
+
+/** Send a 6-digit login code to the email via Supabase Auth. */
+export async function sendOtpCode(email: string): Promise<DbResult> {
+  return supaAuth('otp', { email });
+}
+
+/** Verify a 6-digit login code via Supabase Auth. */
+export async function verifyOtpCode(email: string, token: string): Promise<DbResult> {
+  return supaAuth('verify', { email, token, type: 'email' });
 }
 
 /** Insert one row. Returns ok=false when the backend isn't configured. */

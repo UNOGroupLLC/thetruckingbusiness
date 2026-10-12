@@ -53,6 +53,8 @@ export async function POST(req: NextRequest) {
       id,
       packageName: pkg.name,
       amount: `${amount} ${pkg.billing === 'one-time' ? 'one-time' : pkg.billing}`,
+      amountCents: Math.round(pkg.price * 100),
+      billing: pkg.billing,
       buyerName: String(buyerName).trim(),
       buyerEmail: String(buyerEmail).trim(),
       createdAt: new Date().toLocaleString('en-US'),
@@ -63,7 +65,8 @@ export async function POST(req: NextRequest) {
     emailed = (await sendOwnerEmail(subject, html)).ok;
     // Client confirmation with intake link.
     const intakeUrl = `${proto}://${host}/intake/${pkg.intake}?order=${encodeURIComponent(id)}`;
-    const client = clientPurchaseEmail(info, intakeUrl, pkg.inclusions);
+    const logoUrl = `${proto}://${host}/logo-receipt.png`;
+    const client = clientPurchaseEmail(info, intakeUrl, pkg.inclusions, logoUrl);
     clientEmailed = (await sendClientEmail(info.buyerEmail, client.subject, client.html)).ok;
   }
 
