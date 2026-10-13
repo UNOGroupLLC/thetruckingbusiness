@@ -102,6 +102,8 @@ const POST_COLS =
 export const FEATURED_ORDER = [
   'how-to-start-a-trucking-company',
   'how-much-does-it-cost-to-start-a-trucking-company',
+  'what-is-mc-authority',
+  'usdot-vs-mc-number',
   'how-long-does-mc-authority-take',
 ];
 
