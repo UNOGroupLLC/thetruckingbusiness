@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { listPublishedPosts, formatPostDate, readMinutes } from '@/lib/blog';
+import { listPublishedPosts } from '@/lib/blog';
+import BlogSearch, { type BlogCardPost } from '@/components/BlogSearch';
 export const instant = false;
 
 export const metadata: Metadata = {
@@ -10,34 +11,6 @@ export const metadata: Metadata = {
   alternates: { canonical: 'https://www.thetruckingbusiness.com/resources/blog' },
 };
 
-
-function CardImage({ post }: { post: { cover_image_url: string | null; title: string; category: string } }) {
-  if (post.cover_image_url) {
-    return <img src={post.cover_image_url} alt={post.title} loading="lazy" />;
-  }
-  return (
-    <div
-      aria-hidden="true"
-      style={{
-        width: '100%',
-        height: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'linear-gradient(135deg,#0b2e4f 0%,#164a7a 100%)',
-        color: '#f5c400',
-        fontWeight: 900,
-        fontSize: 13,
-        letterSpacing: 2,
-        textTransform: 'uppercase',
-        padding: 16,
-        textAlign: 'center',
-      }}
-    >
-      {post.category}
-    </div>
-  );
-}
 
 export default async function BlogIndex({
   searchParams,
@@ -91,33 +64,20 @@ export default async function BlogIndex({
           No articles here yet — check back soon.
         </p>
       ) : (
-        <div className="res-grid" style={{ marginTop: 24 }}>
-          {posts.map((p) => (
-            <article key={p.slug} className="res">
-              <div className="res-img">
-                <CardImage post={p} />
-              </div>
-              <div className="res-body">
-                <span className="path-tag">{p.category}</span>
-                <h3>
-                  <Link
-                    href={`/resources/blog/${p.slug}`}
-                    style={{ color: 'inherit', textDecoration: 'none' }}
-                  >
-                    {p.title}
-                  </Link>
-                </h3>
-                <p>{p.excerpt}</p>
-                <div style={{ fontSize: 12.5, color: '#5b6b7b', marginBottom: 10 }}>
-                  {formatPostDate(p.published_at)} · {readMinutes(p.content_md)} min read
-                </div>
-                <Link href={`/resources/blog/${p.slug}`} className="res-link">
-                  Read article
-                </Link>
-              </div>
-            </article>
-          ))}
-        </div>
+        <BlogSearch
+          posts={posts.map(
+            (p): BlogCardPost => ({
+              slug: p.slug,
+              title: p.title,
+              excerpt: p.excerpt,
+              cover_image_url: p.cover_image_url,
+              category: p.category,
+              tags: p.tags || [],
+              published_at: p.published_at,
+              content_md: p.content_md,
+            })
+          )}
+        />
       )}
     </div>
   );

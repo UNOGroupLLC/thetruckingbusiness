@@ -95,13 +95,30 @@ export function checkBlogKey(req: Request): boolean {
 const POST_COLS =
   'id,slug,title,excerpt,content_md,cover_image_url,category,tags,seo_title,seo_description,has_affiliate_links,faqs,status,author,published_at,pinned,created_at,updated_at';
 
+/**
+ * Editorial order for the blog index: these slugs appear first, in this
+ * order, ahead of everything else. Add newly audited articles here.
+ */
+export const FEATURED_ORDER = [
+  'how-to-start-a-trucking-company',
+  'how-much-does-it-cost-to-start-a-trucking-company',
+  'how-long-does-mc-authority-take',
+];
+
+function featuredRank(slug: string): number {
+  const i = FEATURED_ORDER.indexOf(slug);
+  return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+}
+
 export async function listPublishedPosts(category?: string): Promise<BlogPost[]> {
   if (!blogConfigured()) return [];
   let path = `blog_posts?select=${POST_COLS}&status=eq.published&order=pinned.desc,published_at.desc.nullslast,created_at.desc`;
   if (category) path += `&category=eq.${encodeURIComponent(category)}`;
   const res = await sbPublic(path);
   if (!res.ok) return [];
-  return (await res.json()) as BlogPost[];
+  const rows = (await res.json()) as BlogPost[];
+  // Editorial order first (stable sort keeps DB order for the rest).
+  return rows.sort((a, b) => featuredRank(a.slug) - featuredRank(b.slug));
 }
 
 export async function listAllPosts(): Promise<BlogPost[]> {
