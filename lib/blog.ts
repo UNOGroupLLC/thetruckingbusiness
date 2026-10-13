@@ -109,7 +109,7 @@ export const FEATURED_ORDER = [
   'what-is-boc-3',
   'new-authority-trucking-insurance',
   'what-is-ucr-registration',
-  // 'what-is-hvut-form-2290', // not written yet
+  'what-is-hvut-form-2290',
   'irp-ifta-explained',
 ];
 
@@ -284,6 +284,7 @@ const EMBED_HEIGHTS: Record<string, number> = {
   'visuals/hos-clocks': 720,
   'visuals/authority-timeline': 640,
   'visuals/sos-map': 780,
+  'visuals/ucr-map': 800,
 };
 
 function embedFrame(src: string): string {
