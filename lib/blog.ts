@@ -102,9 +102,15 @@ const POST_COLS =
 export const FEATURED_ORDER = [
   'how-to-start-a-trucking-company',
   'how-much-does-it-cost-to-start-a-trucking-company',
+  'llc-vs-s-corp-vs-sole-proprietor-trucking',
   'what-is-mc-authority',
   'usdot-vs-mc-number',
   'how-long-does-mc-authority-take',
+  'what-is-boc-3',
+  'new-authority-trucking-insurance',
+  'what-is-ucr-registration',
+  // 'what-is-hvut-form-2290', // not written yet
+  'irp-ifta-explained',
 ];
 
 function featuredRank(slug: string): number {
@@ -277,6 +283,7 @@ const EMBED_HEIGHTS: Record<string, number> = {
   'visuals/truck-markings': 900,
   'visuals/hos-clocks': 720,
   'visuals/authority-timeline': 640,
+  'visuals/sos-map': 780,
 };
 
 function embedFrame(src: string): string {
