@@ -1719,6 +1719,8 @@ export default function AdminPage() {
   const { packages, orders: localOrders } = useTtb();
   const [gate, setGate] = useState<'loading' | 'locked' | 'ready'>('loading');
   const [keyInput, setKeyInput] = useState('');
+  const [lockError, setLockError] = useState('');
+  const [checking, setChecking] = useState(false);
   const [dbOrders, setDbOrders] = useState<OrderRecord[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [section, setSection] = useState<Section>('orders');
@@ -1727,9 +1729,23 @@ export default function AdminPage() {
   const [inquiryCount, setInquiryCount] = useState(0);
 
   async function load() {
+    setChecking(true);
     try {
       const res = await fetch('/api/orders', { cache: 'no-store', headers: { ...adminKeyHeaders() } });
       if (res.status === 401) {
+        // Say what is wrong instead of sitting silent: a key was tried and
+        // the server did not accept it. Drop the stored copy so a stale key
+        // does not keep failing on every visit.
+        if (storedAdminKey()) {
+          setLockError(
+            'That key was not accepted. It has to match the ADMIN_KEY saved in Vercel (Production) exactly, character for character. Paste it fresh from your Notes rather than typing it.'
+          );
+          try {
+            window.localStorage.removeItem('ttb-admin-key');
+          } catch {
+            /* storage unavailable */
+          }
+        }
         setGate('locked');
         return;
       }
@@ -1739,10 +1755,18 @@ export default function AdminPage() {
       } else {
         setDbOrders([]);
       }
+      setLockError('');
       setGate('ready');
     } catch {
-      setDbOrders([]);
-      setGate('ready');
+      if (gate === 'locked' || storedAdminKey()) {
+        setLockError('Could not reach the server to check the key. Check your connection and try again.');
+        setGate('locked');
+      } else {
+        setDbOrders([]);
+        setGate('ready');
+      }
+    } finally {
+      setChecking(false);
     }
   }
 
@@ -1802,6 +1826,11 @@ export default function AdminPage() {
               className="mt-4 space-y-3"
               onSubmit={(e) => {
                 e.preventDefault();
+                if (!keyInput.trim()) {
+                  setLockError('Paste your ADMIN_KEY first, then unlock.');
+                  return;
+                }
+                setLockError('');
                 try {
                   window.localStorage.setItem('ttb-admin-key', keyInput.trim());
                 } catch {
@@ -1816,10 +1845,20 @@ export default function AdminPage() {
                 className="input"
                 placeholder="Paste ADMIN_KEY"
                 value={keyInput}
-                onChange={(e) => setKeyInput(e.target.value)}
+                onChange={(e) => {
+                  setKeyInput(e.target.value);
+                  if (lockError) setLockError('');
+                }}
                 autoComplete="off"
               />
-              <button type="submit" className="btn-primary w-full">Unlock admin</button>
+              {lockError && (
+                <p role="alert" className={`${T_SMALL} font-bold leading-relaxed text-red-700`}>
+                  {lockError}
+                </p>
+              )}
+              <button type="submit" className="btn-primary w-full" disabled={checking}>
+                {checking ? 'Checking…' : 'Unlock admin'}
+              </button>
             </form>
           </div>
         </div>
