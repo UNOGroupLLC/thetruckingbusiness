@@ -92,3 +92,202 @@ h3 {
 /* ---- Blog embeds (calculators & interactive visuals) ---- */
 .blog-embed { margin: 24px 0; }
 .blog-embed iframe { display: block; background: #fff; }
+
+/* ---- Contact page ----
+   Styled to the approved prototype tokens (app/prototype.css :root):
+   navy #0a1a36, navy2 #0f2a5c, blue #1755a8, yellow #ffc61a, bg #f6f7f9,
+   line #dde3ec, radius 20px, shadow-lg. The hero reuses the prototype's own
+   .eyebrow-pill, .hero-h1 and .hero-sub classes. The contact methods are
+   frosted glass panels on the navy (same glass language as .eyebrow-pill:
+   translucent white, 1px rgba border, backdrop blur); the form card is the
+   single solid white focal point, hanging over the light tail below.
+   One type ladder page-wide: labels 11px / 800 / uppercase / 0.16em tracking
+   (yellow on glass, navy on the form card), form card title 20px / 900,
+   body text 16px, meta text 13px. Spacing rhythm: 8 / 12 / 16 / 24. */
+.contact-hero {
+  position: relative;
+  display: flow-root; /* contain the grid's negative bottom margin (no collapse, no clipping) */
+  background: linear-gradient(160deg, #0f2a5c 0%, #0a1a36 62%);
+  padding: 88px 0 0;
+}
+.contact-route {
+  position: absolute;
+  right: 0;
+  top: 24px;
+  width: min(620px, 72vw);
+  pointer-events: none;
+}
+.contact-tail {
+  background: #f6f7f9;
+  height: 168px; /* 80px form-card overlap + 88px clear space below it */
+}
+.contact-grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1.05fr;
+  gap: 24px;
+  align-items: stretch;
+  margin: 48px 0 -80px;
+  position: relative;
+  z-index: 2;
+}
+.contact-side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.contact-panels {
+  flex: 1 1 0;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 12px;
+}
+.contact-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.contact-stack .contact-card {
+  flex: 1 1 0;
+}
+.contact-card {
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+}
+.contact-card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.contact-card-head .kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #ffc61a;
+  margin-bottom: 0;
+}
+.contact-card-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.4;
+  color: #fff;
+}
+.contact-card-value.email {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.contact-card-value.soft {
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.65;
+  color: #cbd8f0;
+}
+a.contact-card-value:hover {
+  text-decoration: underline;
+}
+.contact-form-card {
+  border-radius: 20px;
+  border: 1px solid #dde3ec;
+  background: #fff;
+  padding: 24px;
+  box-shadow: 0 32px 80px rgba(10, 26, 54, 0.16), 0 4px 16px rgba(10, 26, 54, 0.08);
+}
+.contact-form-title {
+  font-size: 20px;
+  font-weight: 900;
+  color: #0a1a36;
+}
+/* Form type harmonized to the page ladder; scoped so site forms are untouched. */
+.contact-form label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #0a1a36;
+  margin-bottom: 8px;
+}
+.contact-form .input {
+  font-size: 15px;
+}
+.contact-form .input::placeholder {
+  color: #5b6a82;
+  opacity: 1;
+}
+.contact-form .input:focus {
+  border-color: #1755a8;
+  box-shadow: 0 0 0 3px rgba(23, 85, 168, 0.15);
+}
+.contact-form .btn {
+  font-size: 13px;
+}
+.contact-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ffc61a;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.contact-next {
+  margin-top: auto;
+  padding-top: 24px;
+}
+.contact-next .kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #ffc61a;
+  margin-bottom: 12px;
+}
+.contact-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+.contact-steps li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: #8ea3c7;
+}
+.contact-step-num {
+  font-family: "Libre Franklin", ui-sans-serif, system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  color: #ffc61a;
+}
+@media (max-width: 900px) {
+  .contact-grid {
+    grid-template-columns: 1fr;
+    margin-top: 40px;
+  }
+  .contact-hero {
+    padding-top: 64px;
+  }
+  .contact-panels {
+    flex: none;
+    grid-template-columns: 1fr;
+  }
+  .contact-stack .contact-card {
+    flex: none;
+  }
+  .contact-next {
+    margin-top: 0;
+  }
+}

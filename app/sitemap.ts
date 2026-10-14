@@ -6,6 +6,9 @@ const SITE = 'https://www.thetruckingbusiness.com';
 const STATIC_ROUTES = [
   '',
   '/pricing',
+  '/contact',
+  '/privacy-policy',
+  '/terms-of-service',
   '/calculators',
   '/resources/blog',
   '/portal/login',

@@ -299,6 +299,31 @@ export function bookingEmail(
   };
 }
 
+/** Owner: a visitor sent the website contact form. Sent with reply-to = sender. */
+export function contactEmail(
+  name: string,
+  email: string,
+  topic: string,
+  message: string
+): { subject: string; html: string } {
+  const body = esc(message).replace(/\n/g, '<br>');
+  return {
+    subject: `Website contact: ${name}`,
+    html: shell(
+      'Website contact message',
+      'Someone wrote in through the contact form on the website.',
+      kv([
+        ['Name', esc(name)],
+        ['Email', esc(email)],
+        ['Topic', esc(topic)],
+      ]) +
+        sectionTitle('Message') +
+        `<p style="font-size:14px;line-height:1.65;color:${CHARCOAL};margin:0 0 24px;">${body}</p>` +
+        note('Hit reply on this email to answer them — the reply goes straight to their address.')
+    ),
+  };
+}
+
 /* ------------------------- Client-facing emails ------------------------- */
 
 /**

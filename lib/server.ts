@@ -154,7 +154,12 @@ export async function dbSelect<T = Record<string, unknown>>(
 }
 
 /** Send an email via Resend. No-op when email isn't configured. */
-async function sendEmail(to: string, subject: string, html: string): Promise<DbResult> {
+async function sendEmail(
+  to: string,
+  subject: string,
+  html: string,
+  replyTo?: string
+): Promise<DbResult> {
   if (!emailConfigured()) return { ok: false, status: 0, error: 'email not configured' };
   try {
     const res = await fetch('https://api.resend.com/emails', {
@@ -163,7 +168,13 @@ async function sendEmail(to: string, subject: string, html: string): Promise<DbR
         Authorization: `Bearer ${RESEND_KEY}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ from: EMAIL_FROM, to: [to], subject, html }),
+      body: JSON.stringify({
+        from: EMAIL_FROM,
+        to: [to],
+        subject,
+        html,
+        ...(replyTo ? { reply_to: replyTo } : {}),
+      }),
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
@@ -175,9 +186,13 @@ async function sendEmail(to: string, subject: string, html: string): Promise<DbR
   }
 }
 
-/** Notify the owner. */
-export async function sendOwnerEmail(subject: string, html: string): Promise<DbResult> {
-  return sendEmail(OWNER_EMAIL, subject, html);
+/** Notify the owner. Pass `replyTo` to let the owner answer the sender in one click. */
+export async function sendOwnerEmail(
+  subject: string,
+  html: string,
+  replyTo?: string
+): Promise<DbResult> {
+  return sendEmail(OWNER_EMAIL, subject, html, replyTo);
 }
 
 /** Notify the customer. */

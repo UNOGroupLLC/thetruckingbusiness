@@ -41,6 +41,23 @@ export default function Footer() {
           current requirements, fees, and deadlines with FMCSA, the eCFR, IRS, and your state
           agencies before filing. Phase 1 demo — checkout is simulated and no payment is processed.
         </p>
+        <p style={{ fontSize: 12, marginTop: 16 }}>
+          <Link href="/contact" style={{ display: 'inline', padding: 0 }}>
+            Contact
+          </Link>
+          {'  ·  '}
+          <Link href="/privacy-policy" style={{ display: 'inline', padding: 0 }}>
+            Privacy Policy
+          </Link>
+          {'  ·  '}
+          <Link href="/terms-of-service" style={{ display: 'inline', padding: 0 }}>
+            Terms of Service
+          </Link>
+          {'  ·  '}
+          <Link href="/terms-of-service#refund-policy" style={{ display: 'inline', padding: 0 }}>
+            Refund Policy
+          </Link>
+        </p>
         <p style={{ fontSize: 12, marginTop: 12 }}>
           © 2026 The Trucking Business. Educational content only; not legal advice.
         </p>

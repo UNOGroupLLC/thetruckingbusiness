@@ -14,7 +14,11 @@ import { purchaseEmail, clientPurchaseEmail, type OrderInfo } from '@/lib/email'
  * POST /api/webhooks/stripe — Stripe event webhook.
  * Verifies the signature with STRIPE_WEBHOOK_SECRET, then on
  * checkout.session.completed: creates the order row in Supabase and sends
- * the owner + customer emails. Always 200 (Stripe retries otherwise).
+ * the owner + customer emails. Returns 200 once the order is saved. If the
+ * save fails it returns 500 BEFORE sending any email, so Stripe retries
+ * the event; the upsert is keyed on the order id, so a retry cannot create
+ * a duplicate order, and no duplicate emails go out because emails are
+ * only sent after a successful save.
  *
  * Dashboard setup: Developers → Webhooks → Add endpoint →
  * https://thetruckingbusiness.com/api/webhooks/stripe →
@@ -119,9 +123,11 @@ export async function POST(req: NextRequest) {
     const billing = m.billing || pkg?.billing || 'one-time';
     const intakeService = pkg?.intake ?? 'authority';
 
-    // 1) Persist the order (Supabase).
+    // 1) Persist the order (Supabase). If the save fails, stop here and
+    //    return 500 so Stripe retries the event instead of the paid order
+    //    vanishing silently. Emails below only run after a successful save.
     if (backendConfigured() && buyerEmail) {
-      await dbUpsert(
+      const persist = await dbUpsert(
         'orders',
         {
           id: orderId,
@@ -134,6 +140,15 @@ export async function POST(req: NextRequest) {
         },
         'id'
       );
+      if (!persist.ok) {
+        console.error(
+          `[stripe webhook] order ${orderId} failed to save: ${persist.status} ${persist.error ?? ''}`
+        );
+        return NextResponse.json(
+          { ok: false, error: 'Order save failed; Stripe will retry.' },
+          { status: 500 }
+        );
+      }
     }
 
     // 2) Emails (owner + customer), same templates as the rest of the app.
