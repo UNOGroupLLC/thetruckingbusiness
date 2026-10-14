@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backendConfigured, dbUpsert } from '@/lib/server';
+import { backendConfigured, dbUpsert, logOrderEvent } from '@/lib/server';
 
 /**
  * POST /api/orders/[id]/filing — owner pressed "Start filing".
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         'id'
       )
     ).ok;
+    if (persisted) await logOrderEvent(id, 'Owner', 'filing_started');
   }
   return NextResponse.json({ ok: true, persisted });
 }

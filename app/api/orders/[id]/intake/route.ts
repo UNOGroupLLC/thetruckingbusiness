@@ -51,7 +51,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         )
       ).ok;
     } else {
-      persisted = (await dbUpsert('intake_submissions', { order_id: id, data }, 'order_id')).ok;
+      // First submission: upsert on the real unique key (order_id, version)
+      // and always write status + version. The old 'order_id' on-conflict
+      // target did not match any unique constraint, so first submissions
+      // silently failed to persist (Postgres 42P10) while returning ok:true.
+      persisted = (
+        await dbUpsert(
+          'intake_submissions',
+          { order_id: id, data, status: 'submitted', version: version ?? 1 },
+          'order_id,version'
+        )
+      ).ok;
     }
   }
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { emailConfigured, sendOwnerEmail } from '@/lib/server';
+import { emailConfigured, sendOwnerEmail, backendConfigured, dbInsert } from '@/lib/server';
 import { contactEmail } from '@/lib/email';
 import { CONTACT_TOPICS, DEFAULT_CONTACT_TOPIC } from '@/lib/contact';
 
@@ -33,6 +33,12 @@ export async function POST(req: NextRequest) {
       { ok: false, error: 'Please add your name, a valid email address, and a message.' },
       { status: 400 }
     );
+  }
+
+  // Save to the admin Inquiries inbox as well as emailing the owner, so
+  // messages are tracked, assignable, and never lost in an email thread.
+  if (backendConfigured()) {
+    await dbInsert('contact_messages', { name, email, topic, message });
   }
 
   if (!emailConfigured()) {

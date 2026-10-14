@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { authConfigured, verifyOtpCode } from '@/lib/server';
+import { authConfigured, verifyOtpCode, signPortalToken } from '@/lib/server';
 
 /**
  * POST /api/auth/verify-code — verify a 6-digit portal login code via Supabase Auth.
@@ -25,5 +25,7 @@ export async function POST(req: NextRequest) {
       { status: 401 }
     );
   }
-  return NextResponse.json({ ok: true });
+  // Hand the browser a signed portal session token so it can fetch its own
+  // orders (with documents and intake) from /api/portal/orders.
+  return NextResponse.json({ ok: true, token: signPortalToken(email) });
 }

@@ -169,9 +169,6 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
       <button onClick={onDone} className="mt-3 w-full text-center text-sm font-semibold text-steel underline">
         Skip for now — no call needed
       </button>
-      <p className="mt-3 text-center text-xs text-steel">
-        Demo only — in production this books a real slot on our calendar and emails you an invite.
-      </p>
     </div>
   );
 }

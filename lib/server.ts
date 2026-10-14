@@ -236,3 +236,89 @@ export async function storageUpload(
 }
 
 /** Notify the customer. */
+/**
+ * Append one row to the order activity trail (order_events).
+ * Best-effort by design: a missing table (migration-007 not run yet) or a
+ * transient failure must never break the action that caused the event.
+ */
+export async function logOrderEvent(
+  orderId: string,
+  actor: string,
+  action: string,
+  detail?: string
+): Promise<void> {
+  if (!backendConfigured()) return;
+  try {
+    await dbInsert('order_events', {
+      order_id: orderId,
+      actor,
+      action,
+      ...(detail ? { detail } : {}),
+    });
+  } catch {
+    /* activity trail is best-effort */
+  }
+}
+
+/**
+ * Portal session token — issued by /api/auth/verify-code after a successful
+ * OTP login and presented by the portal as `x-portal-token`. It binds the
+ * verified email into an HMAC-signed, expiring token so portal API routes
+ * can serve that customer's own orders/documents without trusting a bare
+ * email parameter. Signed with the service-role key (server-only secret).
+ */
+import { createHmac, timingSafeEqual } from 'crypto';
+
+const PORTAL_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+export function signPortalToken(email: string): string {
+  const payload = `${email.toLowerCase()}|${Date.now() + PORTAL_TOKEN_TTL_MS}`;
+  const sig = createHmac('sha256', SUPABASE_KEY).update(payload).digest('base64url');
+  return `${Buffer.from(payload).toString('base64url')}.${sig}`;
+}
+
+/** Returns the token's email when valid and unexpired, otherwise null. */
+export function verifyPortalToken(token: string | null | undefined): string | null {
+  if (!token || !SUPABASE_KEY) return null;
+  const [body, sig] = token.split('.');
+  if (!body || !sig) return null;
+  let payload: string;
+  try {
+    payload = Buffer.from(body, 'base64url').toString('utf8');
+  } catch {
+    return null;
+  }
+  const expected = createHmac('sha256', SUPABASE_KEY).update(payload).digest('base64url');
+  const a = Buffer.from(sig);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  const [email, expRaw] = payload.split('|');
+  const exp = Number(expRaw);
+  if (!email || !exp || Date.now() > exp) return null;
+  return email;
+}
+
+/**
+ * Create a short-lived signed download URL for a private Storage object.
+ * Returns the absolute URL, or null when storage isn't configured/fails.
+ */
+export async function storageSignedUrl(
+  bucket: string,
+  path: string,
+  expiresInSeconds = 3600
+): Promise<string | null> {
+  if (!backendConfigured()) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/sign/${bucket}/${path}`, {
+      method: 'POST',
+      headers: { ...supabaseRestHeaders(SUPABASE_KEY), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ expiresIn: expiresInSeconds }),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as { signedURL?: string };
+    if (!data.signedURL) return null;
+    return `${SUPABASE_URL}/storage/v1${data.signedURL}`;
+  } catch {
+    return null;
+  }
+}

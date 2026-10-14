@@ -7,11 +7,26 @@
  * vars aren't set, the API routes simply report persisted:false/emailed:false.
  */
 
+/** The owner admin key, when this browser has unlocked the admin panel. */
+export function storedAdminKey(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return window.localStorage.getItem('ttb-admin-key') ?? '';
+  } catch {
+    return '';
+  }
+}
+
+export function adminKeyHeaders(): Record<string, string> {
+  const k = storedAdminKey();
+  return k ? { 'x-admin-key': k } : {};
+}
+
 function post(path: string, body: unknown): void {
   try {
     fetch(path, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...adminKeyHeaders() },
       body: JSON.stringify(body),
       keepalive: true,
     }).catch(() => {});
@@ -86,6 +101,7 @@ export function syncDocument(
     form.append('orderInfo', JSON.stringify(order));
     fetch(`/api/orders/${encodeURIComponent(orderId)}/documents`, {
       method: 'POST',
+      headers: { ...adminKeyHeaders() },
       body: form,
       keepalive: true,
     }).catch(() => {});

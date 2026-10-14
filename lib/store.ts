@@ -100,6 +100,14 @@ export interface OrderRecord {
   booking?: { date: string; time: string };
   /** Uploaded-document count for database orders. */
   documentCount?: number;
+  /** Payment lifecycle from Stripe (webhook): paid by default. */
+  payStatus?: 'paid' | 'refunded' | 'cancelled';
+  /** Refunded amount in cents when payStatus is 'refunded'. */
+  refundedCents?: number;
+  /** Admin workflow: starred as priority in the orders queue. */
+  priority?: boolean;
+  /** Admin workflow: who holds this order ('owner' in the solo admin). */
+  assignee?: string;
 }
 
 interface State {
@@ -401,6 +409,111 @@ export function getCallBooking(orderId: string | null | undefined): CallBooking 
 export function setPortalEmail(email: string | null) {
   load();
   state = { ...state, portalEmail: email };
+  persist();
+}
+
+/* --------------------- portal server sync (Phase 2) --------------------- */
+
+const PORTAL_TOKEN_KEY = 'ttb-portal-token';
+
+/** Session token issued after OTP login; authorizes /api/portal/* reads. */
+export function setPortalToken(token: string | null) {
+  if (typeof window === 'undefined') return;
+  try {
+    if (token) localStorage.setItem(PORTAL_TOKEN_KEY, token);
+    else localStorage.removeItem(PORTAL_TOKEN_KEY);
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+export function getPortalToken(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    return localStorage.getItem(PORTAL_TOKEN_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+
+/** A server-side order, as returned by GET /api/portal/orders. */
+export interface ServerOrder {
+  id: string;
+  packageSlug: string;
+  packageName: string;
+  amount: number;
+  buyerName: string;
+  buyerEmail: string;
+  createdAt: string;
+  intakeService: IntakeKind;
+  intakeStatus?: IntakeStatus;
+  intake?: Record<string, string>;
+  filingStartedAt?: string;
+  booking?: { date: string; time: string };
+  documents?: OrderDocument[];
+  payStatus?: 'paid' | 'refunded' | 'cancelled';
+  refundedCents?: number;
+  priority?: boolean;
+  assignee?: string;
+}
+
+/**
+ * Merge orders fetched from the server into the local store. The server is
+ * the source of truth for payment state, intake answers (including edits
+ * the team made for the customer), and uploaded documents (signed URLs) —
+ * so what the office uploads or corrects shows up in the customer's portal.
+ */
+export function mergeServerOrders(serverOrders: ServerOrder[]) {
+  if (!serverOrders.length) return;
+  load();
+  const byId = new Map(state.orders.map((o) => [o.id, o]));
+  for (const so of serverOrders) {
+    const local = byId.get(so.id);
+    if (!local) {
+      byId.set(so.id, {
+        id: so.id,
+        packageSlug: so.packageSlug,
+        packageName: so.packageName,
+        amount: so.amount,
+        isRealPayment: true,
+        buyerName: so.buyerName,
+        buyerEmail: so.buyerEmail,
+        createdAt: so.createdAt,
+        intakeService: so.intakeService,
+        intake: so.intake,
+        intakeStatus: so.intakeStatus,
+        filingStartedAt: so.filingStartedAt,
+        documents: so.documents,
+        documentCount: so.documents?.length ?? 0,
+        booking: so.booking,
+        payStatus: so.payStatus,
+        refundedCents: so.refundedCents,
+        priority: so.priority,
+        assignee: so.assignee,
+        source: 'database',
+      });
+      continue;
+    }
+    const docsBySlot = new Map((local.documents ?? []).map((d) => [d.slotKey, d]));
+    for (const d of so.documents ?? []) docsBySlot.set(d.slotKey, d);
+    const documents = [...docsBySlot.values()];
+    byId.set(so.id, {
+      ...local,
+      intakeStatus: so.intakeStatus ?? local.intakeStatus,
+      intake: so.intake ?? local.intake,
+      filingStartedAt: so.filingStartedAt ?? local.filingStartedAt,
+      documents,
+      documentCount: documents.length,
+      booking: so.booking ?? local.booking,
+      payStatus: so.payStatus ?? local.payStatus,
+      refundedCents: so.refundedCents ?? local.refundedCents,
+      priority: so.priority ?? local.priority,
+      assignee: so.assignee ?? local.assignee,
+      source: 'database',
+      isRealPayment: true,
+    });
+  }
+  state = { ...state, orders: [...byId.values()] };
   persist();
 }
 

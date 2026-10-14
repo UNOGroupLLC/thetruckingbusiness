@@ -39,7 +39,7 @@ export default function Footer() {
           is not affiliated with FMCSA, the U.S. Department of Transportation, or any government
           agency. Information on this site is educational and for planning only; always verify
           current requirements, fees, and deadlines with FMCSA, the eCFR, IRS, and your state
-          agencies before filing. Phase 1 demo — checkout is simulated and no payment is processed.
+          agencies before filing.
         </p>
         <p style={{ fontSize: 12, marginTop: 16 }}>
           <Link href="/contact" style={{ display: 'inline', padding: 0 }}>

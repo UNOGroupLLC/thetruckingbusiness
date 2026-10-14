@@ -1,7 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { useTtb, formatUSD, formatDate, getCallBooking, getPackage } from '@/lib/store';
+import { useEffect, useState } from 'react';
+import {
+  useTtb,
+  formatUSD,
+  formatDate,
+  getCallBooking,
+  getPackage,
+  getPortalToken,
+  setPortalToken,
+  mergeServerOrders,
+} from '@/lib/store';
 import type { IntakeStatus, OrderRecord } from '@/lib/store';
 
 const STEPS = [
@@ -226,6 +236,37 @@ function OrderCard({ order }: { order: OrderRecord }) {
 
 export default function PortalDashboardPage() {
   const { portalEmail, orders } = useTtb();
+  const [, setSynced] = useState(0);
+
+  // Pull the customer's real orders from the server (documents the office
+  // uploaded, intake answers, staff edits, payment state) and merge them
+  // into the local store so this page shows the same truth as the office.
+  useEffect(() => {
+    const token = getPortalToken();
+    if (!token) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/portal/orders', {
+          headers: { 'x-portal-token': token },
+        });
+        if (res.status === 401) {
+          setPortalToken(null);
+          return;
+        }
+        const data = await res.json().catch(() => null);
+        if (!cancelled && data?.ok && Array.isArray(data.orders)) {
+          mergeServerOrders(data.orders);
+          setSynced((n) => n + 1);
+        }
+      } catch {
+        /* local copy still renders */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (!portalEmail) {
     return (

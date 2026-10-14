@@ -85,6 +85,10 @@ interface OrderRow {
   intake_service: string;
   filing_status: string | null;
   filing_started_at: string | null;
+  priority?: boolean | null;
+  assignee?: string | null;
+  pay_status?: string | null;
+  refunded_cents?: number | null;
   created_at: string;
 }
 
@@ -109,9 +113,14 @@ export async function GET(req: NextRequest) {
   }
   const [ordersRes, intakeRes, bookingRes, docsRes] = await Promise.all([
     dbSelect<OrderRow>(
-      'orders?select=id,package_slug,package_name,amount_cents,buyer_name,buyer_email,intake_service,filing_status,filing_started_at,created_at&order=created_at.desc&limit=200'
+      'orders?select=*&order=created_at.desc&limit=200'
     ),
-    dbSelect<{ order_id: string }>('intake_submissions?select=order_id'),
+    dbSelect<{
+      order_id: string;
+      status: 'submitted' | 'corrected' | 'certified' | 'filing';
+      version: number;
+      certified?: { name?: string; date?: string } | null;
+    }>('intake_submissions?select=order_id,status,version,certified&order=version.desc'),
     dbSelect<{ order_id: string; date: string; time: string }>(
       'call_bookings?select=order_id,date,time'
     ),
@@ -124,12 +133,18 @@ export async function GET(req: NextRequest) {
     );
   }
   const intakeOrders = new Set(intakeRes.rows.map((r) => r.order_id));
+  // Rows arrive newest version first; the first row per order is the latest.
+  const intakeByOrder = new Map<string, (typeof intakeRes.rows)[number]>();
+  for (const r of intakeRes.rows) {
+    if (!intakeByOrder.has(r.order_id)) intakeByOrder.set(r.order_id, r);
+  }
   const bookingByOrder = new Map(bookingRes.rows.map((r) => [r.order_id, r]));
   const docCount = new Map<string, number>();
   for (const d of docsRes.rows) docCount.set(d.order_id, (docCount.get(d.order_id) ?? 0) + 1);
 
   const orders = ordersRes.rows.map((o) => {
     const booking = bookingByOrder.get(o.id);
+    const latestIntake = intakeByOrder.get(o.id);
     return {
       id: o.id,
       packageSlug: o.package_slug,
@@ -143,13 +158,15 @@ export async function GET(req: NextRequest) {
       // the admin UI renders them distinctly from localStorage demo orders.
       isRealPayment: true,
       source: 'database' as const,
-      intakeStatus:
-        o.filing_status === 'filing'
-          ? ('filing' as const)
-          : intakeOrders.has(o.id)
-            ? ('submitted' as const)
-            : undefined,
+      intakeStatus: o.filing_status === 'filing' ? ('filing' as const) : latestIntake ? latestIntake.status : (intakeOrders.has(o.id) ? ('submitted' as const) : undefined),
+      intakeVersion: latestIntake?.version,
+      intakeCertified: latestIntake?.certified ?? undefined,
       filingStartedAt: o.filing_started_at ?? undefined,
+      priority: Boolean(o.priority),
+      assignee: o.assignee ?? undefined,
+      payStatus:
+        o.pay_status === 'refunded' || o.pay_status === 'cancelled' ? o.pay_status : ('paid' as const),
+      refundedCents: o.refunded_cents ?? undefined,
       booking: booking ? { date: booking.date, time: booking.time } : undefined,
       documentCount: docCount.get(o.id) ?? 0,
     };

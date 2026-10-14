@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { setPortalEmail } from '@/lib/store';
+import { setPortalEmail, setPortalToken } from '@/lib/store';
 import Field from '@/components/Field';
 
 /**
@@ -78,6 +78,7 @@ export default function PortalLoginPage() {
         return;
       }
       setPortalEmail(email.trim());
+      if (data?.token) setPortalToken(data.token);
       router.push('/portal/dashboard');
     } catch {
       setError('Verification failed. Please try again.');

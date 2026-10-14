@@ -566,7 +566,7 @@ function IntakeInner() {
             {alreadySubmitted ? 'Save corrections' : 'Submit details'}
           </button>
           <p className="text-center text-xs text-steel">
-            Demo only — in production this is delivered to our team to start your filing.
+            Your answers go straight to our team so we can start your filing.
           </p>
         </form>
       </div>

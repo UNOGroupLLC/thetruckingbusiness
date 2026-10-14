@@ -5,6 +5,7 @@ import {
   storageUpload,
   sendClientEmail,
   emailConfigured,
+  logOrderEvent,
 } from '@/lib/server';
 import { documentReadyEmail, type OrderInfo } from '@/lib/email';
 
@@ -15,6 +16,11 @@ import { documentReadyEmail, type OrderInfo } from '@/lib/email';
  * and emails the customer "your document is ready". Always ok:true.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // Same ADMIN_KEY lock as the rest of the admin API.
+  const adminKey = process.env.ADMIN_KEY ?? '';
+  if (adminKey && req.headers.get('x-admin-key') !== adminKey) {
+    return NextResponse.json({ ok: false, error: 'Unauthorized.' }, { status: 401 });
+  }
   const { id } = await params;
   const form = await req.formData().catch(() => null);
   const file = form?.get('file');
@@ -49,6 +55,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           storage_path: path,
         })
       ).ok;
+      if (persisted) {
+        await logOrderEvent(id, 'Owner', 'document_uploaded', slotLabel || slotKey);
+      }
     }
   }
 

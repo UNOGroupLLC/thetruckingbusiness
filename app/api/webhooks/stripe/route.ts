@@ -3,9 +3,11 @@ import Stripe from 'stripe';
 import {
   backendConfigured,
   dbUpsert,
+  dbSelect,
   sendOwnerEmail,
   sendClientEmail,
   emailConfigured,
+  logOrderEvent,
 } from '@/lib/server';
 import { getPackage } from '@/lib/packages';
 import { purchaseEmail, clientPurchaseEmail, type OrderInfo } from '@/lib/email';
@@ -149,6 +151,12 @@ export async function POST(req: NextRequest) {
           { status: 500 }
         );
       }
+      await logOrderEvent(
+        orderId,
+        'Stripe',
+        'payment_received',
+        `$${(amountCents / 100).toLocaleString('en-US')} ${billing === 'one-time' ? 'one-time' : billing}`
+      );
     }
 
     // 2) Emails (owner + customer), same templates as the rest of the app.
@@ -178,6 +186,65 @@ export async function POST(req: NextRequest) {
       const logoUrl = `${proto}://${host}/logo-receipt.png`;
       const client = clientPurchaseEmail(info, intakeUrl, pkg?.inclusions ?? [], logoUrl);
       await sendClientEmail(buyerEmail, client.subject, client.html);
+    }
+  }
+
+  // Refund issued in Stripe (the owner issues refunds in his Stripe login;
+  // this event is how the admin learns about it). Resolve the order from
+  // the checkout session that produced the charge, then record the
+  // cumulative refunded amount and flip pay_status when fully refunded.
+  if (event.type === 'charge.refunded') {
+    const charge = event.data.object as Stripe.Charge;
+    try {
+      const piId = typeof charge.payment_intent === 'string' ? charge.payment_intent : charge.payment_intent?.id;
+      let orderId: string | undefined;
+      if (piId) {
+        const sessions = await stripe.checkout.sessions.list({ payment_intent: piId, limit: 1 });
+        orderId = sessions.data[0]?.metadata?.orderId;
+      }
+      if (orderId && backendConfigured()) {
+        const rows = await dbSelect<{ amount_cents: number | null }>(
+          `orders?select=amount_cents&id=eq.${encodeURIComponent(orderId)}&limit=1`
+        );
+        const total = rows.rows[0]?.amount_cents ?? charge.amount;
+        const fully = charge.amount_refunded >= total;
+        await dbUpsert(
+          'orders',
+          {
+            id: orderId,
+            refunded_cents: charge.amount_refunded,
+            pay_status: fully ? 'refunded' : 'paid',
+          },
+          'id'
+        );
+        await logOrderEvent(
+          orderId,
+          'Stripe',
+          fully ? 'refund_full' : 'refund_partial',
+          `$${(charge.amount_refunded / 100).toLocaleString('en-US')} refunded`
+        );
+      }
+    } catch (e) {
+      console.error('[stripe webhook] charge.refunded handling failed:', e);
+    }
+  }
+
+  // Subscription cancelled or ended: mark the order so the admin and the
+  // Returns section reflect it. The order itself stays on record.
+  if (event.type === 'customer.subscription.deleted') {
+    const sub = event.data.object as Stripe.Subscription;
+    try {
+      let orderId: string | undefined = sub.metadata?.orderId;
+      if (!orderId) {
+        const sessions = await stripe.checkout.sessions.list({ subscription: sub.id, limit: 1 });
+        orderId = sessions.data[0]?.metadata?.orderId;
+      }
+      if (orderId && backendConfigured()) {
+        await dbUpsert('orders', { id: orderId, pay_status: 'cancelled' }, 'id');
+        await logOrderEvent(orderId, 'Stripe', 'subscription_cancelled');
+      }
+    } catch (e) {
+      console.error('[stripe webhook] subscription.deleted handling failed:', e);
     }
   }
 
