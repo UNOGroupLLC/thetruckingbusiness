@@ -34,7 +34,7 @@ function PackageCard({ pkg }: { pkg: Package }) {
             <span className="text-[#0f7a3d]">with Afterpay</span>
           </p>
           <p className="mt-1 text-xs text-steel">
-            Affirm &amp; Klarna also available at checkout · subject to eligibility
+            Afterpay &amp; Klarna also available at checkout · subject to eligibility
           </p>
         </div>
       )}

@@ -199,9 +199,6 @@ export default function HomePage() {
               <span>English here • Español at NegocioDeCamionero.com</span>
             </div>
           </div>
-          <p className="mt-6 text-xs text-slate-300">
-            Demo site — no real payments are processed.
-          </p>
         </div>
       </section>
 

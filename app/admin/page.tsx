@@ -389,13 +389,34 @@ function OrderInbox({ orders }: { orders: OrderRecord[] }) {
  */
 function DbOrderInbox({ onRefreshKey }: { onRefreshKey: number }) {
   const [orders, setOrders] = useState<OrderRecord[]>([]);
-  const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
+  const [state, setState] = useState<'loading' | 'ready' | 'unavailable' | 'locked'>('loading');
   const [filingId, setFilingId] = useState<string | null>(null);
+  const [keyInput, setKeyInput] = useState('');
+
+  function storedAdminKey(): string {
+    try {
+      return window.localStorage.getItem('ttb-admin-key') ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  function adminKeyHeaders(): Record<string, string> {
+    const k = storedAdminKey();
+    return k ? { 'x-admin-key': k } : {};
+  }
 
   async function load() {
     setState('loading');
     try {
-      const res = await fetch('/api/orders', { cache: 'no-store' });
+      const res = await fetch('/api/orders', {
+        cache: 'no-store',
+        headers: { ...adminKeyHeaders() },
+      });
+      if (res.status === 401) {
+        setState('locked');
+        return;
+      }
       const data = await res.json();
       if (data?.ok && data?.configured && Array.isArray(data.orders)) {
         setOrders(data.orders as OrderRecord[]);
@@ -419,7 +440,7 @@ function DbOrderInbox({ onRefreshKey }: { onRefreshKey: number }) {
     try {
       await fetch(`/api/orders/${encodeURIComponent(o.id)}/filing`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...adminKeyHeaders() },
         body: '{}',
       });
     } finally {
@@ -432,6 +453,43 @@ function DbOrderInbox({ onRefreshKey }: { onRefreshKey: number }) {
     return (
       <div className="card">
         <p className="text-sm text-steel">Checking the database for real orders…</p>
+      </div>
+    );
+  }
+  if (state === 'locked') {
+    return (
+      <div className="card">
+        <p className="font-extrabold text-navy">Real orders are locked</p>
+        <p className="mt-1 text-sm text-steel">
+          Paste your ADMIN_KEY to see real Stripe orders. It is kept only in this
+          browser, the same way the blog key works.
+        </p>
+        <form
+          className="mt-3 flex flex-wrap gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            try {
+              window.localStorage.setItem('ttb-admin-key', keyInput.trim());
+            } catch {
+              /* storage unavailable; the fetch below will simply 401 again */
+            }
+            setKeyInput('');
+            load();
+          }}
+        >
+          <input
+            type="password"
+            className="input"
+            style={{ maxWidth: 320 }}
+            placeholder="Paste ADMIN_KEY"
+            value={keyInput}
+            onChange={(e) => setKeyInput(e.target.value)}
+            autoComplete="off"
+          />
+          <button type="submit" className="btn-primary">
+            Unlock orders
+          </button>
+        </form>
       </div>
     );
   }

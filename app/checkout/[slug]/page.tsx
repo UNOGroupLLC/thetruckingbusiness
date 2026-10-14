@@ -123,7 +123,7 @@ function CheckoutInner() {
           <h2 className="text-xl font-extrabold text-navy">Checkout</h2>
           <p className="mt-1 rounded-lg bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-900">
             Secure checkout — you&rsquo;ll complete payment on Stripe&rsquo;s encrypted page. Cards
-            and financing options (Affirm, Afterpay, Klarna) accepted where available.
+            and financing options (Afterpay, Klarna) accepted where available.
           </p>
           <form onSubmit={submit} className="mt-5 space-y-4">
             <Field label="Full name">

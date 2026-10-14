@@ -54,7 +54,7 @@ export default function HomePricing() {
                     <span style={{ color: '#0f7a3d' }}>with Afterpay</span>
                   </p>
                   <p style={{ fontSize: 12, color: 'var(--muted)', margin: '4px 0 0' }}>
-                    Affirm &amp; Klarna also available at checkout · subject to eligibility
+                    Afterpay &amp; Klarna also available at checkout · subject to eligibility
                   </p>
                 </>
               )}
