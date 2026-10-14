@@ -28,7 +28,7 @@ export default function Footer() {
           <div>
             <b>Company</b>
             <Link href="/#resources">Free Guides</Link>
-            <a href="mailto:hello@thetruckingbusiness.com">Talk to us</a>
+            <Link href="/contact">Talk to us</Link>
             <a href="https://negociodecamionero.com" target="_blank" rel="noopener">
               Español ↗
             </a>
