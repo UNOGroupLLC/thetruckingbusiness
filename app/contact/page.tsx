@@ -68,7 +68,7 @@ export default function ContactPage() {
           </p>
 
           <div className="contact-grid">
-            {/* LEFT: glass contact panels + what happens next, on the navy */}
+            {/* LEFT: glass contact panels, on the navy */}
             <div className="contact-side">
               <div className="contact-panels">
                 {/* Office — one wide, tall anchor panel */}
@@ -124,6 +124,13 @@ export default function ContactPage() {
                 </div>
               </div>
 
+            </div>
+
+            {/* RIGHT: the form — the single solid card, overlapping the hero.
+                What happens next lives inside this card as its bottom strip (v7). */}
+            <div className="contact-form-card">
+              <h2 className="contact-form-title">Send us a message</h2>
+              <ContactForm />
               <div className="contact-next">
                 <p className="kicker">What happens next</p>
                 <ol className="contact-steps">
@@ -135,12 +142,6 @@ export default function ContactPage() {
                   ))}
                 </ol>
               </div>
-            </div>
-
-            {/* RIGHT: the form — the single solid card, overlapping the hero */}
-            <div className="contact-form-card">
-              <h2 className="contact-form-title">Send us a message</h2>
-              <ContactForm />
             </div>
           </div>
         </div>
