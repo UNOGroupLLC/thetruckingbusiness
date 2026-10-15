@@ -393,12 +393,16 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
   const pkg = getPackage(order.packageSlug);
   const slots = pkg?.expectedDocuments ?? [];
   const [uploading, setUploading] = useState<string | null>(null);
+  // Result of the last document action, shown until the next one so an
+  // upload is never silently assumed to have saved.
+  const [docMsg, setDocMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   if (slots.length === 0) return null;
 
   async function onFile(slotKey: string, slotLabel: string, file: File | undefined) {
     if (!file) return;
     setUploading(slotKey);
+    setDocMsg(null);
     try {
       let dataUrl: string | undefined;
       if (file.size <= 3 * 1024 * 1024) {
@@ -418,7 +422,7 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
         dataUrl,
       };
       addDocument(order.id, doc);
-      syncDocument(
+      const result = await syncDocument(
         order.id,
         {
           id: order.id,
@@ -432,6 +436,17 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
         slotLabel,
         file
       );
+      if (result.ok) {
+        setDocMsg({ ok: true, text: `Upload complete: ${file.name} saved.` });
+      } else {
+        // The save failed: drop the optimistic entry so the screen never
+        // claims a document exists when it was not saved, and say so.
+        removeDocument(order.id, doc.id);
+        setDocMsg({
+          ok: false,
+          text: result.error ?? 'We could not save that document. Please try again.',
+        });
+      }
     } finally {
       setUploading(null);
     }
@@ -461,7 +476,10 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
                 {doc && (
                   <button
                     className={`${T_SMALL} font-bold text-red-700 hover:underline`}
-                    onClick={() => removeDocument(order.id, doc.id)}
+                    onClick={() => {
+                      setDocMsg(null);
+                      removeDocument(order.id, doc.id);
+                    }}
                   >
                     Remove
                   </button>
@@ -488,6 +506,15 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
           );
         })}
       </ul>
+      {docMsg && (
+        <p
+          className={`mt-2 ${T_SMALL} font-bold ${docMsg.ok ? 'text-green-700' : 'text-red-700'}`}
+          role={docMsg.ok ? 'status' : 'alert'}
+        >
+          {docMsg.ok ? '✓ ' : ''}
+          {docMsg.text}
+        </p>
+      )}
       <p className={`mt-2 ${T_SMALL}`} style={{ color: MUTED }}>
         Uploading notifies the customer by email, and the file appears in their portal under
         their documents.

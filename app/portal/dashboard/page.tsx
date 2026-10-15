@@ -548,6 +548,14 @@ function UploadsCard({
   const requested = pkg?.requestedDocuments ?? [];
   const [busySlot, setBusySlot] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // Last successful upload per slot. Kept in this card (which stays
+  // mounted across the post-upload refetch) so the confirmation survives
+  // the refresh; it clears when a new upload starts on the slot, and the
+  // render below hides it once the team has reviewed the file (accepted
+  // or clearer copy requested), since that state then speaks for itself.
+  const [successes, setSuccesses] = useState<
+    Record<string, { orderId: string; fileName: string }>
+  >({});
   const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
   if (requested.length === 0) return null;
 
@@ -566,6 +574,11 @@ function UploadsCard({
     if (!token) return;
     setBusySlot(slotKey);
     setErrors((prev) => ({ ...prev, [slotKey]: '' }));
+    setSuccesses((prev) => {
+      const next = { ...prev };
+      delete next[slotKey];
+      return next;
+    });
     try {
       const form = new FormData();
       form.append('file', file);
@@ -582,6 +595,10 @@ function UploadsCard({
         }));
         return;
       }
+      setSuccesses((prev) => ({
+        ...prev,
+        [slotKey]: { orderId: order.id, fileName: file.name },
+      }));
       onUploaded?.();
     } catch {
       setErrors((prev) => ({
@@ -633,6 +650,12 @@ function UploadsCard({
           const status = statusFor(slot.key);
           const busy = busySlot === slot.key;
           const error = errors[slot.key];
+          const success = successes[slot.key];
+          const showSuccess =
+            !!success &&
+            success.orderId === order.id &&
+            status !== 'accepted' &&
+            status !== 'needs_new_copy';
           return (
             <div
               key={slot.key}
@@ -748,6 +771,15 @@ function UploadsCard({
               {error && (
                 <p className={`${T_SMALL} mt-2`} style={{ color: '#b91c1c' }}>
                   {error}
+                </p>
+              )}
+              {showSuccess && success && (
+                <p
+                  className={`${T_SMALL} mt-2 font-bold`}
+                  style={{ color: '#15803d' }}
+                  role="status"
+                >
+                  ✓ Upload complete: {success.fileName} is with our team for review.
                 </p>
               )}
               <input

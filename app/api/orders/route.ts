@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
       direction?: string | null;
       status?: string | null;
     }>(
-      'order_documents?select=order_id,slot_key,direction,status&order=created_at.asc'
+      'order_documents?select=order_id,slot_key,direction,status&order=uploaded_at.asc'
     ),
   ]);
   if (!ordersRes.ok) {

@@ -85,27 +85,49 @@ export function syncFiling(orderId: string): void {
   post(`/api/orders/${encodeURIComponent(orderId)}/filing`, {});
 }
 
-/** Owner document upload: multipart POST (server persists + emails the customer). */
-export function syncDocument(
+export interface SyncDocumentResult {
+  ok: boolean;
+  persisted?: boolean;
+  emailed?: boolean;
+  error?: string;
+}
+
+/**
+ * Owner document upload: multipart POST (server persists + emails the
+ * customer). Unlike the other sync helpers this one reports back: the
+ * promise resolves with the route's result so the admin panel can confirm
+ * the save (or show the failure) instead of guessing.
+ */
+export async function syncDocument(
   orderId: string,
   order: SyncOrderInfo,
   slotKey: string,
   slotLabel: string,
   file: File
-): void {
+): Promise<SyncDocumentResult> {
   try {
     const form = new FormData();
     form.append('file', file);
     form.append('slotKey', slotKey);
     form.append('slotLabel', slotLabel);
     form.append('orderInfo', JSON.stringify(order));
-    fetch(`/api/orders/${encodeURIComponent(orderId)}/documents`, {
+    const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/documents`, {
       method: 'POST',
       headers: { ...adminKeyHeaders() },
       body: form,
       keepalive: true,
-    }).catch(() => {});
+    });
+    const data = (await res.json().catch(() => null)) as
+      | { ok?: boolean; persisted?: boolean; emailed?: boolean; error?: string }
+      | null;
+    if (!res.ok || !data?.ok) {
+      return {
+        ok: false,
+        error: data?.error ?? 'We could not save that document. Please try again.',
+      };
+    }
+    return { ok: true, persisted: data.persisted, emailed: data.emailed };
   } catch {
-    /* never break the UI */
+    return { ok: false, error: 'We could not save that document. Please try again.' };
   }
 }

@@ -13,7 +13,10 @@ import { documentReadyEmail, type OrderInfo } from '@/lib/email';
  * POST /api/orders/[id]/documents — owner uploads a filing document.
  * Multipart form: file, slotKey, slotLabel, orderInfo (JSON OrderInfo).
  * Stores bytes in the private Storage bucket, inserts an order_documents row,
- * and emails the customer "your document is ready". Always ok:true.
+ * and emails the customer "your document is ready". When the backend is
+ * configured but the save failed, returns ok:false with status 502 so the
+ * admin panel can show the failure instead of claiming success. In demo
+ * mode (backend not configured) it still returns ok:true.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Same ADMIN_KEY lock as the rest of the admin API.
@@ -67,6 +70,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const portalUrl = `${proto}://${host}/portal/login`;
     const { subject, html } = documentReadyEmail(orderInfo, slotLabel || slotKey, portalUrl);
     emailed = (await sendClientEmail(orderInfo.buyerEmail, subject, html)).ok;
+  }
+
+  if (backendConfigured() && !persisted) {
+    return NextResponse.json(
+      { ok: false, error: 'We could not save that document. Please try again.' },
+      { status: 502 }
+    );
   }
 
   return NextResponse.json({ ok: true, persisted, emailed });

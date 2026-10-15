@@ -40,14 +40,14 @@ interface DocRow {
   slot_label: string;
   file_name: string;
   storage_path: string;
-  created_at: string;
+  uploaded_at: string;
   /** Migration-008 columns; absent until that migration has run. */
   direction?: string | null;
   status?: string | null;
   staff_note?: string | null;
 }
 
-const DOC_COLUMNS = 'id,order_id,slot_key,slot_label,file_name,storage_path,created_at';
+const DOC_COLUMNS = 'id,order_id,slot_key,slot_label,file_name,storage_path,uploaded_at';
 
 export async function GET(req: NextRequest) {
   const email = verifyPortalToken(req.headers.get('x-portal-token') ?? '');
@@ -77,11 +77,11 @@ export async function GET(req: NextRequest) {
   // staff_note). If those columns do not exist yet, fall back to the old
   // list so the portal keeps working exactly as before the migration.
   let docsRes = await dbSelect<DocRow>(
-    `order_documents?select=${DOC_COLUMNS},direction,status,staff_note&order=created_at.asc`
+    `order_documents?select=${DOC_COLUMNS},direction,status,staff_note&order=uploaded_at.asc`
   );
   if (!docsRes.ok) {
     docsRes = await dbSelect<DocRow>(
-      `order_documents?select=${DOC_COLUMNS}&order=created_at.asc`
+      `order_documents?select=${DOC_COLUMNS}&order=uploaded_at.asc`
     );
   }
   if (!ordersRes.ok) {
@@ -119,7 +119,7 @@ export async function GET(req: NextRequest) {
             ? d.status
             : 'in_review',
         staffNote: d.staff_note ?? undefined,
-        createdAt: d.created_at,
+        createdAt: d.uploaded_at,
       });
       uploadsByOrder.set(d.order_id, list);
       continue;
@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
       slotKey: d.slot_key,
       slotLabel: d.slot_label,
       fileName: d.file_name,
-      uploadedAt: d.created_at,
+      uploadedAt: d.uploaded_at,
       // The portal renders a Download link when dataUrl exists; here it
       // carries a one-hour signed URL for the real file.
       dataUrl: url ?? undefined,

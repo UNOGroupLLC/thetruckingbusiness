@@ -60,14 +60,14 @@ interface DocRow {
   slot_label: string;
   file_name: string;
   storage_path: string;
-  created_at: string;
+  uploaded_at: string;
   /** Migration-008 columns; absent until that migration has run. */
   direction?: string | null;
   status?: string | null;
   staff_note?: string | null;
 }
 
-const DOC_COLUMNS = 'id,slot_key,slot_label,file_name,storage_path,created_at';
+const DOC_COLUMNS = 'id,slot_key,slot_label,file_name,storage_path,uploaded_at';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const denied = unauthorized(req);
@@ -80,11 +80,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   // Documents: prefer the migration-008 column list (direction, status,
   // staff_note); fall back to the old list if it has not run yet.
   let docsRes = await dbSelect<DocRow>(
-    `order_documents?select=${DOC_COLUMNS},direction,status,staff_note&order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`
+    `order_documents?select=${DOC_COLUMNS},direction,status,staff_note&order_id=eq.${encodeURIComponent(id)}&order=uploaded_at.asc`
   );
   if (!docsRes.ok) {
     docsRes = await dbSelect<DocRow>(
-      `order_documents?select=${DOC_COLUMNS}&order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`
+      `order_documents?select=${DOC_COLUMNS}&order_id=eq.${encodeURIComponent(id)}&order=uploaded_at.asc`
     );
   }
   const [orderRes, intakeRes, bookingRes, eventsRes] = await Promise.all([
@@ -124,7 +124,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       slotKey: String(d.slot_key),
       slotLabel: String(d.slot_label),
       fileName: String(d.file_name),
-      uploadedAt: String(d.created_at),
+      uploadedAt: String(d.uploaded_at),
       direction: d.direction ?? undefined,
       status: d.status ?? undefined,
       staffNote: d.staff_note ?? undefined,
