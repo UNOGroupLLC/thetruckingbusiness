@@ -35,6 +35,13 @@ export interface ExpectedDocument {
   auto?: boolean;
 }
 
+export interface RequestedDocument {
+  key: string;
+  label: string;
+  /** Plain-language help shown under the item in the client portal. */
+  hint?: string;
+}
+
 export interface Package {
   slug: string;
   name: string;
@@ -51,6 +58,9 @@ export interface Package {
   /** Filing outputs the customer should expect in their portal. Services (calls,
    *  sessions, memberships) never appear here — documents only. Admin-editable. */
   expectedDocuments: ExpectedDocument[];
+  /** Documents the customer uploads to us from their portal so the team can
+   *  prepare the filing. Unset for packages that need nothing from the client. */
+  requestedDocuments?: RequestedDocument[];
 }
 
 export const SEED_PACKAGES: Package[] = [
@@ -69,6 +79,28 @@ export const SEED_PACKAGES: Package[] = [
       { key: 'boc3', label: 'BOC-3 filing confirmation' },
       { key: 'ucr-confirm', label: 'UCR registration confirmation (1st year)' },
       { key: 'audit-kit', label: 'Audit prep kit (digital download)', auto: true },
+    ],
+    requestedDocuments: [
+      {
+        key: 'ein-letter',
+        label: 'EIN letter (IRS Form CP 575)',
+        hint: 'The letter the IRS sent when your EIN was assigned.',
+      },
+      {
+        key: 'articles',
+        label: 'Business license or articles of organization',
+        hint: 'The document you formed your company with.',
+      },
+      {
+        key: 'license-cdl',
+        label: "Driver's license or CDL",
+        hint: 'Front and back, for the driver on this order.',
+      },
+      {
+        key: 'insurance-cert',
+        label: 'Insurance certificate',
+        hint: 'From your insurance agent, showing current coverage.',
+      },
     ],
     intake: 'authority',
     inclusions: [
@@ -101,6 +133,28 @@ export const SEED_PACKAGES: Package[] = [
       { key: 'dot-confirm', label: 'DOT number assignment confirmation' },
       { key: 'boc3', label: 'BOC-3 filing confirmation' },
       { key: 'ucr-confirm', label: 'UCR registration confirmation' },
+    ],
+    requestedDocuments: [
+      {
+        key: 'ein-letter',
+        label: 'EIN letter (IRS Form CP 575)',
+        hint: 'The letter the IRS sent when your EIN was assigned.',
+      },
+      {
+        key: 'articles',
+        label: 'Business license or articles of organization',
+        hint: 'The document you formed your company with.',
+      },
+      {
+        key: 'license-cdl',
+        label: "Driver's license or CDL",
+        hint: 'Front and back, for the driver on this order.',
+      },
+      {
+        key: 'insurance-cert',
+        label: 'Insurance certificate',
+        hint: 'From your insurance agent, showing current coverage.',
+      },
     ],
     intake: 'authority',
     inclusions: [
@@ -307,6 +361,18 @@ export const SEED_PACKAGES: Package[] = [
     cta: 'Buy Annual Query',
     expectedDocuments: [
       { key: 'query-result', label: 'Annual Clearinghouse query result' },
+    ],
+    requestedDocuments: [
+      {
+        key: 'license-cdl',
+        label: "Driver's license or CDL",
+        hint: 'Front and back, for the driver we will run the query for.',
+      },
+      {
+        key: 'driver-consent',
+        label: 'Signed driver consent form',
+        hint: 'Signed by the driver. We cannot run the query without it.',
+      },
     ],
     intake: 'clearinghouse-query',
     inclusions: [

@@ -253,6 +253,89 @@ export function documentReadyEmail(
   };
 }
 
+/** The order facts the client document emails need (no amounts). */
+export interface DocumentEmailInfo {
+  id: string;
+  packageName: string;
+  buyerName: string;
+  buyerEmail: string;
+}
+
+/** Client: a document they uploaded from the portal was accepted. */
+export function documentAcceptedEmail(
+  o: DocumentEmailInfo,
+  slotLabel: string
+): { subject: string; html: string } {
+  return {
+    subject: `Your ${slotLabel} was accepted`,
+    html: clientShell(
+      'Your document was accepted',
+      `Order ${esc(o.id)} · ${esc(o.packageName)}`,
+      highlightBox('Document', esc(slotLabel)) +
+        note(
+          'Good news: our team checked the document you uploaded and it is accepted. Nothing more is needed from you for this one.'
+        )
+    ),
+  };
+}
+
+/** Client: a document they uploaded needs a clearer copy. */
+export function documentNeedsNewCopyEmail(
+  o: DocumentEmailInfo,
+  slotLabel: string,
+  staffNote: string,
+  portalUrl: string
+): { subject: string; html: string } {
+  return {
+    subject: `We need a clearer copy of your ${slotLabel}`,
+    html: clientShell(
+      'We need a clearer copy',
+      `Order ${esc(o.id)} · ${esc(o.packageName)}`,
+      highlightBox('Document', esc(slotLabel)) +
+        note(
+          'Our team reviewed the copy you uploaded, and we need a clearer one before we can use it. Here is what to fix:'
+        ) +
+        `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px;background:${MIST};border-radius:10px;border-left:4px solid ${YELLOW};"><tr><td style="padding:16px 20px;"><p style="margin:0;font-size:14px;line-height:1.65;color:${CHARCOAL};">${esc(staffNote)}</p></td></tr></table>` +
+        note(
+          'Sign in to your portal and upload a new copy under “Documents we need from you.” A phone photo is fine as long as every word is clear.'
+        ) +
+        ctaButton('Go to your portal', portalUrl)
+    ),
+  };
+}
+
+/** Owner: a client uploaded a document from their portal. */
+export function documentUploadedByClientEmail(
+  info: {
+    orderId: string;
+    packageName: string;
+    buyerName: string;
+    buyerEmail: string;
+    slotLabel: string;
+    fileName: string;
+  },
+  adminUrl?: string
+): { subject: string; html: string } {
+  return {
+    subject: `New document uploaded for order ${info.orderId}`,
+    html: shell(
+      'Document uploaded by a client',
+      'A client sent a document from their portal.',
+      kv([
+        ['Order', esc(info.orderId)],
+        ['Package', esc(info.packageName)],
+        ['Document', esc(info.slotLabel)],
+        ['File', esc(info.fileName)],
+        ['Customer', `${esc(info.buyerName)} &lt;${esc(info.buyerEmail)}&gt;`],
+      ]) +
+        (adminUrl ? ctaButton('Review in the admin panel', adminUrl) : '') +
+        note(
+          'Open the order to view the file. You can accept it there, or ask the client for a clearer copy.'
+        )
+    ),
+  };
+}
+
 /** Owner: kickoff call booked. Includes the customer's phone + calendar button. */
 
 export function bookingEmail(

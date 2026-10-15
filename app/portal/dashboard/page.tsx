@@ -523,6 +523,259 @@ function DocumentsCard({ order }: { order: OrderRecord }) {
   );
 }
 
+/* ------------------------- Documents we need ------------------------- */
+
+function UploadStateDot({ color, mark }: { color: string; mark: string }) {
+  return (
+    <span
+      aria-hidden
+      className="flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
+      style={{ background: color }}
+    >
+      {mark}
+    </span>
+  );
+}
+
+function UploadsCard({
+  order,
+  onUploaded,
+}: {
+  order: OrderRecord;
+  onUploaded?: () => void;
+}) {
+  const pkg = getPackage(order.packageSlug);
+  const requested = pkg?.requestedDocuments ?? [];
+  const [busySlot, setBusySlot] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const fileInputs = useRef<Record<string, HTMLInputElement | null>>({});
+  if (requested.length === 0) return null;
+
+  const uploads = order.uploads ?? [];
+  // Files arrive oldest first; the newest row for a slot decides its state.
+  const filesFor = (key: string) => uploads.filter((u) => u.slotKey === key);
+  const statusFor = (key: string) => {
+    const files = filesFor(key);
+    return files.length === 0 ? 'none' : files[files.length - 1].status;
+  };
+  const acceptedCount = requested.filter((s) => statusFor(s.key) === 'accepted').length;
+  const pct = Math.round((acceptedCount / requested.length) * 100);
+
+  async function upload(slotKey: string, file: File) {
+    const token = getPortalToken();
+    if (!token) return;
+    setBusySlot(slotKey);
+    setErrors((prev) => ({ ...prev, [slotKey]: '' }));
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      form.append('slotKey', slotKey);
+      const res = await fetch(
+        `/api/portal/orders/${encodeURIComponent(order.id)}/documents`,
+        { method: 'POST', headers: { 'x-portal-token': token }, body: form }
+      );
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setErrors((prev) => ({
+          ...prev,
+          [slotKey]: data?.error ?? 'Something went wrong. Please try again.',
+        }));
+        return;
+      }
+      onUploaded?.();
+    } catch {
+      setErrors((prev) => ({
+        ...prev,
+        [slotKey]: 'Something went wrong. Please try again.',
+      }));
+    } finally {
+      setBusySlot(null);
+    }
+  }
+
+  const navyButton =
+    'shrink-0 cursor-pointer rounded-full px-[15px] py-2 text-[12.5px] font-extrabold text-white transition hover:brightness-125 disabled:cursor-wait disabled:opacity-60';
+
+  return (
+    <div
+      className="mt-[14px] rounded-xl border bg-white p-[18px]"
+      style={{ borderColor: LINE }}
+    >
+      <h3 className={T_CARD} style={{ color: NAVY }}>
+        Documents we need from you
+      </h3>
+      <p className={`${T_SMALL} mt-1 leading-[1.6]`} style={{ color: MUTED }}>
+        Upload these so we can prepare your filings. A phone photo is fine as long as every
+        word is clear. You can add more than one file to an item, for example the front and
+        back of a license.
+      </p>
+      <div
+        className="mt-[14px] h-[6px] overflow-hidden rounded-full"
+        style={{ background: '#eef1f6' }}
+        role="progressbar"
+        aria-valuenow={acceptedCount}
+        aria-valuemin={0}
+        aria-valuemax={requested.length}
+        aria-label="Documents accepted"
+      >
+        <div
+          className="h-full rounded-full"
+          style={{ width: `${pct}%`, background: YELLOW }}
+        />
+      </div>
+      <p className={`${T_SMALL} mt-1`} style={{ color: MUTED }}>
+        {acceptedCount} of {requested.length} accepted
+      </p>
+      <div className="mt-[6px]">
+        {requested.map((slot, i) => {
+          const files = filesFor(slot.key);
+          const latest = files[files.length - 1];
+          const status = statusFor(slot.key);
+          const busy = busySlot === slot.key;
+          const error = errors[slot.key];
+          return (
+            <div
+              key={slot.key}
+              className="py-[11px]"
+              style={
+                i < requested.length - 1
+                  ? { borderBottom: '1px solid #eef1f6' }
+                  : undefined
+              }
+            >
+              <div className="flex items-start justify-between gap-[10px]">
+                <div className="min-w-0">
+                  <p className={`${T_BODY} font-extrabold`} style={{ color: NAVY }}>
+                    {slot.label}
+                  </p>
+                  {files.length > 0 ? (
+                    files.map((f) => (
+                      <p
+                        key={f.id}
+                        className={`${T_SMALL} mt-[2px]`}
+                        style={{ color: MUTED }}
+                      >
+                        {f.fileName} · added {formatDate(f.createdAt)}
+                      </p>
+                    ))
+                  ) : slot.hint ? (
+                    <p className={`${T_SMALL} mt-[2px]`} style={{ color: MUTED }}>
+                      {slot.hint}
+                    </p>
+                  ) : null}
+                  {status === 'accepted' && (
+                    <p className={`${T_SMALL} mt-[2px]`} style={{ color: MUTED }}>
+                      Our team has checked this document. To change it, call us at{' '}
+                      {SUPPORT_PHONE}.
+                    </p>
+                  )}
+                </div>
+                <div className="shrink-0">
+                  {status === 'accepted' ? (
+                    <span className="flex items-center gap-[7px]">
+                      <UploadStateDot color="#15803d" mark="✓" />
+                      <span
+                        className={`${T_SMALL} font-extrabold`}
+                        style={{ color: '#15803d' }}
+                      >
+                        Accepted
+                      </span>
+                    </span>
+                  ) : status === 'in_review' ? (
+                    <span className="flex items-center gap-[12px]">
+                      <span className="flex items-center gap-[7px]">
+                        <UploadStateDot color="#b45309" mark="!" />
+                        <span
+                          className={`${T_SMALL} font-extrabold`}
+                          style={{ color: '#b45309' }}
+                        >
+                          In review
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => fileInputs.current[slot.key]?.click()}
+                        className="cursor-pointer text-[12.5px] font-extrabold hover:underline disabled:cursor-wait disabled:opacity-60"
+                        style={{ color: '#1755a8' }}
+                      >
+                        {busy ? 'Uploading...' : 'Add a file'}
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => fileInputs.current[slot.key]?.click()}
+                      className={navyButton}
+                      style={{ background: NAVY, fontFamily: 'inherit' }}
+                    >
+                      {busy
+                        ? 'Uploading...'
+                        : status === 'needs_new_copy'
+                          ? 'Upload a clearer copy'
+                          : 'Upload'}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {status === 'needs_new_copy' && (
+                <div className="mt-[6px] flex items-center gap-[7px]">
+                  <UploadStateDot color="#b91c1c" mark="!" />
+                  <span
+                    className={`${T_SMALL} font-extrabold`}
+                    style={{ color: '#b91c1c' }}
+                  >
+                    We need a clearer copy
+                  </span>
+                </div>
+              )}
+              {status === 'needs_new_copy' && latest?.staffNote && (
+                <div
+                  className="mt-2 rounded-[9px] px-3 py-[9px]"
+                  style={{
+                    background: '#fdf3f3',
+                    border: '1px solid #f3d2d2',
+                    color: '#7f1d1d',
+                  }}
+                >
+                  <p className={`${T_SMALL} leading-[1.55]`}>
+                    <strong style={{ color: '#b91c1c' }}>From our team:</strong>{' '}
+                    {latest.staffNote}
+                  </p>
+                </div>
+              )}
+              {error && (
+                <p className={`${T_SMALL} mt-2`} style={{ color: '#b91c1c' }}>
+                  {error}
+                </p>
+              )}
+              <input
+                ref={(el) => {
+                  fileInputs.current[slot.key] = el;
+                }}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.heic,.heif"
+                className="hidden"
+                aria-label={`Upload ${slot.label}`}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = '';
+                  if (f) void upload(slot.key, f);
+                }}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <p className={`${T_SMALL} mt-3 leading-[1.6]`} style={{ color: MUTED }}>
+        PDF, JPG, PNG or HEIC (the format iPhones use), up to 10 MB each. Your files are
+        private. They are stored securely and only our team can see them.
+      </p>
+    </div>
+  );
+}
+
 /* -------------------------------- Payment -------------------------------- */
 
 function renewalLabel(order: OrderRecord): string | null {
@@ -617,7 +870,13 @@ function PaymentCard({ order }: { order: OrderRecord }) {
 
 /* ------------------------------ Order panel ------------------------------ */
 
-function OrderPanel({ order }: { order: OrderRecord }) {
+function OrderPanel({
+  order,
+  onRefresh,
+}: {
+  order: OrderRecord;
+  onRefresh?: () => void;
+}) {
   const pay = payPillFor(order);
   const status = pillFor(order.intakeStatus);
   return (
@@ -646,6 +905,7 @@ function OrderPanel({ order }: { order: OrderRecord }) {
       </div>
       <CallCard order={order} />
       <FilingInfoCard order={order} />
+      <UploadsCard order={order} onUploaded={onRefresh} />
       <DocumentsCard order={order} />
       <PaymentCard order={order} />
     </div>
@@ -698,6 +958,31 @@ export default function PortalDashboardPage() {
       cancelled = true;
     };
   }, []);
+
+  // Same fetch as the mount effect: after a document upload, pull the
+  // server copy again so the new file and its review state show at once.
+  function refreshOrders() {
+    const token = getPortalToken();
+    if (!token) return;
+    (async () => {
+      try {
+        const res = await fetch('/api/portal/orders', {
+          headers: { 'x-portal-token': token },
+        });
+        if (res.status === 401) {
+          setPortalToken(null);
+          return;
+        }
+        const data = await res.json().catch(() => null);
+        if (data?.ok && Array.isArray(data.orders)) {
+          mergeServerOrders(data.orders);
+          setSynced((n) => n + 1);
+        }
+      } catch {
+        /* local copy still renders */
+      }
+    })();
+  }
 
   const myOrders = portalEmail
     ? orders.filter((o) => o.buyerEmail.toLowerCase() === portalEmail.toLowerCase())
@@ -946,7 +1231,9 @@ export default function PortalDashboardPage() {
             </div>
 
             {/* Main panel */}
-            <div className="min-w-0 flex-1">{selected && <OrderPanel order={selected} />}</div>
+            <div className="min-w-0 flex-1">
+              {selected && <OrderPanel order={selected} onRefresh={refreshOrders} />}
+            </div>
           </div>
         )}
       </div>

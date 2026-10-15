@@ -135,6 +135,9 @@ const EVENT_LABEL: Record<string, string> = {
   payment_received: 'Payment received',
   note: 'Team note',
   document_uploaded: 'Document uploaded',
+  document_uploaded_by_client: 'Document uploaded by client',
+  document_accepted: 'Client document accepted',
+  document_new_copy_requested: 'Clearer copy requested',
   filing_started: 'Filing started',
   assigned: 'Assigned',
   priority_on: 'Marked priority',
@@ -170,6 +173,12 @@ interface ServerDoc {
   slotLabel: string;
   fileName: string;
   uploadedAt: string;
+  /** Migration-008 review fields; present on client uploads. */
+  direction?: string;
+  status?: string;
+  staffNote?: string;
+  /** Signed view/download URL (client uploads only). */
+  url?: string;
 }
 
 interface OrderDetailData {
@@ -183,7 +192,35 @@ interface OrderDetailData {
   } | null;
   booking: { date: string; time: string } | null;
   documents: ServerDoc[];
+  /** Documents the client uploaded to us from their portal. */
+  uploads: ServerDoc[];
+  /** The documents this order's package asks the client for. */
+  requestedDocuments: { key: string; label: string; hint?: string }[];
   events: OrderEvent[];
+}
+
+function docStatusChip(status?: string): { label: string; cls: string } {
+  switch (status) {
+    case 'accepted':
+      return { label: 'Accepted', cls: 'bg-green-100 text-green-800' };
+    case 'needs_new_copy':
+      return { label: 'Clearer copy requested', cls: 'bg-red-100 text-red-800' };
+    default:
+      return { label: 'In review', cls: 'bg-amber-100 text-amber-800' };
+  }
+}
+
+/** Accepted count across the package's requested slots; the newest upload
+ *  for a slot (uploads arrive oldest first) decides that slot's state. */
+function clientDocProgress(
+  uploads: ServerDoc[],
+  requested: { key: string }[]
+): { accepted: number; total: number } {
+  const latest = new Map<string, string | undefined>();
+  for (const u of uploads) latest.set(u.slotKey, u.status);
+  let accepted = 0;
+  for (const r of requested) if (latest.get(r.key) === 'accepted') accepted++;
+  return { accepted, total: requested.length };
 }
 
 /** What the refund policy says this customer is owed, by stage (Terms 6 and 7). */
@@ -820,6 +857,11 @@ function OrdersSection({
                         <td className="px-3 py-3">
                           <p className={`${T_BODY} font-bold`} style={{ color: NAVY }}>{o.id}</p>
                           <p className={T_SMALL} style={{ color: MUTED }}>{o.packageName}</p>
+                          {o.clientDocs && o.clientDocs.accepted < o.clientDocs.total && (
+                            <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-800">
+                              Waiting on client: {o.clientDocs.accepted} of {o.clientDocs.total} accepted
+                            </span>
+                          )}
                         </td>
                         <td className="px-3 py-3">
                           <p className={`${T_BODY} font-semibold`} style={{ color: NAVY }}>{o.buyerName}</p>
@@ -912,6 +954,11 @@ function OrdersSection({
                         </p>
                         <p className={`${T_SMALL} font-semibold`} style={{ color: NAVY }}>{o.buyerName}</p>
                         <p className={T_SMALL} style={{ color: MUTED }}>{o.packageName}</p>
+                        {o.clientDocs && o.clientDocs.accepted < o.clientDocs.total && (
+                          <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-800">
+                            Waiting on client: {o.clientDocs.accepted} of {o.clientDocs.total} accepted
+                          </span>
+                        )}
                         <p className="mt-1 flex items-center justify-between">
                           <span className={`${T_SMALL} font-bold`} style={{ color: NAVY }}>{formatUSD(o.amount)}</span>
                           <span className={T_SMALL} style={{ color: MUTED }}>
@@ -934,6 +981,225 @@ function OrdersSection({
         Board cards move on their own when an order changes stage. Nothing is dragged, so the
         board and the table can never disagree.
       </p>
+    </div>
+  );
+}
+
+/* ------------------------- documents from client ------------------------ */
+
+function ClientDocumentsSection({
+  orderId,
+  uploads,
+  requested,
+  onChanged,
+}: {
+  orderId: string;
+  uploads: ServerDoc[];
+  requested: { key: string; label: string; hint?: string }[];
+  onChanged: () => void;
+}) {
+  const [openNoteId, setOpenNoteId] = useState<string | null>(null);
+  const [drafts, setDrafts] = useState<Record<string, string>>({});
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [msgs, setMsgs] = useState<Record<string, { text: string; ok: boolean }>>({});
+
+  const knownKeys = new Set(requested.map((r) => r.key));
+  const groups: { key: string; label: string; hint?: string; files: ServerDoc[] }[] = [
+    ...requested.map((r) => ({
+      key: r.key,
+      label: r.label,
+      hint: r.hint,
+      files: uploads.filter((u) => u.slotKey === r.key),
+    })),
+    ...uploads
+      .filter((u) => !knownKeys.has(u.slotKey))
+      .map((u) => ({ key: u.slotKey, label: u.slotLabel, hint: undefined, files: [u] })),
+  ];
+
+  async function review(doc: ServerDoc, action: 'accept' | 'request_new') {
+    const note = (drafts[doc.id] ?? '').trim();
+    if (action === 'request_new' && !note) {
+      setMsgs((m) => ({
+        ...m,
+        [doc.id]: { text: 'Add a short note telling the client what to fix first.', ok: false },
+      }));
+      return;
+    }
+    setBusyId(doc.id);
+    setMsgs((m) => ({ ...m, [doc.id]: { text: '', ok: true } }));
+    try {
+      const res = await adminFetch(
+        `/api/orders/${encodeURIComponent(orderId)}/documents/review`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            docId: doc.id,
+            action,
+            ...(action === 'request_new' ? { note } : {}),
+          }),
+        }
+      );
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
+        setOpenNoteId(null);
+        setMsgs((m) => ({
+          ...m,
+          [doc.id]: {
+            text:
+              action === 'accept'
+                ? 'Accepted. The client has been emailed.'
+                : 'Sent back. The client has been emailed your note.',
+            ok: true,
+          },
+        }));
+        onChanged();
+      } else {
+        setMsgs((m) => ({
+          ...m,
+          [doc.id]: { text: data?.error ?? 'Could not save that review.', ok: false },
+        }));
+      }
+    } catch {
+      setMsgs((m) => ({ ...m, [doc.id]: { text: 'Could not save that review.', ok: false } }));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-[#eef1f6] pt-3">
+      <p className={T_LABEL} style={{ color: MUTED }}>Documents from client</p>
+      <p className={`${T_SMALL} mt-1`} style={{ color: MUTED }}>
+        Files the client uploaded from their portal. Accept each one, or send it back with a
+        note asking for a clearer copy.
+      </p>
+      <div className="mt-2 space-y-3">
+        {groups.map((g) => (
+          <div key={g.key}>
+            <p className={`${T_SMALL} font-extrabold`} style={{ color: NAVY }}>
+              {g.label}
+            </p>
+            {g.files.length === 0 ? (
+              <p className={T_SMALL} style={{ color: MUTED }}>
+                Not uploaded yet.
+              </p>
+            ) : (
+              <ul className="mt-1 space-y-2">
+                {g.files.map((d) => {
+                  const chip = docStatusChip(d.status);
+                  const busy = busyId === d.id;
+                  return (
+                    <li
+                      key={d.id}
+                      className="rounded-lg bg-[#f6f7f9] px-3 py-2.5"
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className={`${T_SMALL} font-semibold`} style={{ color: NAVY }}>
+                          {d.fileName}
+                        </span>
+                        <span className={T_SMALL} style={{ color: MUTED }}>
+                          {timeLabel(d.uploadedAt)}
+                        </span>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${chip.cls}`}
+                        >
+                          {chip.label}
+                        </span>
+                        {d.url && (
+                          <a
+                            className={`${T_SMALL} font-extrabold`}
+                            style={{ color: '#1755a8' }}
+                            href={d.url}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            View
+                          </a>
+                        )}
+                        {d.url && (
+                          <a
+                            className={`${T_SMALL} font-extrabold`}
+                            style={{ color: '#1755a8' }}
+                            href={d.url}
+                            download={d.fileName}
+                          >
+                            Download
+                          </a>
+                        )}
+                        {d.status !== 'accepted' && (
+                          <button
+                            className={`${T_SMALL} rounded-lg px-3 py-1.5 font-extrabold text-white disabled:opacity-50`}
+                            style={{ background: '#1755a8' }}
+                            disabled={busy}
+                            onClick={() => review(d, 'accept')}
+                          >
+                            {busy ? 'Saving…' : 'Accept'}
+                          </button>
+                        )}
+                        <button
+                          className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-3 py-1.5 font-bold disabled:opacity-50`}
+                          style={{ color: NAVY }}
+                          disabled={busy}
+                          onClick={() =>
+                            setOpenNoteId((cur) => (cur === d.id ? null : d.id))
+                          }
+                        >
+                          Request a clearer copy
+                        </button>
+                      </div>
+                      {d.status === 'needs_new_copy' && d.staffNote && (
+                        <p className={`${T_SMALL} mt-1.5`} style={{ color: MUTED }}>
+                          Your note to the client: {d.staffNote}
+                        </p>
+                      )}
+                      {openNoteId === d.id && (
+                        <div className="mt-2">
+                          <textarea
+                            className="input min-h-20 w-full"
+                            placeholder="Tell the client what to fix, for example: the photo is cut off on the left side, please upload the full page."
+                            value={drafts[d.id] ?? ''}
+                            maxLength={300}
+                            onChange={(e) =>
+                              setDrafts((prev) => ({ ...prev, [d.id]: e.target.value }))
+                            }
+                          />
+                          <div className="mt-2 flex items-center gap-2">
+                            <button
+                              className="btn-dark"
+                              disabled={busy}
+                              onClick={() => review(d, 'request_new')}
+                            >
+                              {busy ? 'Sending…' : 'Send to client'}
+                            </button>
+                            <button
+                              className={`${T_SMALL} font-bold`}
+                              style={{ color: MUTED }}
+                              onClick={() => setOpenNoteId(null)}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {msgs[d.id]?.text && (
+                        <p
+                          className={`${T_SMALL} mt-1.5 font-bold ${
+                            msgs[d.id].ok ? 'text-green-700' : 'text-red-700'
+                          }`}
+                        >
+                          {msgs[d.id].text}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1081,6 +1347,16 @@ function OrderDetail({
             ★ Priority
           </span>
         )}
+        {detail &&
+          detail.requestedDocuments.length > 0 &&
+          (() => {
+            const progress = clientDocProgress(detail.uploads, detail.requestedDocuments);
+            return progress.accepted < progress.total ? (
+              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-extrabold text-amber-800">
+                Waiting on client: {progress.accepted} of {progress.total} accepted
+              </span>
+            ) : null;
+          })()}
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <label className={`${T_LABEL} flex items-center gap-2`} style={{ color: MUTED }}>
             Assigned to
@@ -1209,18 +1485,29 @@ function OrderDetail({
             <div className="mt-3">
               <OrderDocuments order={live} />
             </div>
-            {detail && detail.documents.length > 0 && (
-              <div className="mt-3 border-t border-[#eef1f6] pt-3">
-                <p className={T_LABEL} style={{ color: MUTED }}>On file in the office copy</p>
-                <ul className="mt-2 space-y-1.5">
-                  {detail.documents.map((d) => (
-                    <li key={d.id} className={`${T_SMALL} flex justify-between gap-3`}>
-                      <span className="font-semibold" style={{ color: NAVY }}>{d.slotLabel}: {d.fileName}</span>
-                      <span style={{ color: MUTED }}>{formatDate(d.uploadedAt)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+            {detail &&
+              detail.documents.filter((d) => d.direction !== 'from_client').length > 0 && (
+                <div className="mt-3 border-t border-[#eef1f6] pt-3">
+                  <p className={T_LABEL} style={{ color: MUTED }}>On file in the office copy</p>
+                  <ul className="mt-2 space-y-1.5">
+                    {detail.documents
+                      .filter((d) => d.direction !== 'from_client')
+                      .map((d) => (
+                        <li key={d.id} className={`${T_SMALL} flex justify-between gap-3`}>
+                          <span className="font-semibold" style={{ color: NAVY }}>{d.slotLabel}: {d.fileName}</span>
+                          <span style={{ color: MUTED }}>{formatDate(d.uploadedAt)}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+            {detail && isDb && detail.requestedDocuments.length > 0 && (
+              <ClientDocumentsSection
+                orderId={live.id}
+                uploads={detail.uploads}
+                requested={detail.requestedDocuments}
+                onChanged={loadDetail}
+              />
             )}
           </div>
 

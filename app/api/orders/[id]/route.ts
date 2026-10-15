@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backendConfigured, dbSelect, dbUpsert, logOrderEvent } from '@/lib/server';
+import {
+  backendConfigured,
+  dbSelect,
+  dbUpsert,
+  logOrderEvent,
+  storageSignedUrl,
+} from '@/lib/server';
+import { getPackage } from '@/lib/packages';
 
 /**
  * /api/orders/[id] — single-order detail + admin workflow updates.
@@ -47,6 +54,21 @@ interface IntakeRow {
   created_at: string;
 }
 
+interface DocRow {
+  id: string;
+  slot_key: string;
+  slot_label: string;
+  file_name: string;
+  storage_path: string;
+  created_at: string;
+  /** Migration-008 columns; absent until that migration has run. */
+  direction?: string | null;
+  status?: string | null;
+  staff_note?: string | null;
+}
+
+const DOC_COLUMNS = 'id,slot_key,slot_label,file_name,storage_path,created_at';
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const denied = unauthorized(req);
   if (denied) return denied;
@@ -55,13 +77,20 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!backendConfigured()) {
     return NextResponse.json({ ok: true, configured: false, order: null });
   }
-  const [orderRes, intakeRes, docsRes, bookingRes, eventsRes] = await Promise.all([
+  // Documents: prefer the migration-008 column list (direction, status,
+  // staff_note); fall back to the old list if it has not run yet.
+  let docsRes = await dbSelect<DocRow>(
+    `order_documents?select=${DOC_COLUMNS},direction,status,staff_note&order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`
+  );
+  if (!docsRes.ok) {
+    docsRes = await dbSelect<DocRow>(
+      `order_documents?select=${DOC_COLUMNS}&order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`
+    );
+  }
+  const [orderRes, intakeRes, bookingRes, eventsRes] = await Promise.all([
     dbSelect<OrderRow>(`orders?select=*&id=eq.${encodeURIComponent(id)}&limit=1`),
     dbSelect<IntakeRow>(
       `intake_submissions?select=order_id,data,status,version,certified,created_at&order_id=eq.${encodeURIComponent(id)}&order=version.desc&limit=1`
-    ),
-    dbSelect<Record<string, unknown>>(
-      `order_documents?select=id,slot_key,slot_label,file_name,storage_path,created_at&order_id=eq.${encodeURIComponent(id)}&order=created_at.asc`
     ),
     dbSelect<{ date: string; time: string }>(
       `call_bookings?select=date,time&order_id=eq.${encodeURIComponent(id)}&limit=1`
@@ -73,6 +102,43 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const o = orderRes.rows[0];
   if (!o) return NextResponse.json({ ok: false, error: 'Order not found.' }, { status: 404 });
   const intake = intakeRes.rows[0];
+  // Client uploads (direction 'from_client') get a short-lived signed URL
+  // so the team can view/download them here; office deliverables keep the
+  // exact shape they have always had in this response.
+  interface DocOut {
+    id: string;
+    slotKey: string;
+    slotLabel: string;
+    fileName: string;
+    uploadedAt: string;
+    direction?: string;
+    status?: string;
+    staffNote?: string;
+    url?: string;
+  }
+  const documents: DocOut[] = [];
+  const uploads: DocOut[] = [];
+  for (const d of docsRes.rows) {
+    const base = {
+      id: String(d.id),
+      slotKey: String(d.slot_key),
+      slotLabel: String(d.slot_label),
+      fileName: String(d.file_name),
+      uploadedAt: String(d.created_at),
+      direction: d.direction ?? undefined,
+      status: d.status ?? undefined,
+      staffNote: d.staff_note ?? undefined,
+    };
+    if (d.direction === 'from_client') {
+      const url = await storageSignedUrl('order-documents', d.storage_path, 3600);
+      const withUrl = { ...base, url: url ?? undefined };
+      documents.push(withUrl);
+      uploads.push(withUrl);
+    } else {
+      documents.push(base);
+    }
+  }
+  const requestedDocuments = getPackage(o.package_slug)?.requestedDocuments ?? [];
   return NextResponse.json({
     ok: true,
     configured: true,
@@ -110,13 +176,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           submittedAt: intake.created_at,
         }
       : null,
-    documents: docsRes.rows.map((d) => ({
-      id: String(d.id),
-      slotKey: String(d.slot_key),
-      slotLabel: String(d.slot_label),
-      fileName: String(d.file_name),
-      uploadedAt: String(d.created_at),
-    })),
+    documents,
+    uploads,
+    requestedDocuments,
     events: eventsRes.rows.map((e) => ({
       actor: e.actor,
       action: e.action,

@@ -5,6 +5,7 @@ import {
   verifyPortalToken,
   storageSignedUrl,
 } from '@/lib/server';
+import type { OrderUpload } from '@/lib/store';
 
 /**
  * GET /api/portal/orders — the signed-in customer's own orders, straight
@@ -32,6 +33,22 @@ interface OrderRow {
   created_at: string;
 }
 
+interface DocRow {
+  id: string;
+  order_id: string;
+  slot_key: string;
+  slot_label: string;
+  file_name: string;
+  storage_path: string;
+  created_at: string;
+  /** Migration-008 columns; absent until that migration has run. */
+  direction?: string | null;
+  status?: string | null;
+  staff_note?: string | null;
+}
+
+const DOC_COLUMNS = 'id,order_id,slot_key,slot_label,file_name,storage_path,created_at';
+
 export async function GET(req: NextRequest) {
   const email = verifyPortalToken(req.headers.get('x-portal-token') ?? '');
   if (!email) {
@@ -41,7 +58,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, configured: false, orders: [] });
   }
 
-  const [ordersRes, intakeRes, bookingRes, docsRes] = await Promise.all([
+  const [ordersRes, intakeRes, bookingRes] = await Promise.all([
     dbSelect<OrderRow>(
       `orders?select=*&buyer_email=eq.${encodeURIComponent(email)}&order=created_at.desc&limit=100`
     ),
@@ -54,16 +71,19 @@ export async function GET(req: NextRequest) {
     dbSelect<{ order_id: string; date: string; time: string }>(
       'call_bookings?select=order_id,date,time'
     ),
-    dbSelect<{
-      id: string;
-      order_id: string;
-      slot_key: string;
-      slot_label: string;
-      file_name: string;
-      storage_path: string;
-      created_at: string;
-    }>('order_documents?select=id,order_id,slot_key,slot_label,file_name,storage_path,created_at&order=created_at.asc'),
   ]);
+
+  // Documents: prefer the migration-008 column list (direction, status,
+  // staff_note). If those columns do not exist yet, fall back to the old
+  // list so the portal keeps working exactly as before the migration.
+  let docsRes = await dbSelect<DocRow>(
+    `order_documents?select=${DOC_COLUMNS},direction,status,staff_note&order=created_at.asc`
+  );
+  if (!docsRes.ok) {
+    docsRes = await dbSelect<DocRow>(
+      `order_documents?select=${DOC_COLUMNS}&order=created_at.asc`
+    );
+  }
   if (!ordersRes.ok) {
     return NextResponse.json(
       { ok: false, error: ordersRes.error ?? 'Order query failed.' },
@@ -82,8 +102,28 @@ export async function GET(req: NextRequest) {
   );
 
   const docsByOrder = new Map<string, unknown[]>();
+  const uploadsByOrder = new Map<string, OrderUpload[]>();
   for (const d of docsRes.rows) {
     if (!mine.has(d.order_id)) continue;
+    if (d.direction === 'from_client') {
+      // Client uploads are reported separately and never carry a storage
+      // path or a signed URL: the office opens those files from the admin.
+      const list = uploadsByOrder.get(d.order_id) ?? [];
+      list.push({
+        id: d.id,
+        slotKey: d.slot_key,
+        slotLabel: d.slot_label,
+        fileName: d.file_name,
+        status:
+          d.status === 'accepted' || d.status === 'needs_new_copy'
+            ? d.status
+            : 'in_review',
+        staffNote: d.staff_note ?? undefined,
+        createdAt: d.created_at,
+      });
+      uploadsByOrder.set(d.order_id, list);
+      continue;
+    }
     const url = await storageSignedUrl('order-documents', d.storage_path, 3600);
     const list = docsByOrder.get(d.order_id) ?? [];
     list.push({
@@ -116,6 +156,7 @@ export async function GET(req: NextRequest) {
       filingStartedAt: o.filing_started_at ?? undefined,
       booking: booking ? { date: booking.date, time: booking.time } : undefined,
       documents: docsByOrder.get(o.id) ?? [],
+      uploads: uploadsByOrder.get(o.id) ?? [],
       payStatus:
         o.pay_status === 'refunded' || o.pay_status === 'cancelled' ? o.pay_status : 'paid',
       refundedCents: o.refunded_cents ?? undefined,

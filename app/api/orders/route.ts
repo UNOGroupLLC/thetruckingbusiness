@@ -124,13 +124,27 @@ export async function GET(req: NextRequest) {
     dbSelect<{ order_id: string; date: string; time: string }>(
       'call_bookings?select=order_id,date,time'
     ),
-    dbSelect<{ order_id: string }>('order_documents?select=order_id'),
+    dbSelect<{
+      order_id: string;
+      slot_key?: string;
+      direction?: string | null;
+      status?: string | null;
+    }>(
+      'order_documents?select=order_id,slot_key,direction,status&order=created_at.asc'
+    ),
   ]);
   if (!ordersRes.ok) {
     return NextResponse.json(
       { ok: false, error: ordersRes.error ?? 'Order query failed.' },
       { status: 502 }
     );
+  }
+  // If the migration-008 columns are missing the documents query failed;
+  // fall back to the plain count select so the queue keeps working.
+  let docRows = docsRes.rows;
+  if (!docsRes.ok) {
+    const fallback = await dbSelect<{ order_id: string }>('order_documents?select=order_id');
+    docRows = fallback.rows;
   }
   const intakeOrders = new Set(intakeRes.rows.map((r) => r.order_id));
   // Rows arrive newest version first; the first row per order is the latest.
@@ -140,7 +154,24 @@ export async function GET(req: NextRequest) {
   }
   const bookingByOrder = new Map(bookingRes.rows.map((r) => [r.order_id, r]));
   const docCount = new Map<string, number>();
-  for (const d of docsRes.rows) docCount.set(d.order_id, (docCount.get(d.order_id) ?? 0) + 1);
+  for (const d of docRows) docCount.set(d.order_id, (docCount.get(d.order_id) ?? 0) + 1);
+  // Client-document progress per order: for each requested slot, the
+  // latest upload (rows are oldest first, so the last write wins) decides
+  // whether the team has accepted it.
+  const latestUploadStatus = new Map<string, string | null>();
+  for (const d of docRows) {
+    if (d.direction !== 'from_client' || !d.slot_key) continue;
+    latestUploadStatus.set(`${d.order_id}|${d.slot_key}`, d.status ?? null);
+  }
+  function clientDocsFor(orderId: string, packageSlug: string) {
+    const requested = getPackage(packageSlug)?.requestedDocuments ?? [];
+    if (requested.length === 0) return undefined;
+    let accepted = 0;
+    for (const slot of requested) {
+      if (latestUploadStatus.get(`${orderId}|${slot.key}`) === 'accepted') accepted++;
+    }
+    return { total: requested.length, accepted };
+  }
 
   const orders = ordersRes.rows.map((o) => {
     const booking = bookingByOrder.get(o.id);
@@ -169,6 +200,7 @@ export async function GET(req: NextRequest) {
       refundedCents: o.refunded_cents ?? undefined,
       booking: booking ? { date: booking.date, time: booking.time } : undefined,
       documentCount: docCount.get(o.id) ?? 0,
+      clientDocs: clientDocsFor(o.id, o.package_slug),
     };
   });
   return NextResponse.json({ ok: true, configured: true, orders });

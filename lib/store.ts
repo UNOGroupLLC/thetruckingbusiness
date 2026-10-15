@@ -67,6 +67,21 @@ export interface OrderDocument {
   dataUrl?: string;
 }
 
+export type OrderUploadStatus = 'in_review' | 'accepted' | 'needs_new_copy';
+
+/** A document the client uploaded to us from their portal (order_documents
+ *  rows with direction 'from_client'). Never carries a storage path or a
+ *  signed URL: the office opens client files from the admin only. */
+export interface OrderUpload {
+  id: string;
+  slotKey: string;
+  slotLabel: string;
+  fileName: string;
+  status: OrderUploadStatus;
+  staffNote?: string;
+  createdAt: string; // ISO
+}
+
 export interface OrderRecord {
   id: string;
   packageSlug: string;
@@ -90,6 +105,11 @@ export interface OrderRecord {
   correctionsUsed?: number;
   filingStartedAt?: string; // ISO
   documents?: OrderDocument[];
+  /** Documents this customer uploaded to us from their portal. */
+  uploads?: OrderUpload[];
+  /** Client-document progress for the admin queue (database orders only):
+   *  how many of the package's requested documents the team has accepted. */
+  clientDocs?: { total: number; accepted: number };
   /**
    * 'database' marks orders that came from the Supabase feed (real Stripe
    * payments) rather than this browser's localStorage. 'local' is the
@@ -451,6 +471,7 @@ export interface ServerOrder {
   filingStartedAt?: string;
   booking?: { date: string; time: string };
   documents?: OrderDocument[];
+  uploads?: OrderUpload[];
   payStatus?: 'paid' | 'refunded' | 'cancelled';
   refundedCents?: number;
   priority?: boolean;
@@ -484,6 +505,7 @@ export function mergeServerOrders(serverOrders: ServerOrder[]) {
         intakeStatus: so.intakeStatus,
         filingStartedAt: so.filingStartedAt,
         documents: so.documents,
+        uploads: so.uploads,
         documentCount: so.documents?.length ?? 0,
         booking: so.booking,
         payStatus: so.payStatus,
@@ -503,6 +525,7 @@ export function mergeServerOrders(serverOrders: ServerOrder[]) {
       intake: so.intake ?? local.intake,
       filingStartedAt: so.filingStartedAt ?? local.filingStartedAt,
       documents,
+      uploads: so.uploads ?? local.uploads,
       documentCount: documents.length,
       booking: so.booking ?? local.booking,
       payStatus: so.payStatus ?? local.payStatus,
