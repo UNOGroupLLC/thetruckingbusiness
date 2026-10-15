@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
   // Run at request time: the response depends on the caller's admin key
   // and on live database state, so it must never be prerendered.
   await connection();
-  const adminKey = process.env.ADMIN_KEY ?? '';
-  if (adminKey && req.headers.get('x-admin-key') !== adminKey) {
+  const adminKey = (process.env.ADMIN_KEY ?? '').trim();
+  if (adminKey && (req.headers.get('x-admin-key') ?? '').trim() !== adminKey) {
     return NextResponse.json({ ok: false, error: 'Unauthorized.' }, { status: 401 });
   }
   if (!backendConfigured()) {

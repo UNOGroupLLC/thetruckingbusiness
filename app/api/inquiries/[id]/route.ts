@@ -7,8 +7,8 @@ import { backendConfigured, dbUpsert } from '@/lib/server';
  * ADMIN_KEY required.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const adminKey = process.env.ADMIN_KEY ?? '';
-  if (adminKey && req.headers.get('x-admin-key') !== adminKey) {
+  const adminKey = (process.env.ADMIN_KEY ?? '').trim();
+  if (adminKey && (req.headers.get('x-admin-key') ?? '').trim() !== adminKey) {
     return NextResponse.json({ ok: false, error: 'Unauthorized.' }, { status: 401 });
   }
   const { id } = await params;

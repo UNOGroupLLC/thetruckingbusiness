@@ -8,8 +8,8 @@ import { backendConfigured, dbUpsert, logOrderEvent } from '@/lib/server';
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Same ADMIN_KEY lock as GET /api/orders: when ADMIN_KEY is set in the
   // environment, only the owner (sending x-admin-key) can start a filing.
-  const adminKey = process.env.ADMIN_KEY ?? '';
-  if (adminKey && req.headers.get('x-admin-key') !== adminKey) {
+  const adminKey = (process.env.ADMIN_KEY ?? '').trim();
+  if (adminKey && (req.headers.get('x-admin-key') ?? '').trim() !== adminKey) {
     return NextResponse.json({ ok: false, error: 'Unauthorized.' }, { status: 401 });
   }
   const { id } = await params;

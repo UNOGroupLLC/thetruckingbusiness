@@ -14,8 +14,8 @@ import { backendConfigured, dbSelect, dbUpsert, logOrderEvent } from '@/lib/serv
  */
 
 function unauthorized(req: NextRequest): NextResponse | null {
-  const adminKey = process.env.ADMIN_KEY ?? '';
-  if (adminKey && req.headers.get('x-admin-key') !== adminKey) {
+  const adminKey = (process.env.ADMIN_KEY ?? '').trim();
+  if (adminKey && (req.headers.get('x-admin-key') ?? '').trim() !== adminKey) {
     return NextResponse.json({ ok: false, error: 'Unauthorized.' }, { status: 401 });
   }
   return null;

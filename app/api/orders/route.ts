@@ -100,11 +100,11 @@ interface OrderRow {
  * ?key=... or x-admin-key header to lock it down.
  */
 export async function GET(req: NextRequest) {
-  const adminKey = process.env.ADMIN_KEY ?? '';
+  const adminKey = (process.env.ADMIN_KEY ?? '').trim();
   if (adminKey) {
     const provided =
       req.headers.get('x-admin-key') ?? req.nextUrl.searchParams.get('key') ?? '';
-    if (provided !== adminKey) {
+    if (provided.trim() !== adminKey) {
       return NextResponse.json({ ok: false, error: 'Unauthorized.' }, { status: 401 });
     }
   }
