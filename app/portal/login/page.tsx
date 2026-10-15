@@ -92,12 +92,12 @@ export default function PortalLoginPage() {
       <div className="mx-auto max-w-md px-4">
         <div className="card">
           <p className="eyebrow">Client portal</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-navy">
+          <h1 className="mt-2 text-[28px] font-extrabold text-navy">
             {step === 'email' ? 'Log in' : 'Check your email'}
           </h1>
           {step === 'email' ? (
             <>
-              <p className="mt-2 text-sm text-steel">
+              <p className="mt-2 text-[13.5px] text-steel">
                 Enter the email you used at purchase. We&apos;ll email you a login code — no password needed.
               </p>
               <form onSubmit={sendCode} className="mt-5 space-y-4">
@@ -111,7 +111,7 @@ export default function PortalLoginPage() {
                     autoComplete="email"
                   />
                 </Field>
-                {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+                {error && <p role="alert" className="text-[13.5px] font-semibold text-[#dc2626]">{error}</p>}
                 <button type="submit" disabled={sending} className="btn-dark w-full disabled:opacity-60">
                   {sending ? 'Sending…' : 'Send code'}
                 </button>
@@ -119,14 +119,14 @@ export default function PortalLoginPage() {
             </>
           ) : (
             <>
-              <p className="mt-2 text-sm text-steel">
+              <p className="mt-2 text-[13.5px] text-steel">
                 We sent a login code to <span className="font-bold text-charcoal">{email}</span>.
                 It may take a minute to arrive — check spam if you don&apos;t see it.
               </p>
               <form onSubmit={verify} className="mt-5 space-y-4">
                 <Field label="Login code">
                   <input
-                    className="input text-center text-2xl font-bold tracking-[0.5em]"
+                    className="input text-center text-[20px] font-bold tracking-[0.5em]"
                     inputMode="numeric"
                     maxLength={10}
                     value={code}
@@ -135,11 +135,11 @@ export default function PortalLoginPage() {
                     aria-label="Login code from your email"
                   />
                 </Field>
-                {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+                {error && <p role="alert" className="text-[13.5px] font-semibold text-[#dc2626]">{error}</p>}
                 <button type="submit" disabled={verifying} className="btn-dark w-full disabled:opacity-60">
                   {verifying ? 'Verifying…' : 'Verify & log in'}
                 </button>
-                <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-[13.5px]">
                   <button
                     type="button"
                     disabled={cooldown > 0 || sending}

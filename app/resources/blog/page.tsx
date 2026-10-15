@@ -42,7 +42,7 @@ export default async function BlogIndex({
           <Link
             href="/resources/blog"
             className="btn btn-s"
-            style={!category ? { background: '#0b2e4f', color: '#fff' } : undefined}
+            style={!category ? { background: '#0a1a36', color: '#fff' } : undefined}
           >
             All
           </Link>
@@ -51,7 +51,7 @@ export default async function BlogIndex({
               key={c}
               href={`/resources/blog?category=${encodeURIComponent(c)}`}
               className="btn btn-s"
-              style={category === c ? { background: '#0b2e4f', color: '#fff' } : undefined}
+              style={category === c ? { background: '#0a1a36', color: '#fff' } : undefined}
             >
               {c}
             </Link>
@@ -60,7 +60,7 @@ export default async function BlogIndex({
       )}
 
       {posts.length === 0 ? (
-        <p style={{ marginTop: 32, color: '#5b6b7b' }}>
+        <p style={{ marginTop: 32, color: '#5b6a82' }}>
           No articles here yet — check back soon.
         </p>
       ) : (

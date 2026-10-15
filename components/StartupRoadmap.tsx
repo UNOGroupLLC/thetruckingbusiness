@@ -94,10 +94,10 @@ const STEPS: Step[] = [
   },
 ];
 
-const NAVY = '#0b2e4f';
-const BLUE = '#0b5cad';
-const GRAY = '#5b6b7b';
-const LINE = '#e3e9ef';
+const NAVY = '#0a1a36';
+const BLUE = '#1755a8';
+const GRAY = '#5b6a82';
+const LINE = '#dde3ec';
 
 export default function StartupRoadmap() {
   const [open, setOpen] = useState<number | null>(0);
@@ -137,10 +137,10 @@ export default function StartupRoadmap() {
     <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: NAVY }}>
       <div style={{ marginBottom: 14 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: GRAY }}>
+          <span style={{ fontSize: 12.5, fontWeight: 700, color: GRAY }}>
             {count} of {STEPS.length} steps complete
           </span>
-          <span style={{ fontSize: 13, fontWeight: 800, color: BLUE }}>{pct}%</span>
+          <span style={{ fontSize: 12.5, fontWeight: 800, color: BLUE }}>{pct}%</span>
         </div>
         <div style={{ height: 8, borderRadius: 99, background: LINE, overflow: 'hidden' }}>
           <div
@@ -148,7 +148,7 @@ export default function StartupRoadmap() {
               height: '100%',
               width: `${pct}%`,
               borderRadius: 99,
-              background: `linear-gradient(90deg, ${BLUE}, #2f9e5f)`,
+              background: `linear-gradient(90deg, ${BLUE}, #15803d)`,
               transition: 'width 0.4s ease',
             }}
           />
@@ -198,8 +198,8 @@ export default function StartupRoadmap() {
                     width: 26,
                     height: 26,
                     borderRadius: '50%',
-                    border: isDone ? `2px solid #2f9e5f` : `2px solid ${LINE}`,
-                    background: isDone ? '#2f9e5f' : '#fff',
+                    border: isDone ? `2px solid #15803d` : `2px solid ${LINE}`,
+                    background: isDone ? '#15803d' : '#fff',
                     color: '#fff',
                     fontSize: 15,
                     fontWeight: 900,
@@ -219,7 +219,7 @@ export default function StartupRoadmap() {
                     height: 26,
                     borderRadius: '50%',
                     background: isDone ? '#d9e9de' : NAVY,
-                    color: isDone ? '#2f7a4a' : '#fff',
+                    color: isDone ? '#15803d' : '#fff',
                     fontSize: 13,
                     fontWeight: 800,
                     display: 'flex',
@@ -233,7 +233,7 @@ export default function StartupRoadmap() {
                   <span
                     style={{
                       display: 'block',
-                      fontSize: 14,
+                      fontSize: 13.5,
                       fontWeight: 700,
                       textDecoration: isDone ? 'line-through' : 'none',
                       color: isDone ? GRAY : NAVY,
@@ -245,7 +245,7 @@ export default function StartupRoadmap() {
                     style={{
                       display: 'inline-block',
                       marginTop: 3,
-                      fontSize: 12,
+                      fontSize: 12.5,
                       fontWeight: 700,
                       color: BLUE,
                       background: '#e8f1fa',
@@ -259,7 +259,7 @@ export default function StartupRoadmap() {
                 <span style={{ color: GRAY, fontSize: 16, flex: '0 0 auto' }}>{isOpen ? '▾' : '▸'}</span>
               </div>
               {isOpen && (
-                <div style={{ padding: '0 12px 12px 74px', fontSize: 13, color: GRAY, lineHeight: 1.5 }}>
+                <div style={{ padding: '0 12px 12px 74px', fontSize: 13.5, color: GRAY, lineHeight: 1.5 }}>
                   <p style={{ margin: '0 0 8px' }}>{s.d}</p>
                   {s.link && (
                     <a

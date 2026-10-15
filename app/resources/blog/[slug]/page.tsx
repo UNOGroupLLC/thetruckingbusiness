@@ -97,7 +97,7 @@ export default async function BlogArticle({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <nav aria-label="Breadcrumb" style={{ fontSize: 13, color: '#5b6b7b', marginBottom: 20 }}>
+      <nav aria-label="Breadcrumb" style={{ fontSize: 12.5, color: '#5b6a82', marginBottom: 20 }}>
         <Link href="/" style={{ color: 'inherit' }}>Home</Link>
         {'  /  '}
         <Link href="/resources/blog" style={{ color: 'inherit' }}>Blog</Link>
@@ -109,7 +109,7 @@ export default async function BlogArticle({
         <span className="path-tag">{post.category}</span>
         <h1
           style={{
-            color: '#0b2e4f',
+            color: '#0a1a36',
             fontSize: 'clamp(28px, 4vw, 42px)',
             fontWeight: 900,
             letterSpacing: '-0.02em',
@@ -119,7 +119,7 @@ export default async function BlogArticle({
         >
           {post.title}
         </h1>
-        <div style={{ fontSize: 14, color: '#5b6b7b', marginBottom: 24 }}>
+        <div style={{ fontSize: 13.5, color: '#5b6a82', marginBottom: 24 }}>
           By {post.author} · {formatPostDate(post.published_at)} ·{' '}
           {readMinutes(post.content_md)} min read
         </div>
@@ -137,7 +137,7 @@ export default async function BlogArticle({
             role="note"
             style={{
               background: '#fff8e1',
-              border: '1px solid #f5c400',
+              border: '1px solid #ffc61a',
               borderRadius: 10,
               padding: '12px 16px',
               fontSize: 13.5,
@@ -158,24 +158,24 @@ export default async function BlogArticle({
 
         {faqs.length > 0 && (
           <section style={{ marginTop: 36 }}>
-            <h2 style={{ color: '#0b2e4f', fontSize: 22, fontWeight: 800, marginBottom: 12 }}>
+            <h2 style={{ color: '#0a1a36', fontSize: 20, fontWeight: 800, marginBottom: 12 }}>
               Frequently asked questions
             </h2>
             {faqs.map((f, i) => (
               <details
                 key={i}
                 style={{
-                  border: '1px solid #e3e9ef',
+                  border: '1px solid #dde3ec',
                   borderRadius: 10,
                   padding: '12px 16px',
                   marginBottom: 10,
-                  background: '#fbfdff',
+                  background: '#f6f7f9',
                 }}
               >
-                <summary style={{ fontWeight: 700, color: '#0b2e4f', cursor: 'pointer', fontSize: 15.5 }}>
+                <summary style={{ fontWeight: 700, color: '#0a1a36', cursor: 'pointer', fontSize: 15 }}>
                   {f.q}
                 </summary>
-                <p style={{ margin: '10px 0 0', fontSize: 15, color: '#22303c' }}>{f.a}</p>
+                <p style={{ margin: '10px 0 0', fontSize: 15, color: '#0e1728' }}>{f.a}</p>
               </details>
             ))}
           </section>
@@ -184,7 +184,7 @@ export default async function BlogArticle({
         <div
           style={{
             marginTop: 40,
-            background: '#0b2e4f',
+            background: '#0a1a36',
             borderRadius: 14,
             padding: '28px 28px',
             color: '#fff',
@@ -206,8 +206,8 @@ export default async function BlogArticle({
           style={{
             marginTop: 28,
             fontSize: 12.5,
-            color: '#5b6b7b',
-            borderTop: '1px solid #e3e9ef',
+            color: '#5b6a82',
+            borderTop: '1px solid #dde3ec',
             paddingTop: 16,
           }}
         >
@@ -222,7 +222,7 @@ export default async function BlogArticle({
 
       {related.length > 0 && (
         <div style={{ marginTop: 56 }}>
-          <h2 style={{ color: '#0b2e4f', fontSize: 24, fontWeight: 800, marginBottom: 16 }}>
+          <h2 style={{ color: '#0a1a36', fontSize: 20, fontWeight: 800, marginBottom: 16 }}>
             Keep reading
           </h2>
           <div className="res-grid">

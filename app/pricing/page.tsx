@@ -20,20 +20,20 @@ function PackageCard({ pkg }: { pkg: Package }) {
 
   return (
     <div className="card flex flex-col">
-      <h2 className="text-xl font-extrabold text-navy">{pkg.name}</h2>
-      <p className="mt-1 text-sm text-steel">{pkg.tagline}</p>
+      <h2 className="text-[20px] font-extrabold text-navy">{pkg.name}</h2>
+      <p className="mt-1 text-[13.5px] text-steel">{pkg.tagline}</p>
       <p className="mt-4">
-        <span className="text-4xl font-extrabold text-navy">{formatUSD(price)}</span>
-        <span className="text-sm font-semibold text-steel"> {pkg.billing}</span>
+        <span className="text-[36px] font-extrabold text-navy">{formatUSD(price)}</span>
+        <span className="text-[13.5px] font-semibold text-steel"> {pkg.billing}</span>
       </p>
 
       {showFinancing && (
-        <div className="mt-3 border-t border-dashed border-slate-200 pt-3">
-          <p className="text-sm font-bold text-navy">
+        <div className="mt-3 border-t border-dashed border-[#dde3ec] pt-3">
+          <p className="text-[13.5px] font-bold text-navy">
             or 4 interest-free payments of {installment}{' '}
-            <span className="text-[#0f7a3d]">with Afterpay</span>
+            <span className="text-[#15803d]">with Afterpay</span>
           </p>
-          <p className="mt-1 text-xs text-steel">
+          <p className="mt-1 text-[12.5px] text-steel">
             Afterpay &amp; Klarna also available at checkout · subject to eligibility
           </p>
         </div>
@@ -48,10 +48,10 @@ function PackageCard({ pkg }: { pkg: Package }) {
               role="radio"
               aria-checked={o.id === option?.id}
               onClick={() => setOptId(o.id)}
-              className={`rounded-full border px-4 py-2 text-sm font-bold transition ${
+              className={`rounded-full border px-4 py-2 text-[13.5px] font-bold transition ${
                 o.id === option?.id
                   ? 'border-navy bg-navy text-white'
-                  : 'border-slate-300 bg-white text-steel hover:border-navy'
+                  : 'border-[#cbd5e3] bg-white text-steel hover:border-navy'
               }`}
             >
               {o.label} — {formatUSD(o.price)}
@@ -61,10 +61,10 @@ function PackageCard({ pkg }: { pkg: Package }) {
       )}
 
               <div className="mt-5 rounded-xl bg-mist p-4">
-                <p className="text-xs font-bold uppercase tracking-wider text-steel">
+                <p className="text-[11px] font-bold uppercase tracking-wider text-steel">
                   All-in breakdown
                 </p>
-                <ul className="mt-2 space-y-1.5 text-sm">
+                <ul className="mt-2 space-y-1.5 text-[13.5px]">
                   {pkg.fees.map((fee) => (
                     <li key={fee.label} className="flex items-start justify-between gap-3">
                       <span>
@@ -78,7 +78,7 @@ function PackageCard({ pkg }: { pkg: Package }) {
                         >
                           {fee.kind === 'government' ? 'Gov fee' : 'Our fee'}
                         </span>
-                        {fee.note && <span className="block text-xs text-steel">{fee.note}</span>}
+                        {fee.note && <span className="block text-[12.5px] text-steel">{fee.note}</span>}
                       </span>
                       <span className="font-bold">
                         {fee.amount > 0 ? formatUSD(fee.amount) : fee.note ? 'Included' : 'Varies'}
@@ -90,7 +90,7 @@ function PackageCard({ pkg }: { pkg: Package }) {
 
               <ul className="mt-5 flex-1 space-y-2">
                 {pkg.inclusions.map((inc) => (
-                  <li key={inc} className="flex items-start gap-2 text-sm">
+                  <li key={inc} className="flex items-start gap-2 text-[13.5px]">
                     <span className="mt-0.5 font-bold text-dotblue" aria-hidden="true">✓</span>
                     <span>{inc}</span>
                   </li>
@@ -113,7 +113,7 @@ export default function PricingPage() {
     <div className="bg-mist py-14">
       <div className="mx-auto max-w-6xl px-4">
         <p className="eyebrow text-center">All-in pricing</p>
-        <h1 className="mt-2 text-center text-4xl font-extrabold text-navy md:text-5xl">
+        <h1 className="mt-2 text-center text-[36px] font-extrabold text-navy md:text-[44px]">
           Pick your package. We start today.
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-center text-steel">
@@ -128,27 +128,27 @@ export default function PricingPage() {
         </div>
 
         <div className="mx-auto mt-16 max-w-4xl">
-          <h2 className="text-center text-2xl font-extrabold text-navy md:text-3xl">
+          <h2 className="text-center text-[20px] font-extrabold text-navy md:text-[28px]">
             Pay-as-you-go services
           </h2>
-          <p className="mx-auto mt-2 max-w-xl text-center text-sm text-steel">
+          <p className="mx-auto mt-2 max-w-xl text-center text-[13.5px] text-steel">
             Individual services for customers who need only one item rather than a full package.
           </p>
           <div className="card mt-6 overflow-hidden p-0">
-            <table className="w-full text-sm">
+            <table className="w-full text-[13.5px]">
               <tbody>
                 {alacarte.map((item) => (
-                  <tr key={item.slug} className="border-b border-slate-100 last:border-0">
+                  <tr key={item.slug} className="border-b border-[#dde3ec] last:border-0">
                     <td className="px-5 py-4">
                       <p className="font-bold text-navy">{item.name}</p>
-                      <p className="text-xs text-steel">{item.tagline}</p>
+                      <p className="text-[12.5px] text-steel">{item.tagline}</p>
                     </td>
                     <td className="whitespace-nowrap px-5 py-4 text-right font-extrabold text-navy">
                       {formatUSD(item.price)}
-                      <span className="text-xs font-semibold text-steel"> {item.billing}</span>
+                      <span className="text-[12.5px] font-semibold text-steel"> {item.billing}</span>
                     </td>
                     <td className="whitespace-nowrap px-5 py-4 text-right">
-                      <Link href={`/checkout/${item.slug}`} className="btn-primary px-4 py-2 text-sm">
+                      <Link href={`/checkout/${item.slug}`} className="btn-primary px-4 py-2 text-[13px]">
                         {item.cta}
                       </Link>
                     </td>
@@ -159,7 +159,7 @@ export default function PricingPage() {
           </div>
         </div>
 
-        <p className="mx-auto mt-10 max-w-2xl text-center text-sm text-steel">
+        <p className="mx-auto mt-10 max-w-2xl text-center text-[13.5px] text-steel">
           Prefer to talk first? <a href="mailto:hello@thetruckingbusiness.com" className="font-bold text-dotblue hover:underline">Talk to us</a> — but most
           customers check out online in minutes, then tell us about their company on the next
           screen.

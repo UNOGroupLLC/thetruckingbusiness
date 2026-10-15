@@ -85,7 +85,7 @@ function ReceiptInner() {
   if (loading) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="text-2xl font-extrabold text-navy">Confirming your payment…</h1>
+        <h1 className="text-[20px] font-extrabold text-navy">Confirming your payment…</h1>
         <p className="mt-2 text-steel">One moment while we verify with Stripe.</p>
       </div>
     );
@@ -94,7 +94,7 @@ function ReceiptInner() {
   if (error || !order) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="text-2xl font-extrabold text-navy">No receipt found</h1>
+        <h1 className="text-[20px] font-extrabold text-navy">No receipt found</h1>
         <p className="mt-2 text-steel">{error || 'We couldn\u2019t find that order.'}</p>
         <Link href="/pricing" className="btn-dark mt-6">Back to pricing</Link>
       </div>
@@ -105,27 +105,27 @@ function ReceiptInner() {
     <div className="bg-mist py-14">
       <div className="mx-auto max-w-2xl px-4">
         <div className="card text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-2xl font-extrabold text-green-700" aria-hidden="true">✓</span>
-          <h1 className="mt-4 text-3xl font-extrabold text-navy">Payment successful</h1>
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-[20px] font-extrabold text-green-700" aria-hidden="true">✓</span>
+          <h1 className="mt-4 text-[28px] font-extrabold text-navy">Payment successful</h1>
           {!realPayment && (
-            <p className="mt-1 text-sm font-semibold text-steel">SIMULATED — no real payment was processed</p>
+            <p className="mt-1 text-[13.5px] font-semibold text-steel">SIMULATED — no real payment was processed</p>
           )}
         </div>
 
         <div className="card mt-6">
           <p className="eyebrow">Receipt</p>
-          <dl className="mt-3 space-y-2 text-sm">
+          <dl className="mt-3 space-y-2 text-[13.5px]">
             <div className="flex justify-between"><dt className="text-steel">Order</dt><dd className="font-bold">{order.id}</dd></div>
             <div className="flex justify-between"><dt className="text-steel">Date</dt><dd className="font-semibold">{formatDate(order.createdAt)}</dd></div>
             <div className="flex justify-between"><dt className="text-steel">Package</dt><dd className="font-semibold">{order.packageName}{order.optionLabel ? ` — ${order.optionLabel}` : ''}</dd></div>
             <div className="flex justify-between"><dt className="text-steel">Buyer</dt><dd className="font-semibold">{order.buyerName} ({order.buyerEmail})</dd></div>
-            <div className="flex justify-between border-t border-slate-200 pt-2 text-base"><dt className="font-bold">Charged</dt><dd className="font-extrabold text-navy">{formatUSD(order.amount)}</dd></div>
+            <div className="flex justify-between border-t border-[#dde3ec] pt-2 text-[15px]"><dt className="font-bold">Charged</dt><dd className="font-extrabold text-navy">{formatUSD(order.amount)}</dd></div>
           </dl>
         </div>
 
         <div className="card mt-6 bg-navy text-white">
-          <h2 className="text-xl font-extrabold">Next: tell us about your company</h2>
-          <p className="mt-2 text-sm text-slate-300">
+          <h2 className="text-[20px] font-extrabold">Next: tell us about your company</h2>
+          <p className="mt-2 text-[13.5px] text-[#cbd8f0]">
             To start your {order.intakeService === 'authority' ? 'operating authority filing' : 'compliance setup'}, we need a few details. It takes about two minutes.
           </p>
           <Link href={`/intake/${order.intakeService}?order=${order.id}`} className="btn-primary mt-5 w-full">

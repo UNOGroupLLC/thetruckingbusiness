@@ -14,7 +14,7 @@ export default function EmbedsLayout({ children }: { children: React.ReactNode }
         />
         <style>{`
           * { box-sizing: border-box; }
-          body { margin: 0; font-family: 'Public Sans', Arial, sans-serif; color: #22303c; background: #fff; }
+          body { margin: 0; font-family: 'Public Sans', Arial, sans-serif; color: #0e1728; background: #fff; }
           h1, h2, h3 { font-family: 'Libre Franklin', Arial, sans-serif; }
         `}</style>
       </head>

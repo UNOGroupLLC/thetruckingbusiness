@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-navy: #0b2e4f;
-  --color-navy-dark: #072033;
-  --color-dotblue: #0f5c99;
-  --color-dotblue-dark: #0c4a7d;
-  --color-highway: #f5c400;
-  --color-charcoal: #22303c;
-  --color-steel: #5b6b7b;
-  --color-mist: #f4f7fa;
+  --color-navy: #0a1a36;
+  --color-navy-dark: #0f2a5c;
+  --color-dotblue: #1755a8;
+  --color-dotblue-dark: #0f2a5c;
+  --color-highway: #ffc61a;
+  --color-charcoal: #0e1728;
+  --color-steel: #5b6a82;
+  --color-mist: #f6f7f9;
 }
 
 html {
@@ -36,58 +36,58 @@ h3 {
 
 /* Shared form + UI primitives */
 .input {
-  @apply w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-charcoal placeholder:text-slate-400;
+  @apply w-full rounded-lg border border-[#cbd5e3] bg-white px-3 py-2.5 text-base text-charcoal placeholder:text-steel;
 }
 .input:focus {
   border-color: var(--color-dotblue);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(15, 92, 153, 0.15);
+  box-shadow: 0 0 0 3px rgba(23, 85, 168, 0.15);
 }
 
 .btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-highway px-6 py-3 text-base font-bold text-charcoal transition hover:brightness-95 active:brightness-90;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-highway px-6 py-3 text-[14px] font-bold text-charcoal transition hover:brightness-95 active:brightness-90;
 }
 .btn-dark {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-navy px-6 py-3 text-base font-bold text-white transition hover:bg-navy-dark;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg bg-navy px-6 py-3 text-[14px] font-bold text-white transition hover:bg-navy-dark;
 }
 .btn-outline-light {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/80 px-6 py-3 text-base font-bold text-white transition hover:bg-white hover:text-navy;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-white/80 px-6 py-3 text-[14px] font-bold text-white transition hover:bg-white hover:text-navy;
 }
 .btn-outline-dark {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-navy px-6 py-3 text-base font-bold text-navy transition hover:bg-navy hover:text-white;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg border-2 border-navy px-6 py-3 text-[14px] font-bold text-navy transition hover:bg-navy hover:text-white;
 }
 .card {
-  @apply rounded-2xl border border-slate-200 bg-white p-6 shadow-[0_4px_14px_rgba(11,46,79,0.06)];
+  @apply rounded-2xl border border-[#dde3ec] bg-white p-6 shadow-[0_4px_14px_rgba(10,26,54,0.06)];
 }
 .eyebrow {
-  @apply text-xs font-bold uppercase tracking-[0.18em] text-dotblue;
+  @apply text-[11px] font-bold uppercase tracking-[0.18em] text-dotblue;
 }
 .badge-placeholder {
-  @apply inline-block rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-800;
+  @apply inline-block rounded-full bg-amber-100 px-3 py-1 text-[11px] font-bold uppercase tracking-wide text-amber-800;
 }
 .badge-sample {
-  @apply inline-block rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide text-slate-600;
+  @apply inline-block rounded-full bg-[#dde3ec] px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-steel;
 }
 
 /* ---- Blog article body ---- */
-.blog-body { color: #22303c; font-size: 17px; line-height: 1.75; }
-.blog-body h2 { color: #0b2e4f; font-size: 24px; font-weight: 800; letter-spacing: -0.01em; margin: 36px 0 12px; }
-.blog-body h3 { color: #0b2e4f; font-size: 19px; font-weight: 700; margin: 28px 0 10px; }
+.blog-body { color: #0e1728; font-size: 17px; line-height: 1.75; }
+.blog-body h2 { color: #0a1a36; font-size: 24px; font-weight: 800; letter-spacing: -0.01em; margin: 36px 0 12px; }
+.blog-body h3 { color: #0a1a36; font-size: 19px; font-weight: 700; margin: 28px 0 10px; }
 .blog-body p { margin: 0 0 18px; }
 .blog-body ul, .blog-body ol { margin: 0 0 18px; padding-left: 24px; }
 .blog-body li { margin-bottom: 8px; }
-.blog-body a { color: #0b5cad; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
-.blog-body strong { color: #0b2e4f; }
-.blog-body blockquote { border-left: 4px solid #f5c400; background: #fffdf4; margin: 0 0 18px; padding: 12px 18px; border-radius: 0 10px 10px 0; }
+.blog-body a { color: #1755a8; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.blog-body strong { color: #0a1a36; }
+.blog-body blockquote { border-left: 4px solid #ffc61a; background: #fffdf4; margin: 0 0 18px; padding: 12px 18px; border-radius: 0 10px 10px 0; }
 .blog-body blockquote p { margin: 0; }
 .blog-body img { max-width: 100%; border-radius: 10px; margin: 8px 0 18px; }
-.blog-body hr { border: none; border-top: 1px dashed #c9d3dd; margin: 28px 0; }
-.blog-body code { background: #f1f5f9; padding: 2px 6px; border-radius: 6px; font-size: 0.9em; }
-.blog-body pre { background: #0b2e4f; color: #eaf2fa; padding: 16px 18px; border-radius: 10px; overflow-x: auto; }
+.blog-body hr { border: none; border-top: 1px dashed #cbd5e3; margin: 28px 0; }
+.blog-body code { background: #f0f3f7; padding: 2px 6px; border-radius: 6px; font-size: 0.9em; }
+.blog-body pre { background: #0a1a36; color: #eaf2fa; padding: 16px 18px; border-radius: 10px; overflow-x: auto; }
 .blog-body pre code { background: none; padding: 0; color: inherit; }
 .blog-body table { width: 100%; border-collapse: collapse; margin: 0 0 18px; font-size: 15px; }
-.blog-body th, .blog-body td { border: 1px solid #dbe3ea; padding: 10px 12px; text-align: left; }
-.blog-body th { background: #f4f7fa; color: #0b2e4f; font-weight: 700; }
+.blog-body th, .blog-body td { border: 1px solid #dde3ec; padding: 10px 12px; text-align: left; }
+.blog-body th { background: #f6f7f9; color: #0a1a36; font-weight: 700; }
 
 /* ---- Blog embeds (calculators & interactive visuals) ---- */
 .blog-embed { margin: 24px 0; }

@@ -34,7 +34,7 @@ export default function SosMap() {
             onMouseLeave={() => setHovered(null)}
             onClick={() => openState(s.abbr)}
             style={{ cursor: 'pointer', transition: 'fill 0.15s' }}
-            fill={hovered === s.abbr ? '#1565a8' : '#0b2e4f'}
+            fill={hovered === s.abbr ? '#1e6bd6' : '#0a1a36'}
             stroke="#ffffff"
             strokeWidth={1.2}
           >
@@ -44,14 +44,14 @@ export default function SosMap() {
       </svg>
 
       {hovered && (
-        <p style={{ textAlign: 'center', fontWeight: 700, color: '#0b2e4f', margin: '8px 0 0', minHeight: 24 }}>
+        <p style={{ textAlign: 'center', fontWeight: 700, color: '#0a1a36', margin: '8px 0 0', minHeight: 24 }}>
           {STATE_PATHS.find((s) => s.abbr === hovered)?.name} — click to open filing office
         </p>
       )}
       {!hovered && <div style={{ minHeight: 24 }} />}
 
       <div style={{ marginTop: 12, textAlign: 'center' }}>
-        <label htmlFor="sos-state" style={{ fontWeight: 700, color: '#0b2e4f', marginRight: 8 }}>
+        <label htmlFor="sos-state" style={{ fontWeight: 700, color: '#0a1a36', marginRight: 8 }}>
           Or pick your state:
         </label>
         <select
@@ -65,8 +65,8 @@ export default function SosMap() {
             padding: '10px 12px',
             fontSize: 16,
             borderRadius: 8,
-            border: '2px solid #0b2e4f',
-            color: '#0b2e4f',
+            border: '2px solid #0a1a36',
+            color: '#0a1a36',
             fontWeight: 600,
             maxWidth: '100%',
           }}

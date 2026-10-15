@@ -31,7 +31,7 @@ function CheckoutInner() {
   if (!pkg) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="text-2xl font-extrabold text-navy">Package not found</h1>
+        <h1 className="text-[20px] font-extrabold text-navy">Package not found</h1>
         <Link href="/pricing" className="btn-dark mt-6">Back to pricing</Link>
       </div>
     );
@@ -90,38 +90,38 @@ function CheckoutInner() {
       <div className="mx-auto grid max-w-5xl gap-8 px-4 md:grid-cols-2">
         <div className="card h-fit">
           <p className="eyebrow">Order summary</p>
-          <h1 className="mt-2 text-2xl font-extrabold text-navy">{pkg.name}</h1>
-          <p className="mt-1 text-sm text-steel">{pkg.tagline}</p>
+          <h1 className="mt-2 text-[20px] font-extrabold text-navy">{pkg.name}</h1>
+          <p className="mt-1 text-[13.5px] text-steel">{pkg.tagline}</p>
           {option && (
-            <p className="mt-2 inline-block rounded-full bg-navy/10 px-3 py-1 text-xs font-bold text-navy">
+            <p className="mt-2 inline-block rounded-full bg-navy/10 px-3 py-1 text-[11px] font-bold text-navy">
               {option.label}
             </p>
           )}
-          <div className="mt-4 border-t border-slate-200 pt-4">
-            <p className="text-sm font-bold text-navy">What&apos;s included</p>
+          <div className="mt-4 border-t border-[#dde3ec] pt-4">
+            <p className="text-[13.5px] font-bold text-navy">What&apos;s included</p>
             <ul className="mt-2 space-y-1.5">
               {pkg.inclusions.map((item) => (
-                <li key={item} className="flex gap-2 text-sm text-steel">
-                  <span aria-hidden="true" className="font-bold text-green-600">✓</span>
+                <li key={item} className="flex gap-2 text-[13.5px] text-steel">
+                  <span aria-hidden="true" className="font-bold text-[#15803d]">✓</span>
                   <span>{item}</span>
                 </li>
               ))}
             </ul>
           </div>
-          <div className="mt-4 border-t border-slate-200 pt-4">
-            <div className="flex justify-between text-sm">
+          <div className="mt-4 border-t border-[#dde3ec] pt-4">
+            <div className="flex justify-between text-[13.5px]">
               <span>Package price (all-in)</span>
               <span className="font-bold">{formatUSD(price)} {pkg.billing}</span>
             </div>
-            <p className="mt-2 text-xs text-steel">
+            <p className="mt-2 text-[12.5px] text-steel">
               Includes our service fee and government filing fees, remitted on your behalf.
             </p>
           </div>
         </div>
 
         <div className="card">
-          <h2 className="text-xl font-extrabold text-navy">Checkout</h2>
-          <p className="mt-1 rounded-lg bg-sky-50 px-3 py-2 text-xs font-semibold text-sky-900">
+          <h2 className="text-[20px] font-extrabold text-navy">Checkout</h2>
+          <p className="mt-1 rounded-lg bg-[#e8effa] px-3 py-2 text-[12.5px] font-semibold text-navy">
             Secure checkout — you&rsquo;ll complete payment on Stripe&rsquo;s encrypted page. Cards
             and financing options (Afterpay, Klarna) accepted where available.
           </p>
@@ -132,11 +132,11 @@ function CheckoutInner() {
             <Field label="Email" hint="Used for your receipt, intake follow-ups, and client portal login.">
               <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" autoComplete="email" />
             </Field>
-            {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+            {error && <p role="alert" className="text-[13.5px] font-semibold text-[#dc2626]">{error}</p>}
             <button type="submit" className="btn-primary w-full" disabled={busy}>
               {busy ? 'Redirecting to secure payment…' : `Continue to payment — ${formatUSD(price)}${pkg.billing === '/month' ? '/month' : pkg.billing === '/year' ? '/year' : ''}`}
             </button>
-            <p className="text-center text-xs text-steel">
+            <p className="text-center text-[11px] text-steel">
               No payment details are entered or stored on this site.
             </p>
           </form>

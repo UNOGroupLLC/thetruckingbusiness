@@ -20,7 +20,7 @@ export default function CalculatorsPage() {
     <div className="bg-mist py-14">
       <div className="mx-auto max-w-5xl px-4">
         <p className="eyebrow text-center">Free tools</p>
-        <h1 className="mt-2 text-center text-4xl font-extrabold text-navy md:text-5xl">
+        <h1 className="mt-2 text-center text-[36px] font-extrabold text-navy md:text-[44px]">
           Trucking calculators
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-center text-steel">
@@ -31,7 +31,7 @@ export default function CalculatorsPage() {
           {CALCS.map((c) => (
             <Link key={c.href} href={c.href} className="card group transition hover:shadow-md">
               <p className="eyebrow">{c.tag}</p>
-              <h2 className="mt-2 text-2xl font-extrabold text-navy group-hover:text-dotblue">
+              <h2 className="mt-2 text-[20px] font-extrabold text-navy group-hover:text-dotblue">
                 {c.title}
               </h2>
               <p className="mt-3 text-sm leading-relaxed text-steel">{c.desc}</p>

@@ -55,11 +55,11 @@ const MARKINGS: Marking[] = [
   },
 ];
 
-const NAVY = '#0b2e4f';
-const BLUE = '#0b5cad';
-const GRAY = '#5b6b7b';
-const LINE = '#e3e9ef';
-const GREEN = '#2f9e5f';
+const NAVY = '#0a1a36';
+const BLUE = '#1755a8';
+const GRAY = '#5b6a82';
+const LINE = '#dde3ec';
+const GREEN = '#15803d';
 
 export default function TruckMarkings() {
   const [active, setActive] = useState<string>('name');
@@ -69,7 +69,7 @@ export default function TruckMarkings() {
 
   return (
     <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: NAVY }}>
-      <svg viewBox="0 0 420 250" style={{ width: '100%', height: 'auto', display: 'block', background: '#f4f7fa', borderRadius: 12, border: `1px solid ${LINE}` }} role="img" aria-label="Diagram of truck door markings">
+      <svg viewBox="0 0 420 250" style={{ width: '100%', height: 'auto', display: 'block', background: '#f6f7f9', borderRadius: 12, border: `1px solid ${LINE}` }} role="img" aria-label="Diagram of truck door markings">
         {/* cab body */}
         <rect x="20" y="30" width="240" height="150" rx="14" fill="#ffffff" stroke={NAVY} strokeWidth="3" />
         {/* hood */}
@@ -132,12 +132,12 @@ export default function TruckMarkings() {
               }}
             >
               <span style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                <span style={{ fontSize: 13, fontWeight: 800, color: NAVY }}>{m.label}</span>
+                <span style={{ fontSize: 12.5, fontWeight: 800, color: NAVY }}>{m.label}</span>
               </span>
               <span
                 style={{
                   display: 'inline-block',
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 800,
                   letterSpacing: 0.5,
                   color: '#fff',
@@ -160,7 +160,7 @@ export default function TruckMarkings() {
           borderRadius: 10,
           padding: '10px 12px',
           background: '#fff',
-          fontSize: 13,
+          fontSize: 13.5,
           lineHeight: 1.55,
           color: GRAY,
         }}
@@ -168,7 +168,7 @@ export default function TruckMarkings() {
         <strong style={{ color: NAVY }}>{current.label}</strong> — {current.d}
       </div>
 
-      <p style={{ fontSize: 12, color: GRAY, lineHeight: 1.6, marginTop: 10, marginBottom: 0 }}>
+      <p style={{ fontSize: 12.5, color: GRAY, lineHeight: 1.6, marginTop: 10, marginBottom: 0 }}>
         Federal rule (49 CFR 390.21): markings go on <strong>both sides</strong> of the power unit, in letters that{' '}
         <strong>contrast sharply</strong> with the background and are <strong>legible from 50 feet</strong> in daylight.
         Paint or vinyl decals both count. Kentucky no longer requires the KYU number to be displayed on the truck.

@@ -262,7 +262,7 @@ function IntakeInner() {
   if (!intakeMeta) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="text-2xl font-extrabold text-navy">Unknown service</h1>
+        <h1 className="text-[20px] font-extrabold text-navy">Unknown service</h1>
         <Link href="/pricing" className="btn-dark mt-6">Back to pricing</Link>
       </div>
     );
@@ -270,7 +270,7 @@ function IntakeInner() {
   if (!order) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <h1 className="text-2xl font-extrabold text-navy">Order not found</h1>
+        <h1 className="text-[20px] font-extrabold text-navy">Order not found</h1>
         <p className="mt-2 text-steel">Please complete checkout first — intake is linked to your order.</p>
         <Link href="/pricing" className="btn-dark mt-6">Back to pricing</Link>
       </div>
@@ -373,7 +373,7 @@ function IntakeInner() {
       <div className="bg-mist py-14">
         <div className="mx-auto max-w-2xl px-4">
           <p className="eyebrow">Intake received ✓</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">Want a kickoff call?</h1>
+          <h1 className="mt-2 text-[28px] font-extrabold text-navy md:text-[36px]">Want a kickoff call?</h1>
           <p className="mt-2 text-steel">
             Your Complete Package includes a one-on-one walkthrough of your filings and next steps.
             Pick a time that works for you — or skip it and we&apos;ll handle everything by email.
@@ -412,13 +412,13 @@ function IntakeInner() {
       <div className="bg-mist py-14">
         <div className="mx-auto max-w-2xl px-4">
           <p className="eyebrow">Intake locked</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">Your intake is certified final</h1>
+          <h1 className="mt-2 text-[28px] font-extrabold text-navy md:text-[36px]">Your intake is certified final</h1>
           <p className="mt-2 text-steel">
             Order <span className="font-bold text-charcoal">{order.id}</span> · {order.packageName}
           </p>
           <div className="mt-4 rounded-lg border border-navy/20 bg-white px-4 py-3">
-            <p className="text-sm font-bold text-navy">🔒 {cert}</p>
-            <p className="mt-1 text-sm text-steel">
+            <p className="text-[13.5px] font-bold text-navy">🔒 {cert}</p>
+            <p className="mt-1 text-[13.5px] text-steel">
               {status === 'filing'
                 ? 'We have started your filing — your information can no longer be changed.'
                 : 'Your answers are locked. We will use them to start your filing.'}{' '}
@@ -426,10 +426,10 @@ function IntakeInner() {
             </p>
           </div>
           <div className="card mt-6">
-            <p className="text-xs font-bold uppercase tracking-wider text-steel">Your certified answers</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-steel">Your certified answers</p>
             <dl className="mt-3 space-y-1">
               {reviewRows.map((r) => (
-                <div key={r.label} className="flex justify-between gap-4 border-b border-slate-100 py-2 text-sm">
+                <div key={r.label} className="flex justify-between gap-4 border-b border-[#dde3ec] py-2 text-[13.5px]">
                   <dt className="text-steel">{r.label}</dt>
                   <dd className="text-right font-medium text-charcoal">{r.value}</dd>
                 </div>
@@ -446,16 +446,16 @@ function IntakeInner() {
       <div className="bg-mist py-14">
         <div className="mx-auto max-w-2xl px-4">
           <p className="eyebrow">Final step — certify your corrections</p>
-          <h1 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">Review &amp; certify</h1>
+          <h1 className="mt-2 text-[28px] font-extrabold text-navy md:text-[36px]">Review &amp; certify</h1>
           <p className="mt-2 text-steel">
             You updated your intake. Please review the corrected answers below, then certify them as
             final. After certification your intake locks and we start your filing.
           </p>
           <div className="card mt-6">
-            <p className="text-xs font-bold uppercase tracking-wider text-steel">Your corrected answers</p>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-steel">Your corrected answers</p>
             <dl className="mt-3 space-y-1">
               {reviewRows.map((r) => (
-                <div key={r.label} className="flex justify-between gap-4 border-b border-slate-100 py-2 text-sm">
+                <div key={r.label} className="flex justify-between gap-4 border-b border-[#dde3ec] py-2 text-[13.5px]">
                   <dt className="text-steel">{r.label}</dt>
                   <dd className="text-right font-medium text-charcoal">{r.value}</dd>
                 </div>
@@ -470,7 +470,7 @@ function IntakeInner() {
                 checked={certChecked}
                 onChange={(e) => setCertChecked(e.target.checked)}
               />
-              <span className="text-sm font-medium text-charcoal">
+              <span className="text-[13.5px] font-medium text-charcoal">
                 I certify that these corrections are final and correct, and I authorize The Trucking
                 Business to proceed with my filing using this information.
               </span>
@@ -481,9 +481,9 @@ function IntakeInner() {
             <Field label="Date">
               <input className="input" type="date" value={certDate} onChange={(e) => setCertDate(e.target.value)} />
             </Field>
-            {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+            {error && <p role="alert" className="text-[13.5px] font-semibold text-[#dc2626]">{error}</p>}
             <button type="submit" className="btn-primary w-full">Certify corrections as final</button>
-            <p className="text-center text-xs text-steel">
+            <p className="text-center text-[11px] text-steel">
               Your electronic signature is legally binding under the federal ESIGN Act.
             </p>
           </form>
@@ -496,15 +496,15 @@ function IntakeInner() {
     <div className="bg-mist py-14">
       <div className="mx-auto max-w-2xl px-4">
         <p className="eyebrow">Step 3 of 3 — intake</p>
-        <h1 className="mt-2 text-3xl font-extrabold text-navy md:text-4xl">{title}</h1>
+        <h1 className="mt-2 text-[28px] font-extrabold text-navy md:text-[36px]">{title}</h1>
         <p className="mt-2 text-steel">
           Order <span className="font-bold text-charcoal">{order.id}</span> · {order.packageName}
         </p>
-        <p className="mt-2 text-sm text-steel">{intro}</p>
+        <p className="mt-2 text-[13.5px] text-steel">{intro}</p>
         {alreadySubmitted && !isLocked && (
           <div className="mt-4 rounded-lg border border-highway/60 bg-highway/10 px-4 py-3">
-            <p className="text-sm font-bold text-navy">You&rsquo;ve already submitted this intake ✓</p>
-            <p className="mt-1 text-sm text-steel">
+            <p className="text-[13.5px] font-bold text-navy">You&rsquo;ve already submitted this intake ✓</p>
+            <p className="mt-1 text-[13.5px] text-steel">
               Your answers are loaded below. You have <strong>one correction</strong> left — edit
               and save, then you&rsquo;ll certify the corrections as final.
             </p>
@@ -515,7 +515,7 @@ function IntakeInner() {
           {visibleFields.map((f, i) => (
             <div key={f.key}>
               {f.section && (i === 0 || visibleFields[i - 1].section !== f.section) && (
-                <h2 className="mb-3 border-b border-slate-200 pb-2 text-lg font-extrabold text-navy">
+                <h2 className="mb-3 border-b border-[#dde3ec] pb-2 text-[17px] font-extrabold text-navy">
                   {f.section}
                 </h2>
               )}
@@ -528,9 +528,9 @@ function IntakeInner() {
                       checked={values[f.key] === 'yes'}
                       onChange={(e) => set(f.key, e.target.checked ? 'yes' : '')}
                     />
-                    <span className="text-sm font-medium text-charcoal">{f.label}</span>
+                    <span className="text-[13.5px] font-medium text-charcoal">{f.label}</span>
                   </label>
-                  {f.hint && <p className="ml-7 mt-1 text-xs text-steel">{f.hint}</p>}
+                  {f.hint && <p className="ml-7 mt-1 text-[12.5px] text-steel">{f.hint}</p>}
                 </div>
               ) : (
                 <Field label={f.label + (f.required === false ? ' (optional)' : '')} hint={f.hint}>
@@ -561,11 +561,11 @@ function IntakeInner() {
               )}
             </div>
           ))}
-          {error && <p role="alert" className="text-sm font-semibold text-red-700">{error}</p>}
+          {error && <p role="alert" className="text-[13.5px] font-semibold text-[#dc2626]">{error}</p>}
           <button type="submit" className="btn-primary w-full">
             {alreadySubmitted ? 'Save corrections' : 'Submit details'}
           </button>
-          <p className="text-center text-xs text-steel">
+          <p className="text-center text-[11px] text-steel">
             Your answers go straight to our team so we can start your filing.
           </p>
         </form>

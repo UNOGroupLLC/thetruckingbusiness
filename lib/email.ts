@@ -476,3 +476,64 @@ export function clientBookingEmail(
     ),
   };
 }
+
+/* --------------------- Calculator results (client) --------------------- */
+
+/**
+ * Client: the breakdown from one of the free calculators, emailed at the
+ * visitor's own request from the results screen. Built on the site email
+ * style: Libre Franklin headings, navy #0a1a36, one gray for secondary text.
+ * `lines` are plain "Label: value" strings computed by the calculator.
+ */
+export function calculatorResultsEmail(
+  calculatorTitle: string,
+  headline: string,
+  lines: string[]
+): { subject: string; html: string } {
+  const C_NAVY = '#0a1a36';
+  const C_YELLOW = '#ffc61a';
+  const C_INK = '#16233c';
+  const C_GRAY = '#5b6a82';
+  const C_BG = '#f6f7f9';
+  const C_BORDER = '#dde3ec';
+  const rows = lines
+    .map((line, i) => {
+      const idx = line.indexOf(': ');
+      const label = idx > 0 ? line.slice(0, idx) : line;
+      const value = idx > 0 ? line.slice(idx + 2) : '';
+      const border = i > 0 ? `border-top:1px solid ${C_BORDER};` : '';
+      return value
+        ? `<tr><td style="padding:10px 16px 10px 0;color:${C_GRAY};font-size:13px;vertical-align:top;${border}">${esc(label)}</td><td align="right" style="padding:10px 0;font-weight:bold;color:${C_INK};vertical-align:top;${border}">${esc(value)}</td></tr>`
+        : `<tr><td colspan="2" style="padding:10px 0;color:${C_INK};font-size:14px;${border}">${esc(label)}</td></tr>`;
+    })
+    .join('');
+  const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background-color:${C_BG};font-family:${FONT};color:${C_INK};">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:${C_BG};padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(10,26,54,0.08);">
+<tr><td style="background:${C_NAVY};padding:30px 34px 26px;">
+<p style="margin:0 0 10px;color:${C_YELLOW};font-size:11px;letter-spacing:3px;font-weight:bold;">THETRUCKINGBUSINESS.COM</p>
+<h1 style="margin:0;color:#ffffff;font-family:${HEADING_FONT};font-size:25px;font-weight:800;line-height:1.25;">Your calculator results</h1>
+<p style="margin:10px 0 0;color:#c9d6ea;font-size:13px;">${esc(calculatorTitle)}</p>
+</td></tr>
+<tr><td style="background:${C_YELLOW};height:4px;line-height:4px;font-size:0;">&nbsp;</td></tr>
+<tr><td style="padding:30px 34px 10px;">
+<p style="font-size:14px;line-height:1.65;color:${C_INK};margin:0 0 22px;">You asked for these results from the ${esc(calculatorTitle)} on TheTruckingBusiness.com. Here is the full breakdown from your session.</p>
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px;background:${C_BG};border-radius:10px;border-left:4px solid ${C_YELLOW};">
+<tr><td style="padding:16px 20px;">
+<p style="margin:0;color:${C_NAVY};font-family:${HEADING_FONT};font-size:24px;font-weight:800;line-height:1.3;">${esc(headline)}</p>
+</td></tr>
+</table>
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;font-size:14px;">${rows}</table>
+<p style="font-size:14px;line-height:1.65;color:${C_INK};margin:22px 0 24px;">If you want help with any of this, reply to this email or visit thetruckingbusiness.com.</p>
+</td></tr>
+<tr><td style="background:${C_BG};padding:18px 34px;border-top:1px solid ${C_BORDER};">
+<p style="margin:0;color:${C_GRAY};font-size:12px;line-height:1.6;">You received this email because you asked for your calculator results on our website. It is a one-time send, not a subscription.</p>
+</td></tr>
+</table>
+<p style="margin:18px 0 0;color:${C_GRAY};font-size:11px;line-height:1.6;max-width:600px;">TheTruckingBusiness.com, an independent private company, not affiliated with FMCSA or USDOT.</p>
+</td></tr>
+</table>
+</body></html>`;
+  return { subject: `Your results from the ${calculatorTitle}`, html };
+}

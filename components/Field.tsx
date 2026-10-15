@@ -21,11 +21,11 @@ export default function Field({ label, hint, children }: FieldProps) {
 
   return (
     <div>
-      <label htmlFor={id} className="mb-1 block text-sm font-semibold text-charcoal">
+      <label htmlFor={id} className="mb-1 block text-[13.5px] font-semibold text-charcoal">
         {label}
       </label>
       {child}
-      {hint && <p className="mt-1 text-xs text-steel">{hint}</p>}
+      {hint && <p className="mt-1 text-[12.5px] text-steel">{hint}</p>}
     </div>
   );
 }

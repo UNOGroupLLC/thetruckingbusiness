@@ -23,11 +23,11 @@ export default function UcrMap() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: '#0b2e4f' }}>
-          <span style={{ width: 16, height: 16, borderRadius: 4, background: '#0b2e4f', display: 'inline-block' }} />
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#0a1a36' }}>
+          <span style={{ width: 16, height: 16, borderRadius: 4, background: '#0a1a36', display: 'inline-block' }} />
           Participates (41 states)
         </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 14, fontWeight: 700, color: '#0b2e4f' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#0a1a36' }}>
           <span style={{ width: 16, height: 16, borderRadius: 4, background: '#9aa5b1', display: 'inline-block' }} />
           Does not participate (9 states)
         </span>
@@ -41,7 +41,7 @@ export default function UcrMap() {
       >
         {STATE_PATHS.map((s) => {
           const out = NON_PARTICIPATING.has(s.abbr);
-          const base = out ? '#9aa5b1' : '#0b2e4f';
+          const base = out ? '#9aa5b1' : '#0a1a36';
           return (
             <path
               key={s.abbr}
@@ -49,7 +49,7 @@ export default function UcrMap() {
               onMouseEnter={() => setHovered(s.abbr)}
               onMouseLeave={() => setHovered(null)}
               style={{ transition: 'fill 0.15s' }}
-              fill={hovered === s.abbr ? (out ? '#7c8794' : '#1565a8') : base}
+              fill={hovered === s.abbr ? (out ? '#7c8794' : '#1e6bd6') : base}
               stroke="#ffffff"
               strokeWidth={1.2}
             >
@@ -62,7 +62,7 @@ export default function UcrMap() {
       </svg>
 
       {hoveredState ? (
-        <p style={{ textAlign: 'center', fontWeight: 700, color: '#0b2e4f', margin: '8px 0 0', minHeight: 24 }}>
+        <p style={{ textAlign: 'center', fontWeight: 700, color: '#0a1a36', margin: '8px 0 0', minHeight: 24 }}>
           {hoveredState.name} — {statusOf(hoveredState.abbr)}
           {NON_PARTICIPATING.has(hoveredState.abbr) && (
             <span style={{ fontWeight: 400 }}> (register through a neighboring state)</span>
@@ -73,7 +73,7 @@ export default function UcrMap() {
       )}
 
       <div style={{ marginTop: 12, textAlign: 'center' }}>
-        <label htmlFor="ucr-state" style={{ fontWeight: 700, color: '#0b2e4f', marginRight: 8 }}>
+        <label htmlFor="ucr-state" style={{ fontWeight: 700, color: '#0a1a36', marginRight: 8 }}>
           Or pick your state:
         </label>
         <select
@@ -84,8 +84,8 @@ export default function UcrMap() {
             padding: '10px 12px',
             fontSize: 16,
             borderRadius: 8,
-            border: '2px solid #0b2e4f',
-            color: '#0b2e4f',
+            border: '2px solid #0a1a36',
+            color: '#0a1a36',
             fontWeight: 600,
             maxWidth: '100%',
           }}
@@ -100,7 +100,7 @@ export default function UcrMap() {
       </div>
 
       {selected && (
-        <p style={{ textAlign: 'center', fontWeight: 700, color: '#0b2e4f', marginTop: 8 }}>
+        <p style={{ textAlign: 'center', fontWeight: 700, color: '#0a1a36', marginTop: 8 }}>
           {STATE_PATHS.find((s) => s.abbr === selected)?.name}: {statusOf(selected)}
           {NON_PARTICIPATING.has(selected) &&
             ' — you still must register, through a neighboring participating state.'}

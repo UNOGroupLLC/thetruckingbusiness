@@ -11,7 +11,7 @@ export default function Faq({ items }: { items: FaqItem[] }) {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <div className="divide-y divide-slate-200 rounded-2xl border border-slate-200 bg-white">
+    <div className="divide-y divide-[#dde3ec] rounded-2xl border border-[#dde3ec] bg-white">
       {items.map((item, i) => {
         const isOpen = open === i;
         return (
@@ -22,12 +22,12 @@ export default function Faq({ items }: { items: FaqItem[] }) {
               aria-expanded={isOpen}
             >
               <span className="font-semibold text-navy">{item.q}</span>
-              <span className="text-xl font-bold text-dotblue" aria-hidden="true">
+              <span className="text-[20px] font-bold text-dotblue" aria-hidden="true">
                 {isOpen ? '−' : '+'}
               </span>
             </button>
             {isOpen && (
-              <p className="px-5 pb-5 text-sm leading-relaxed text-charcoal">{item.a}</p>
+              <p className="px-5 pb-5 text-[13.5px] leading-relaxed text-charcoal">{item.a}</p>
             )}
           </div>
         );

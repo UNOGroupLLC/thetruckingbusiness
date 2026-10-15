@@ -14,10 +14,10 @@ interface Scenario {
 }
 
 const KIND_STYLE: Record<Block['kind'], { bg: string; fg: string; name: string }> = {
-  drive: { bg: '#0b2e4f', fg: '#fff', name: 'Driving' },
-  sleeper: { bg: '#f5c400', fg: '#0b2e4f', name: 'Sleeper berth' },
-  off: { bg: '#9fb3c8', fg: '#0b2e4f', name: 'Off duty' },
-  onduty: { bg: '#5b6b7b', fg: '#fff', name: 'On duty (not driving)' },
+  drive: { bg: '#0a1a36', fg: '#fff', name: 'Driving' },
+  sleeper: { bg: '#ffc61a', fg: '#0a1a36', name: 'Sleeper berth' },
+  off: { bg: '#9fb3c8', fg: '#0a1a36', name: 'Off duty' },
+  onduty: { bg: '#5b6a82', fg: '#fff', name: 'On duty (not driving)' },
 };
 
 const SCENARIOS: Scenario[] = [
@@ -77,21 +77,21 @@ export default function SleeperBerthVisualizer() {
   const total = active.blocks.reduce((s, b) => s + b.h, 0);
 
   return (
-    <div style={{ fontFamily: "'Public Sans', Arial, sans-serif", color: '#22303c' }}>
+    <div style={{ fontFamily: "'Public Sans', Arial, sans-serif", color: '#0e1728' }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
         {SCENARIOS.map((s) => (
           <button
             key={s.id}
             onClick={() => setActive(s)}
             style={{
-              border: '2px solid #0b2e4f',
+              border: '2px solid #0a1a36',
               borderRadius: 999,
               padding: '8px 18px',
-              fontSize: 14,
+              fontSize: 13.5,
               fontWeight: 800,
               cursor: 'pointer',
-              background: active.id === s.id ? '#0b2e4f' : '#fff',
-              color: active.id === s.id ? '#fff' : '#0b2e4f',
+              background: active.id === s.id ? '#0a1a36' : '#fff',
+              color: active.id === s.id ? '#fff' : '#0a1a36',
             }}
           >
             {s.name}
@@ -101,8 +101,8 @@ export default function SleeperBerthVisualizer() {
                   marginLeft: 8,
                   fontSize: 11,
                   fontWeight: 700,
-                  background: active.id === s.id ? '#f5c400' : '#eef2f6',
-                  color: '#0b2e4f',
+                  background: active.id === s.id ? '#ffc61a' : '#f0f3f7',
+                  color: '#0a1a36',
                   borderRadius: 999,
                   padding: '2px 8px',
                 }}
@@ -120,7 +120,7 @@ export default function SleeperBerthVisualizer() {
           display: 'flex',
           borderRadius: 12,
           overflow: 'hidden',
-          border: '1px solid #dbe3ea',
+          border: '1px solid #dde3ec',
           minHeight: 84,
         }}
         role="img"
@@ -151,7 +151,7 @@ export default function SleeperBerthVisualizer() {
           );
         })}
       </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: '#5b6b7b', marginTop: 6 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, color: '#5b6a82', marginTop: 6 }}>
         <span>Start of day</span>
         <span>{total} hours shown</span>
       </div>
@@ -167,24 +167,24 @@ export default function SleeperBerthVisualizer() {
       </div>
 
       {/* Explanation */}
-      <div style={{ marginTop: 18, background: '#f4f7fa', borderRadius: 12, padding: '18px 20px' }}>
-        <h3 style={{ margin: '0 0 10px', color: '#0b2e4f', fontSize: 16, fontWeight: 800 }}>
+      <div style={{ marginTop: 18, background: '#f6f7f9', borderRadius: 12, padding: '18px 20px' }}>
+        <h3 style={{ margin: '0 0 10px', color: '#0a1a36', fontSize: 15, fontWeight: 800 }}>
           What just happened
         </h3>
-        <ul style={{ margin: 0, paddingLeft: 20, fontSize: 14.5, lineHeight: 1.65 }}>
+        <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13.5, lineHeight: 1.65 }}>
           {active.what.map((w, i) => (
             <li key={i} style={{ marginBottom: 6 }}>{w}</li>
           ))}
         </ul>
-        <p style={{ margin: '12px 0 0', fontSize: 13.5, color: '#0b2e4f', fontWeight: 600 }}>{active.note}</p>
+        <p style={{ margin: '12px 0 0', fontSize: 13.5, color: '#0a1a36', fontWeight: 600 }}>{active.note}</p>
       </div>
 
       {/* Rules */}
       <div style={{ marginTop: 14, border: '1px dashed #9fb3c8', borderRadius: 12, padding: '16px 20px' }}>
-        <h3 style={{ margin: '0 0 8px', color: '#0b2e4f', fontSize: 15, fontWeight: 800 }}>
+        <h3 style={{ margin: '0 0 8px', color: '#0a1a36', fontSize: 15, fontWeight: 800 }}>
           The split-sleeper rules (49 CFR 395.1(g))
         </h3>
-        <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13.5, lineHeight: 1.65, color: '#3d4f61' }}>
+        <ul style={{ margin: 0, paddingLeft: 20, fontSize: 13.5, lineHeight: 1.65, color: '#0e1728' }}>
           <li>Two breaks totaling <strong>at least 10 hours</strong>.</li>
           <li>One break must be <strong>at least 7 consecutive hours in the sleeper berth</strong>.</li>
           <li>The other must be <strong>at least 2 consecutive hours</strong> — sleeper berth, off duty, or a mix.</li>
@@ -192,7 +192,7 @@ export default function SleeperBerthVisualizer() {
         </ul>
       </div>
 
-      <p style={{ fontSize: 12, color: '#5b6b7b', marginTop: 12 }}>
+      <p style={{ fontSize: 12, color: '#5b6a82', marginTop: 12 }}>
         Simplified illustration — your ELD computes the exact clocks. Verify current rules at 49 CFR 395.1(g).
       </p>
     </div>

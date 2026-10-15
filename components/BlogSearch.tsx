@@ -57,15 +57,15 @@ export default function BlogSearch({ posts }: { posts: BlogCardPost[] }) {
             width: '100%',
             padding: '12px 16px',
             fontSize: 15,
-            border: '2px solid #e3e9ef',
+            border: '2px solid #dde3ec',
             borderRadius: 12,
             outline: 'none',
           }}
-          onFocus={(e) => (e.currentTarget.style.borderColor = '#0b5cad')}
-          onBlur={(e) => (e.currentTarget.style.borderColor = '#e3e9ef')}
+          onFocus={(e) => (e.currentTarget.style.borderColor = '#1755a8')}
+          onBlur={(e) => (e.currentTarget.style.borderColor = '#dde3ec')}
         />
         {needle && (
-          <p style={{ fontSize: 13, color: '#5b6b7b', margin: '8px 0 0' }}>
+          <p style={{ fontSize: 12.5, color: '#5b6a82', margin: '8px 0 0' }}>
             {filtered.length} {filtered.length === 1 ? 'article' : 'articles'} matching
             “{q.trim()}”
           </p>
@@ -73,7 +73,7 @@ export default function BlogSearch({ posts }: { posts: BlogCardPost[] }) {
       </div>
 
       {filtered.length === 0 ? (
-        <p style={{ marginTop: 32, color: '#5b6b7b' }}>
+        <p style={{ marginTop: 32, color: '#5b6a82' }}>
           No articles match “{q.trim()}” — try a different word.
         </p>
       ) : (
@@ -92,10 +92,10 @@ export default function BlogSearch({ posts }: { posts: BlogCardPost[] }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      background: 'linear-gradient(135deg,#0b2e4f 0%,#164a7a 100%)',
-                      color: '#f5c400',
+                      background: 'linear-gradient(135deg,#0a1a36 0%,#0f2a5c 100%)',
+                      color: '#ffc61a',
                       fontWeight: 900,
-                      fontSize: 13,
+                      fontSize: 12.5,
                       letterSpacing: 2,
                       textTransform: 'uppercase',
                       padding: 16,
@@ -117,7 +117,7 @@ export default function BlogSearch({ posts }: { posts: BlogCardPost[] }) {
                   </Link>
                 </h3>
                 <p>{p.excerpt}</p>
-                <div style={{ fontSize: 12.5, color: '#5b6b7b', marginBottom: 10 }}>
+                <div style={{ fontSize: 12.5, color: '#5b6a82', marginBottom: 10 }}>
                   {formatDate(p.published_at)} · {readMinutes(p.content_md)} min read
                 </div>
                 <Link href={`/resources/blog/${p.slug}`} className="res-link">

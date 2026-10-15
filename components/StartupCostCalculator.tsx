@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 /* ------------------------------------------------------------------ */
-/* Data model — ported 1:1 from TRUCKING_START_UP_CALCULATOR.html      */
+/* Data model: ported 1:1 from TRUCKING_START_UP_CALCULATOR.html      */
 /* ------------------------------------------------------------------ */
 
 interface CalcItem {
@@ -104,7 +104,7 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-/* UCR 2027 fee brackets — FMCSA final rule 91 FR 56063; 2027 registration year opened Oct 1, 2026 */
+/* UCR 2027 fee brackets: FMCSA final rule 91 FR 56063; 2027 registration year opened Oct 1, 2026 */
 function ucrFee(count: number): number {
   if (count <= 2) return 55;
   if (count <= 5) return 167;
@@ -114,43 +114,116 @@ function ucrFee(count: number): number {
   return 54165;
 }
 
+/** Round shares of a total to whole percents that sum to exactly 100
+ *  (any rounding drift lands on the largest segment). Null when the
+ *  total is not positive, so the UI can show a dash instead of NaN. */
+function normalizedPercents(values: number[]): number[] | null {
+  const total = values.reduce((a, b) => a + b, 0);
+  if (!(total > 0)) return null;
+  const pcts = values.map((v) => Math.round((v / total) * 100));
+  const diff = 100 - pcts.reduce((a, b) => a + b, 0);
+  if (diff !== 0) {
+    let idx = 0;
+    values.forEach((v, i) => {
+      if (v > values[idx]) idx = i;
+    });
+    pcts[idx] += diff;
+  }
+  return pcts;
+}
+
+/* ------------------------------------------------------------------ */
+/* Palette (approved prototype tokens)                                 */
+/* ------------------------------------------------------------------ */
+
+const NAVY = '#0a1a36';
+const NAVY2 = '#0f2a5c';
+const BLUE = '#1755a8';
+const YELLOW = '#ffc61a';
+const LINE = '#e3e8f0';
+const HEADING = "'Libre Franklin', sans-serif";
+
 /* ------------------------------------------------------------------ */
 /* Presentational pieces                                               */
 /* ------------------------------------------------------------------ */
 
-function StepCard({
-  step,
+function StepProgress({
+  steps,
+  current,
+  done,
+}: {
+  steps: string[];
+  current: number;
+  done?: boolean;
+}) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-4">
+        <span className="text-[13px] font-bold text-[#0a1a36]">
+          {done ? 'Your results' : steps[current - 1]}
+        </span>
+        <span className="whitespace-nowrap text-[12.5px] font-semibold text-[#5b6b84]">
+          {done ? 'Complete' : `Step ${current} of ${steps.length}`}
+        </span>
+      </div>
+      <div className="mt-[14px] grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {steps.map((name, i) => {
+          const n = i + 1;
+          const isCurrent = !done && n === current;
+          const filled = done || n <= current;
+          return (
+            <div key={name}>
+              <div
+                className="whitespace-nowrap pb-[9px] text-[12.5px]"
+                style={{
+                  color: isCurrent ? NAVY : filled ? '#3d4f6d' : '#93a1b5',
+                  fontWeight: isCurrent ? 800 : 600,
+                  overflow: 'hidden',
+                }}
+              >
+                {n}&nbsp;&nbsp;{name}
+              </div>
+              <div
+                className="h-[4px] rounded-full"
+                style={{ background: filled ? NAVY : '#dde4ee' }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function WizardCard({
   title,
   description,
   children,
 }: {
-  step: number;
   title: string;
   description: string;
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(11,46,79,0.08)]">
-      <div className="flex items-start gap-3 px-5 pt-5 sm:px-6">
-        <div
-          aria-hidden="true"
-          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-navy text-base font-extrabold text-white"
-        >
-          {step}
-        </div>
-        <div>
-          <h2 className="text-lg font-extrabold uppercase leading-tight text-navy sm:text-xl">{title}</h2>
-          <p className="mt-1 text-sm text-steel">{description}</p>
-        </div>
-      </div>
-      <div className="px-5 pb-5 pt-4 sm:px-6 sm:pb-6">{children}</div>
+    <section
+      className="rounded-[20px] border bg-white px-6 py-8 sm:px-10 sm:py-[38px]"
+      style={{ borderColor: LINE, boxShadow: '0 14px 34px rgba(10,26,54,0.06)' }}
+    >
+      <h3
+        className="text-[20px] font-extrabold text-[#0a1a36]"
+        style={{ fontFamily: HEADING, letterSpacing: '-0.01em' }}
+      >
+        {title}
+      </h3>
+      <p className="mt-[7px] text-[15px] leading-relaxed text-[#5b6b84]">{description}</p>
+      <div className="mt-7">{children}</div>
     </section>
   );
 }
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-4 rounded-lg border-l-4 border-highway bg-amber-50 px-4 py-3 text-sm leading-relaxed text-[#5a4b2e]">
+    <div className="mb-4 rounded-[10px] border-l-4 border-[#ffc61a] bg-[#fff8e1] px-4 py-3 text-[13.5px] leading-relaxed text-[#5a4b2e]">
       {children}
     </div>
   );
@@ -161,6 +234,7 @@ function CostRow({
   state,
   disabledByOperation,
   total,
+  period,
   onToggle,
   onAmount,
 }: {
@@ -168,13 +242,14 @@ function CostRow({
   state: RowState;
   disabledByOperation: boolean;
   total: number;
+  period: 'one-time' | 'monthly';
   onToggle: (id: string, enabled: boolean) => void;
   onAmount: (id: string, amount: number) => void;
 }) {
   const multiplier = item.perTruck ? ' × trucks' : item.perDriver ? ' × drivers' : '';
   return (
     <div
-      className={`grid grid-cols-1 items-center gap-3 rounded-xl border border-slate-200 p-3 transition sm:grid-cols-[minmax(0,1fr)_160px] sm:gap-4 ${
+      className={`grid grid-cols-1 items-center gap-3 rounded-[14px] border border-[#e3e8f0] bg-white p-4 transition sm:grid-cols-[minmax(0,1fr)_170px] sm:gap-4 ${
         disabledByOperation ? 'opacity-60' : ''
       }`}
     >
@@ -190,7 +265,7 @@ function CostRow({
           />
           <span
             aria-hidden="true"
-            className="absolute inset-0 rounded-full bg-slate-300 transition-colors peer-checked:bg-dotblue peer-disabled:cursor-not-allowed peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-dotblue"
+            className="absolute inset-0 rounded-full bg-[#cbd5e3] transition-colors peer-checked:bg-[#1755a8] peer-disabled:cursor-not-allowed peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-[#1755a8]"
           />
           <span
             aria-hidden="true"
@@ -198,20 +273,23 @@ function CostRow({
           />
         </label>
         <div className="min-w-0">
-          <div className="text-sm font-bold text-charcoal">{item.name}</div>
-          <div className="mt-0.5 text-xs leading-relaxed text-steel">{item.note}</div>
+          <div className="text-[13.5px] font-bold text-[#16233c]">{item.name}</div>
+          <div className="mt-0.5 text-[12.5px] leading-relaxed text-[#5b6b84]">{item.note}</div>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
+            <span className="inline-block whitespace-nowrap rounded-full bg-[#eef1f6] px-[9px] py-[3px] text-[11px] font-bold uppercase tracking-[0.06em] text-[#3d4f6d]">
+              {period === 'one-time' ? 'One-time' : 'Per month'}
+            </span>
             {item.type === 'official' ? (
-              <span className="inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-green-800">
+              <span className="inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
                 Federal Fee / Official $0
               </span>
             ) : (
-              <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-amber-800">
+              <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-amber-800">
                 Editable Estimate
               </span>
             )}
             {disabledByOperation && (
-              <span className="inline-block rounded-full bg-slate-200 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-slate-600">
+              <span className="inline-block rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-600">
                 Interstate only
               </span>
             )}
@@ -220,7 +298,7 @@ function CostRow({
       </div>
       <div>
         <div className="relative">
-          <span aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-steel">
+          <span aria-hidden="true" className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5b6b84]">
             $
           </span>
           <input
@@ -234,13 +312,129 @@ function CostRow({
               onAmount(item.id, Number.isFinite(n) ? Math.max(0, n) : 0);
             }}
             aria-label={`Cost of ${item.name}`}
-            className="input pl-7 text-right disabled:cursor-not-allowed disabled:bg-slate-100"
+            className="w-full rounded-[10px] border-[1.5px] border-[#ccd6e4] bg-white py-[10px] pl-7 pr-3 text-right text-[15px] font-semibold text-[#0a1a36] outline-none focus:border-[#1755a8] disabled:cursor-not-allowed disabled:bg-[#f0f3f7]"
           />
         </div>
-        <div className="mt-1 text-left text-xs text-steel sm:text-right">
-          Total{multiplier}: <strong>{money(total)}</strong>
+        <div className="mt-1 text-left text-[12.5px] text-[#5b6b84] sm:text-right">
+          Total{multiplier}: <strong className="text-[#0a1a36]">{money(total)}</strong>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** "Email my results" panel shown under the results. */
+function EmailResultsPanel({
+  calculator,
+  headline,
+  lines,
+  blurb,
+}: {
+  calculator: 'cost-per-mile' | 'startup';
+  headline: string;
+  lines: string[];
+  blurb: string;
+}) {
+  const [email, setEmail] = useState('');
+  const [website, setWebsite] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState('');
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError('');
+    setSending(true);
+    try {
+      const res = await fetch('/api/calculators/email-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          calculator,
+          email: email.trim(),
+          headline,
+          lines,
+          company_website: website,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) {
+        setError(
+          data?.error ||
+            'We could not send your results. Please email us directly at hello@thetruckingbusiness.com and we will send them over.'
+        );
+        return;
+      }
+      setSent(true);
+    } catch {
+      setError(
+        'We could not send your results. Please email us directly at hello@thetruckingbusiness.com and we will send them over.'
+      );
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="rounded-[20px] p-[28px] text-white" style={{ background: NAVY }}>
+      <h4
+        className="text-[17px] font-extrabold"
+        style={{ fontFamily: HEADING, letterSpacing: '-0.01em' }}
+      >
+        Want a copy of your numbers?
+      </h4>
+      {sent ? (
+        <p className="mt-2 text-[13.5px] leading-relaxed text-[#c9d6ea]">
+          Your results are on their way to {email.trim()}.
+        </p>
+      ) : (
+        <>
+          <p className="mt-2 max-w-[560px] text-[13.5px] leading-relaxed text-[#c9d6ea]">{blurb}</p>
+          <form onSubmit={submit}>
+            <div className="mt-4 flex flex-wrap gap-2.5">
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                aria-label="Your email"
+                className="min-w-[220px] flex-1 rounded-full border border-white/25 bg-white/[0.08] px-4 py-3 text-[15px] text-white outline-none placeholder:text-[#8fa3c4] focus:border-[#ffc61a]"
+              />
+              <button
+                type="submit"
+                disabled={sending}
+                className="rounded-full px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] disabled:opacity-60"
+                style={{ background: YELLOW, boxShadow: '0 8px 24px rgba(255,198,26,0.35)' }}
+              >
+                {sending ? 'Sending...' : 'Email my results'}
+              </button>
+            </div>
+            {/* Honeypot: hidden from humans, bots fill it and get a silent success. */}
+            <div style={{ display: 'none' }} aria-hidden="true">
+              <label>
+                Company website
+                <input
+                  type="text"
+                  name="company_website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                />
+              </label>
+            </div>
+            {error ? (
+              <p role="alert" className="mt-3 text-[13.5px] font-semibold text-[#ffb4b4]">
+                {error}
+              </p>
+            ) : null}
+          </form>
+          <p className="mt-3 text-[12.5px] text-[#8296b3]">
+            One email with your results. No spam, and you are not signing up for anything else.
+          </p>
+        </>
+      )}
     </div>
   );
 }
@@ -249,12 +443,46 @@ function CostRow({
 /* Main component                                                      */
 /* ------------------------------------------------------------------ */
 
+const STEP_NAMES = [
+  'Your operation',
+  'Formation & FMCSA',
+  'Truck & equipment',
+  'Insurance & permits',
+  'Driver compliance',
+  'Monthly costs',
+];
+
+const STEP_TITLES = [
+  'Your operation',
+  'Business Formation & FMCSA',
+  'Truck, Trailer & Equipment',
+  'Insurance, Taxes, Registration & Permits',
+  'Driver & DOT Compliance',
+  'Monthly Operating Costs',
+];
+
+const STEP_DESCRIPTIONS = [
+  'These answers automatically adjust several costs in the calculator.',
+  'Includes basic registrations to establish the business and, when applicable, obtain federal operating authority.',
+  'If you finance the equipment, enter only the down payment needed to get started. If you purchase it with cash, enter the full purchase price.',
+  'These amounts can vary significantly by state, vehicle, weight, operating history, cargo type, and insurance company.',
+  'Common compliance costs before placing a driver and vehicle into operation.',
+  'Use your own figures if you already have quotes. These expenses are used to calculate your operating reserve.',
+];
+
+const CONFIG_LABEL = 'mb-[9px] block text-[13.5px] font-bold text-[#16233c]';
+const CONFIG_INPUT =
+  'w-full rounded-[12px] border-[1.5px] border-[#ccd6e4] bg-white px-[18px] py-[14px] text-[17px] font-semibold text-[#0a1a36] outline-none focus:border-[#1755a8]';
+
 export default function StartupCostCalculator() {
   const [truckCount, setTruckCount] = useState(1);
   const [driverCount, setDriverCount] = useState(1);
   const [operationType, setOperationType] = useState<'interstate' | 'intrastate'>('interstate');
   const [reserveMonths, setReserveMonths] = useState(3);
   const [rows, setRows] = useState<Record<string, RowState>>(initialRows);
+  const [step, setStep] = useState(1);
+  const [showResults, setShowResults] = useState(false);
+  const wizardRef = useRef<HTMLDivElement | null>(null);
 
   const interstate = operationType === 'interstate';
 
@@ -304,7 +532,22 @@ export default function StartupCostCalculator() {
     setRows(initialRows());
   };
 
-  const renderRows = (items: CalcItem[]) => (
+  const scrollToWizard = () => {
+    wizardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const seeResults = () => {
+    setShowResults(true);
+    scrollToWizard();
+  };
+
+  const backToCalculator = () => {
+    setShowResults(false);
+    setStep(6);
+    scrollToWizard();
+  };
+
+  const renderRows = (items: CalcItem[], period: 'one-time' | 'monthly') => (
     <div className="grid gap-2.5">
       {items.map((item) => (
         <CostRow
@@ -313,6 +556,7 @@ export default function StartupCostCalculator() {
           state={rows[item.id]}
           disabledByOperation={Boolean(item.interstate) && !interstate}
           total={itemTotal(item)}
+          period={period}
           onToggle={toggleRow}
           onAmount={setRowAmount}
         />
@@ -320,297 +564,531 @@ export default function StartupCostCalculator() {
     </div>
   );
 
+  /* Live preview shares for the hero card, from the same live totals. */
+  const segValues = [equipment, permits + compliance, reserve];
+  const segPcts = normalizedPercents(segValues);
+  const hasTotal = grand > 0;
+  const segColors = ['#ffc61a', '#eef1f6', '#c9a227'];
+  const segLabels = [
+    'Truck and equipment',
+    'Insurance, permits and compliance',
+    `Operating reserve, ${monthText}`,
+  ];
+
+  const truckWord = truckCount === 1 ? 'one truck' : `${truckCount} trucks`;
+  const driverWord = driverCount === 1 ? 'one driver' : `${driverCount} drivers`;
+  const reserveWord = reserveMonths === 1 ? 'one month' : `${reserveMonths} months`;
+  const finePrint = `An example startup with ${truckWord} and ${driverWord}, ${
+    interstate ? 'running interstate' : 'running intrastate only'
+  }, with ${reserveWord} of reserve. Your numbers will differ.`;
+
+  const emailLines = [
+    `Operation: ${truckCount} ${truckCount === 1 ? 'truck' : 'trucks'}, ${driverCount} ${
+      driverCount === 1 ? 'driver' : 'drivers'
+    }, ${interstate ? 'Interstate' : 'Intrastate only'}`,
+    `Business and FMCSA: ${money(business)}`,
+    `Truck and equipment: ${money(equipment)}`,
+    `Insurance, registration and permits: ${money(permits)}`,
+    `Driver and compliance: ${money(compliance)}`,
+    `One-time startup costs: ${money(startup)}`,
+    `Estimated monthly cost: ${money(monthly)}`,
+    `Operating reserve (${monthText}): ${money(reserve)}`,
+    `Estimated start-up capital: ${money(grand)}`,
+  ];
+
+  const breakdownRows: [string, string][] = [
+    ['Business & FMCSA', money(business)],
+    ['Truck & Equipment', money(equipment)],
+    ['Insurance, Registration & Permits', money(permits)],
+    ['Driver & Compliance', money(compliance)],
+    ['Estimated Monthly Cost', money(monthly)],
+  ];
+
   return (
-    <div className="mx-auto w-full max-w-[1180px] px-3 py-4 sm:px-4 sm:py-6">
+    <div className="w-full">
       {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-navy to-dotblue-dark px-6 py-8 text-white shadow-[0_8px_24px_rgba(11,46,79,0.18)] sm:px-8 sm:py-10">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full border-[18px] border-highway/20"
-        />
-        <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider">
-          The Trucking Business • Planning Tool
-        </span>
-        <h1 className="mt-4 max-w-3xl text-3xl font-extrabold leading-tight sm:text-4xl lg:text-5xl">
-          Trucking Business Start-Up Cost Calculator
-        </h1>
-        <p className="mt-3 max-w-3xl text-base text-white/85">
-          Estimate the capital you need to form your trucking company, buy or finance equipment,
-          get insured and permitted, and meet DOT compliance — plus the operating reserve to run
-          until your first loads pay.
-        </p>
-      </section>
-
-      <div className="mt-5 grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <main className="grid min-w-0 gap-5">
-          {/* Step 1 — Operation config */}
-          <StepCard
-            step={1}
-            title="Configure Your Operation"
-            description="These answers automatically adjust several costs in the calculator."
-          >
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <div>
-                <label htmlFor="calc-truckCount" className="mb-1.5 block text-sm font-bold text-charcoal">
-                  Number of Trucks
-                </label>
-                <input
-                  id="calc-truckCount"
-                  type="number"
-                  min={1}
-                  max={5000}
-                  step={1}
-                  value={truckCount}
-                  onChange={(e) => setTruckCount(clampInt(Number(e.target.value), 1, 5000))}
-                  onBlur={(e) => setTruckCount(clampInt(Number(e.target.value), 1, 5000))}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label htmlFor="calc-driverCount" className="mb-1.5 block text-sm font-bold text-charcoal">
-                  Number of Drivers
-                </label>
-                <input
-                  id="calc-driverCount"
-                  type="number"
-                  min={1}
-                  max={5000}
-                  step={1}
-                  value={driverCount}
-                  onChange={(e) => setDriverCount(clampInt(Number(e.target.value), 1, 5000))}
-                  onBlur={(e) => setDriverCount(clampInt(Number(e.target.value), 1, 5000))}
-                  className="input"
-                />
-              </div>
-              <div>
-                <label htmlFor="calc-operationType" className="mb-1.5 block text-sm font-bold text-charcoal">
-                  Type of Operation
-                </label>
-                <select
-                  id="calc-operationType"
-                  value={operationType}
-                  onChange={(e) =>
-                    setOperationType(e.target.value === 'intrastate' ? 'intrastate' : 'interstate')
-                  }
-                  className="input"
-                >
-                  <option value="interstate">Interstate</option>
-                  <option value="intrastate">Intrastate Only</option>
-                </select>
-              </div>
-              <div>
-                <label htmlFor="calc-reserveMonths" className="mb-1.5 block text-sm font-bold text-charcoal">
-                  Operating Reserve
-                </label>
-                <select
-                  id="calc-reserveMonths"
-                  value={reserveMonths}
-                  onChange={(e) => setReserveMonths(clampInt(Number(e.target.value), 1, 6))}
-                  className="input"
-                >
-                  <option value={1}>1 month</option>
-                  <option value={2}>2 months</option>
-                  <option value={3}>3 months</option>
-                  <option value={4}>4 months</option>
-                  <option value={6}>6 months</option>
-                </select>
-              </div>
-            </div>
-            <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-[#624c21]">
-              <span aria-hidden="true" className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-highway" />
-              <div>
-                <strong>Tip:</strong> The cost of starting does not end when you obtain your operating
-                authority. A trucking company also needs cash for fuel, insurance, maintenance,
-                equipment payments, and other expenses while waiting to collect payment on its first loads.
-              </div>
-            </div>
-          </StepCard>
-
-          {/* Step 2 — Business formation & FMCSA */}
-          <StepCard
-            step={2}
-            title="Business Formation & FMCSA"
-            description="Includes basic registrations to establish the business and, when applicable, obtain federal operating authority."
-          >
-            <Notice>
-              <strong>Important:</strong> The current FMCSA filing fee for each individual operating
-              authority is <strong>$300</strong>. Obtaining a USDOT number directly from FMCSA has no
-              federal filing fee. Third-party service providers may charge additional fees.
-            </Notice>
-            {renderRows(BUSINESS_ITEMS)}
-          </StepCard>
-
-          {/* Step 3 — Truck, trailer & equipment */}
-          <StepCard
-            step={3}
-            title="Truck, Trailer & Equipment"
-            description="If you finance the equipment, enter only the down payment needed to get started. If you purchase it with cash, enter the full purchase price."
-          >
-            {renderRows(EQUIPMENT_ITEMS)}
-            <div className="mt-4 flex flex-wrap gap-2.5">
-              <button type="button" onClick={alreadyOwn} className="btn-outline-dark text-sm">
-                I Already Own My Truck &amp; Trailer
+      <section
+        className="rounded-[20px] px-6 py-12 text-white sm:px-10 sm:py-14"
+        style={{ background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 88%)` }}
+      >
+        <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
+          <div>
+            <span
+              className="inline-flex items-center gap-2 rounded-full px-3 py-[7px] text-[12.5px] font-semibold text-white"
+              style={{
+                background: 'rgba(255,255,255,0.09)',
+                border: '1px solid rgba(255,255,255,0.16)',
+                backdropFilter: 'blur(8px)',
+              }}
+            >
+              <span
+                className="h-[7px] w-[7px] shrink-0 rounded-full"
+                style={{ background: YELLOW, boxShadow: '0 0 0 5px rgba(255,198,26,0.18)' }}
+              />
+              Free startup cost calculator
+            </span>
+            <h1
+              className="mt-[22px] max-w-[560px] font-black text-white"
+              style={{
+                fontFamily: HEADING,
+                fontSize: 'clamp(40px, 5vw, 56px)',
+                lineHeight: 0.95,
+                letterSpacing: '-0.03em',
+              }}
+            >
+              Know your number{' '}
+              <em style={{ fontStyle: 'normal', color: YELLOW }}>before you start.</em>
+            </h1>
+            <p className="mt-[18px] max-w-[520px] text-[17px] leading-[1.55] text-[#dbe4f2]">
+              This calculator adds up everything it takes to launch: forming your company, the
+              truck, insurance, permits, compliance, and the cash reserve that keeps you running
+              until the first freight checks land.
+            </p>
+            <p className="mt-4 max-w-[480px] text-[13.5px] leading-[1.55] text-[#93a5c2]">
+              One-time costs and monthly costs are labeled on every line, so you always know what
+              you are entering.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button type="button" className="btn btn-y" onClick={scrollToWizard}>
+                Start the calculator
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={scrollToWizard}>
+                See how it works
               </button>
             </div>
-          </StepCard>
+          </div>
 
-          {/* Step 4 — Insurance, taxes, registration & permits */}
-          <StepCard
-            step={4}
-            title="Insurance, Taxes, Registration & Permits"
-            description="These amounts can vary significantly by state, vehicle, weight, operating history, cargo type, and insurance company."
+          {/* Live preview card */}
+          <div
+            className="rounded-[20px] p-7 sm:p-8"
+            style={{
+              background: 'rgba(255,255,255,0.055)',
+              border: '1px solid rgba(255,255,255,0.16)',
+              backdropFilter: 'blur(8px)',
+            }}
+            aria-live="polite"
           >
-            <Notice>
-              Form 2290 generally applies to highway motor vehicles with a taxable gross weight of{' '}
-              <strong>55,000 pounds or more</strong>. The actual tax may vary, and suspension and
-              prorating rules may apply.
-            </Notice>
-            {renderRows(PERMIT_ITEMS)}
-            <div className="mt-2.5">
-              {interstate ? (
-                <div className="flex flex-col gap-3 rounded-xl border border-dotblue/25 bg-mist p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-                  <div>
-                    <strong className="text-navy">2027 UCR Registration</strong>
-                    <div className="mt-1 text-xs leading-relaxed text-steel">
-                      Fee automatically calculated based on the number of vehicles entered ({truckCount}).
-                    </div>
-                    <span className="mt-1.5 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-green-800">
-                      Official 2027 Fee
-                    </span>
-                  </div>
-                  <div className="text-xl font-extrabold text-navy sm:text-lg">{money(ucr)}</div>
+            <div className="flex justify-between text-[11px] font-bold uppercase tracking-[0.14em] text-[#8fa3c4]">
+              <span>Preview</span>
+              <span>Your startup breakdown</span>
+            </div>
+            <div className="mt-[18px] flex items-end justify-between gap-4">
+              <div>
+                <div className="text-[13.5px] text-[#c3d0e4]">Estimated capital to start</div>
+                <div
+                  className="mt-1.5 text-[52px] font-black leading-none"
+                  style={{ fontFamily: HEADING, color: YELLOW, letterSpacing: '-0.01em' }}
+                >
+                  {hasTotal ? money(grand) : '-'}
                 </div>
-              ) : (
-                <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 opacity-60 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
-                  <div>
-                    <strong className="text-navy">2027 UCR Registration</strong>
-                    <div className="mt-1 text-xs leading-relaxed text-steel">
-                      Not automatically added when &quot;Intrastate Only&quot; is selected. Verify
-                      whether UCR applies to your operation.
-                    </div>
-                    <span className="mt-1.5 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-green-800">
-                      Official 2027 Fee
-                    </span>
-                  </div>
-                  <div className="text-xl font-extrabold text-navy sm:text-lg">$0</div>
+              </div>
+              <div className="pb-1.5 text-right">
+                <div className="text-[12.5px] text-[#8fa3c4]">Monthly costs</div>
+                <div className="mt-[3px] text-[17px] font-bold text-white">
+                  {hasTotal ? `${money(monthly)} / mo` : '-'}
                 </div>
+              </div>
+            </div>
+            <div
+              className="mt-6 flex h-[13px] overflow-hidden rounded-full"
+              style={{ background: 'rgba(255,255,255,0.12)' }}
+            >
+              {segColors.map((color, i) => (
+                <div
+                  key={color}
+                  style={{ width: `${segPcts ? segPcts[i] : 0}%`, background: color, height: '100%' }}
+                />
+              ))}
+            </div>
+            <div className="mt-5 grid grid-cols-1 gap-x-[22px] gap-y-[9px] sm:grid-cols-2">
+              {segLabels.map((label, i) => (
+                <div key={label} className="flex items-center gap-[9px] text-[13.5px] text-[#dbe4f2]">
+                  <span
+                    className="h-[10px] w-[10px] shrink-0 rounded-[3px]"
+                    style={{ background: segColors[i] }}
+                  />
+                  {label}
+                  <span className="ml-auto pl-2 font-bold text-white">
+                    {segPcts ? `${segPcts[i]}%` : '-'}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-5 text-[12.5px] leading-relaxed text-[#8296b3]">{finePrint}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* Wizard */}
+      <div ref={wizardRef} className="mx-auto mt-14 w-full max-w-[820px] scroll-mt-6">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#5b6b84]">
+          The calculator
+        </p>
+        <h2
+          className="mt-2.5 font-black text-[#0a1a36]"
+          style={{ fontFamily: HEADING, fontSize: 'clamp(26px, 4vw, 35px)', letterSpacing: '-0.015em' }}
+        >
+          Your startup cost, step by step
+        </h2>
+
+        <div className="mt-[38px]">
+          <StepProgress steps={STEP_NAMES} current={step} done={showResults} />
+        </div>
+
+        {showResults ? (
+          <div className="mt-[26px] grid gap-5">
+            {/* Total bar */}
+            <section
+              aria-live="polite"
+              className="rounded-[20px] p-6 text-white sm:p-7"
+              style={{ background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 88%)` }}
+            >
+              <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <div>
+                  <h3
+                    className="text-[20px] font-extrabold"
+                    style={{ fontFamily: HEADING }}
+                  >
+                    ESTIMATED START-UP CAPITAL
+                  </h3>
+                  <p className="mt-1.5 max-w-2xl text-[13.5px] leading-relaxed text-white/80">
+                    Includes selected start-up expenses plus an operating reserve of {monthText}.
+                  </p>
+                </div>
+                <div
+                  className="text-left text-[32px] font-black sm:text-right"
+                  style={{ fontFamily: HEADING, color: YELLOW }}
+                >
+                  {money(grand)}
+                </div>
+              </div>
+            </section>
+
+            {/* Category breakdown */}
+            <section
+              className="rounded-[20px] border bg-white p-6 sm:p-7"
+              style={{ borderColor: LINE }}
+            >
+              <h3
+                className="text-[17px] font-extrabold text-[#0a1a36]"
+                style={{ fontFamily: HEADING }}
+              >
+                Your breakdown
+              </h3>
+              <dl className="mt-2">
+                {breakdownRows.map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="flex justify-between gap-4 border-b py-2.5 text-[13.5px]"
+                    style={{ borderColor: LINE }}
+                  >
+                    <dt className="text-[#5b6b84]">{label}</dt>
+                    <dd className="text-right font-bold text-[#16233c]">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div
+                className="mt-3.5 rounded-[14px] border bg-[#f6f7f9] p-3.5"
+                style={{ borderColor: LINE }}
+              >
+                <div className="text-[12.5px] text-[#5b6b84]">Operating Reserve</div>
+                <div
+                  className="text-[20px] font-extrabold text-[#16233c]"
+                  style={{ fontFamily: HEADING }}
+                >
+                  {money(reserve)}
+                </div>
+                <div className="mt-1 text-[12.5px] text-[#5b6b84]">
+                  {monthText} of operating expenses
+                </div>
+              </div>
+              <p className="mt-3 text-[12.5px] leading-relaxed text-[#5b6b84]">
+                Change any amount to use your actual quotes. Yellow values are editable estimates.
+              </p>
+            </section>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={backToCalculator}
+                className="rounded-full border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
+              >
+                Back to the calculator
+              </button>
+              <button
+                type="button"
+                onClick={resetAll}
+                className="px-2 py-3 text-[14px] font-semibold text-[#5b6b84] transition hover:text-[#0a1a36]"
+              >
+                Reset Calculator
+              </button>
+            </div>
+
+            <EmailResultsPanel
+              calculator="startup"
+              headline={`Estimated start-up capital: ${money(grand)}`}
+              lines={emailLines}
+              blurb="Enter your email and we will send your full breakdown: every cost you entered, your one-time total, your monthly costs, and your reserve. We also save a copy, so if you ever want help with the next step, we already have your numbers in front of us."
+            />
+          </div>
+        ) : (
+          <>
+            <div className="mt-[26px]">
+              <WizardCard title={STEP_TITLES[step - 1]} description={STEP_DESCRIPTIONS[step - 1]}>
+                {step === 1 ? (
+                  <>
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                      <div>
+                        <label htmlFor="calc-truckCount" className={CONFIG_LABEL}>
+                          Number of Trucks
+                        </label>
+                        <input
+                          id="calc-truckCount"
+                          type="number"
+                          min={1}
+                          max={5000}
+                          step={1}
+                          value={truckCount}
+                          onChange={(e) => setTruckCount(clampInt(Number(e.target.value), 1, 5000))}
+                          onBlur={(e) => setTruckCount(clampInt(Number(e.target.value), 1, 5000))}
+                          className={CONFIG_INPUT}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="calc-driverCount" className={CONFIG_LABEL}>
+                          Number of Drivers
+                        </label>
+                        <input
+                          id="calc-driverCount"
+                          type="number"
+                          min={1}
+                          max={5000}
+                          step={1}
+                          value={driverCount}
+                          onChange={(e) => setDriverCount(clampInt(Number(e.target.value), 1, 5000))}
+                          onBlur={(e) => setDriverCount(clampInt(Number(e.target.value), 1, 5000))}
+                          className={CONFIG_INPUT}
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="calc-operationType" className={CONFIG_LABEL}>
+                          Type of Operation
+                        </label>
+                        <select
+                          id="calc-operationType"
+                          value={operationType}
+                          onChange={(e) =>
+                            setOperationType(e.target.value === 'intrastate' ? 'intrastate' : 'interstate')
+                          }
+                          className={CONFIG_INPUT}
+                        >
+                          <option value="interstate">Interstate</option>
+                          <option value="intrastate">Intrastate Only</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label htmlFor="calc-reserveMonths" className={CONFIG_LABEL}>
+                          Operating Reserve
+                        </label>
+                        <select
+                          id="calc-reserveMonths"
+                          value={reserveMonths}
+                          onChange={(e) => setReserveMonths(clampInt(Number(e.target.value), 1, 6))}
+                          className={CONFIG_INPUT}
+                        >
+                          <option value={1}>1 month</option>
+                          <option value={2}>2 months</option>
+                          <option value={3}>3 months</option>
+                          <option value={4}>4 months</option>
+                          <option value={6}>6 months</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="mt-5 flex items-start gap-2.5 rounded-[14px] border border-[#ecd28a] bg-[#fff8e1] px-4 py-3 text-[13.5px] leading-relaxed text-[#624c21]">
+                      <span aria-hidden="true" className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[#ffc61a]" />
+                      <div>
+                        <strong>Tip:</strong> The cost of starting does not end when you obtain your operating
+                        authority. A trucking company also needs cash for fuel, insurance, maintenance,
+                        equipment payments, and other expenses while waiting to collect payment on its first loads.
+                      </div>
+                    </div>
+                  </>
+                ) : null}
+
+                {step === 2 ? (
+                  <>
+                    <Notice>
+                      <strong>Important:</strong> The current FMCSA filing fee for each individual operating
+                      authority is <strong>$300</strong>. Obtaining a USDOT number directly from FMCSA has no
+                      federal filing fee. Third-party service providers may charge additional fees.
+                    </Notice>
+                    {renderRows(BUSINESS_ITEMS, 'one-time')}
+                  </>
+                ) : null}
+
+                {step === 3 ? (
+                  <>
+                    {renderRows(EQUIPMENT_ITEMS, 'one-time')}
+                    <div className="mt-4 flex flex-wrap gap-2.5">
+                      <button
+                        type="button"
+                        onClick={alreadyOwn}
+                        className="rounded-full border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[13.5px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
+                      >
+                        I Already Own My Truck &amp; Trailer
+                      </button>
+                    </div>
+                  </>
+                ) : null}
+
+                {step === 4 ? (
+                  <>
+                    <Notice>
+                      Form 2290 generally applies to highway motor vehicles with a taxable gross weight of{' '}
+                      <strong>55,000 pounds or more</strong>. The actual tax may vary, and suspension and
+                      prorating rules may apply.
+                    </Notice>
+                    {renderRows(PERMIT_ITEMS, 'one-time')}
+                    <div className="mt-2.5">
+                      {interstate ? (
+                        <div
+                          className="flex flex-col gap-3 rounded-[14px] bg-[#f6f7f9] p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6"
+                          style={{ border: '1px solid rgba(23,85,168,0.25)' }}
+                        >
+                          <div>
+                            <strong className="text-[15px] text-[#0a1a36]">2027 UCR Registration</strong>
+                            <div className="mt-1 text-[12.5px] leading-relaxed text-[#5b6b84]">
+                              Fee automatically calculated based on the number of vehicles entered ({truckCount}).
+                            </div>
+                            <span className="mt-1.5 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
+                              Official 2027 Fee
+                            </span>
+                          </div>
+                          <div
+                            className="text-[20px] font-extrabold text-[#0a1a36]"
+                            style={{ fontFamily: HEADING }}
+                          >
+                            {money(ucr)}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col gap-3 rounded-[14px] border border-[#e3e8f0] bg-white p-4 opacity-60 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                          <div>
+                            <strong className="text-[15px] text-[#0a1a36]">2027 UCR Registration</strong>
+                            <div className="mt-1 text-[12.5px] leading-relaxed text-[#5b6b84]">
+                              Not automatically added when &quot;Intrastate Only&quot; is selected. Verify
+                              whether UCR applies to your operation.
+                            </div>
+                            <span className="mt-1.5 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
+                              Official 2027 Fee
+                            </span>
+                          </div>
+                          <div
+                            className="text-[20px] font-extrabold text-[#0a1a36]"
+                            style={{ fontFamily: HEADING }}
+                          >
+                            $0
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : null}
+
+                {step === 5 ? renderRows(COMPLIANCE_ITEMS, 'one-time') : null}
+
+                {step === 6 ? renderRows(MONTHLY_ITEMS, 'monthly') : null}
+
+                <div className="mt-7 flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => step > 1 && setStep(step - 1)}
+                    disabled={step === 1}
+                    className="px-1 py-2.5 text-[13.5px] font-semibold text-[#a5b1c2] transition enabled:text-[#5b6b84] enabled:hover:text-[#0a1a36] disabled:cursor-default"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => (step < 6 ? setStep(step + 1) : seeResults())}
+                    className="rounded-[12px] px-[34px] py-[15px] text-[15px] font-bold text-[#0a1a36]"
+                    style={{ background: YELLOW, boxShadow: '0 10px 22px rgba(255,198,26,0.3)' }}
+                  >
+                    {step < 6 ? 'Continue' : 'See my results'}
+                  </button>
+                </div>
+              </WizardCard>
+            </div>
+
+            {/* Live summary chip */}
+            <div
+              className="mt-[18px] flex flex-wrap items-center justify-between gap-3 rounded-[14px] px-[22px] py-[15px] text-white"
+              style={{ background: NAVY }}
+              aria-live="polite"
+            >
+              <span className="text-[13.5px] text-[#c3d0e4]">Your startup total updates as you go.</span>
+              <span
+                className="whitespace-nowrap text-[20px] font-black"
+                style={{ fontFamily: HEADING, color: YELLOW }}
+              >
+                {money(grand)}
+                <small className="ml-[7px] text-[12.5px] font-semibold text-[#8fa3c4]">
+                  estimated total
+                </small>
+              </span>
+            </div>
+
+            {/* Reassurance row */}
+            <div className="mt-[30px] flex flex-wrap justify-center gap-x-11 gap-y-3.5">
+              {['One step at a time', 'One-time and monthly, clearly labeled', 'Change any answer later'].map(
+                (t) => (
+                  <span
+                    key={t}
+                    className="flex items-center gap-[9px] text-[13.5px] font-semibold text-[#5b6b84]"
+                  >
+                    <span
+                      className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold"
+                      style={{ background: '#e7eefb', color: BLUE }}
+                    >
+                      ✓
+                    </span>
+                    {t}
+                  </span>
+                )
               )}
             </div>
-          </StepCard>
+          </>
+        )}
 
-          {/* Step 5 — Driver & DOT compliance */}
-          <StepCard
-            step={5}
-            title="Driver & DOT Compliance"
-            description="Common compliance costs before placing a driver and vehicle into operation."
-          >
-            {renderRows(COMPLIANCE_ITEMS)}
-          </StepCard>
-
-          {/* Step 6 — Monthly operating costs */}
-          <StepCard
-            step={6}
-            title="Monthly Operating Costs"
-            description="Use your own figures if you already have quotes. These expenses are used to calculate your operating reserve."
-          >
-            {renderRows(MONTHLY_ITEMS)}
-          </StepCard>
-
-          {/* Bottom total bar */}
-          <section
-            aria-live="polite"
-            className="rounded-2xl bg-gradient-to-br from-navy to-dotblue-dark p-5 text-white sm:p-6"
-          >
-            <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
-              <div>
-                <h3 className="text-lg font-extrabold sm:text-xl">ESTIMATED START-UP CAPITAL</h3>
-                <p className="mt-1.5 max-w-2xl text-sm text-white/80">
-                  Includes selected start-up expenses plus an operating reserve of {monthText}.
-                </p>
-              </div>
-              <div className="text-left text-3xl font-extrabold sm:text-right">{money(grand)}</div>
-            </div>
-          </section>
-
-          <div className="flex flex-wrap gap-2.5">
-            <button type="button" onClick={resetAll} className="btn-outline-dark text-sm">
-              Reset Calculator
-            </button>
-          </div>
-
-          {/* Compliance notice + official references */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-5 text-xs leading-relaxed text-steel sm:p-6">
-            <strong className="text-navy">Compliance Notice:</strong> This calculator is an educational
-            planning tool and does not constitute a quote, legal advice, or an official determination
-            of requirements. Insurance, IRP, IFTA, registration, state permits, testing, equipment, and
-            professional service costs vary. Always confirm applicable requirements with FMCSA, the IRS,
-            and your state agencies before operating.
-            <br />
-            <br />
-            <strong className="text-navy">Official References:</strong>{' '}
-            <a href="https://www.fmcsa.dot.gov/" target="_blank" rel="noopener" className="font-bold text-dotblue underline">
-              FMCSA
-            </a>{' '}
-            ·{' '}
-            <a href="https://plan.ucr.gov/" target="_blank" rel="noopener" className="font-bold text-dotblue underline">
-              UCR Plan
-            </a>{' '}
-            ·{' '}
-            <a
-              href="https://www.irs.gov/forms-pubs/about-form-2290"
-              target="_blank"
-              rel="noopener"
-              className="font-bold text-dotblue underline"
-            >
-              IRS Form 2290
-            </a>
-          </section>
-        </main>
-
-        {/* Sticky summary sidebar */}
-        <aside
-          aria-live="polite"
-          className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_24px_rgba(11,46,79,0.08)] lg:sticky lg:top-4"
+        {/* Compliance notice + official references */}
+        <section
+          className="mt-[26px] rounded-[20px] border border-[#e3e8f0] bg-white p-6 text-[12.5px] leading-relaxed text-[#5b6b84]"
         >
-          <div className="bg-navy p-5 text-white">
-            <div className="text-xs font-bold uppercase tracking-wider text-white/75">
-              Estimated Start-Up Capital
-            </div>
-            <div className="mt-1 break-words text-4xl font-extrabold leading-tight">{money(grand)}</div>
-          </div>
-          <div className="p-5">
-            <dl>
-              <div className="flex justify-between gap-4 border-b border-slate-200 py-2.5 text-sm">
-                <dt className="text-steel">Business &amp; FMCSA</dt>
-                <dd className="text-right font-bold text-charcoal">{money(business)}</dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-slate-200 py-2.5 text-sm">
-                <dt className="text-steel">Truck &amp; Equipment</dt>
-                <dd className="text-right font-bold text-charcoal">{money(equipment)}</dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-slate-200 py-2.5 text-sm">
-                <dt className="text-steel">Insurance, Registration &amp; Permits</dt>
-                <dd className="text-right font-bold text-charcoal">{money(permits)}</dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-slate-200 py-2.5 text-sm">
-                <dt className="text-steel">Driver &amp; Compliance</dt>
-                <dd className="text-right font-bold text-charcoal">{money(compliance)}</dd>
-              </div>
-              <div className="flex justify-between gap-4 border-b border-slate-200 py-2.5 text-sm">
-                <dt className="text-steel">Estimated Monthly Cost</dt>
-                <dd className="text-right font-bold text-charcoal">{money(monthly)}</dd>
-              </div>
-            </dl>
-            <div className="mt-3.5 rounded-xl border border-slate-200 bg-mist p-3.5">
-              <div className="text-xs text-steel">Operating Reserve</div>
-              <div className="text-lg font-extrabold text-charcoal">{money(reserve)}</div>
-              <div className="mt-1 text-xs text-steel">{monthText} of operating expenses</div>
-            </div>
-            <p className="mt-3 text-xs leading-relaxed text-steel">
-              Change any amount to use your actual quotes. Yellow values are editable estimates.
-            </p>
-          </div>
-        </aside>
+          <strong className="text-[#0a1a36]">Compliance Notice:</strong> This calculator is an educational
+          planning tool and does not constitute a quote, legal advice, or an official determination
+          of requirements. Insurance, IRP, IFTA, registration, state permits, testing, equipment, and
+          professional service costs vary. Always confirm applicable requirements with FMCSA, the IRS,
+          and your state agencies before operating.
+          <br />
+          <br />
+          <strong className="text-[#0a1a36]">Official References:</strong>{' '}
+          <a href="https://www.fmcsa.dot.gov/" target="_blank" rel="noopener" className="font-bold text-[#1755a8] underline">
+            FMCSA
+          </a>{' '}
+          ·{' '}
+          <a href="https://plan.ucr.gov/" target="_blank" rel="noopener" className="font-bold text-[#1755a8] underline">
+            UCR Plan
+          </a>{' '}
+          ·{' '}
+          <a
+            href="https://www.irs.gov/forms-pubs/about-form-2290"
+            target="_blank"
+            rel="noopener"
+            className="font-bold text-[#1755a8] underline"
+          >
+            IRS Form 2290
+          </a>
+        </section>
       </div>
     </div>
   );

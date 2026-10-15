@@ -57,7 +57,7 @@ export default function ContactForm() {
   if (sent) {
     return (
       <div className="mt-6 rounded-xl border border-[#dde3ec] bg-[#f6f7f9] px-6 py-6 text-center">
-        <p className="text-base font-extrabold text-[#0a1a36]">Message sent.</p>
+        <p className="text-[15px] font-extrabold text-[#0a1a36]">Message sent.</p>
         <p className="mt-1 text-[13px] text-[#5b6a82]">We&rsquo;ll get back to you by email.</p>
       </div>
     );

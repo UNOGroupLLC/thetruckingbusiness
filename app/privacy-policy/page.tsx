@@ -116,7 +116,7 @@ export default function PrivacyPolicyPage() {
       <article style={{ maxWidth: 760, margin: '0 auto' }}>
         <h1
           style={{
-            color: '#0b2e4f',
+            color: '#0a1a36',
             fontSize: 'clamp(28px, 4vw, 42px)',
             fontWeight: 900,
             letterSpacing: '-0.02em',

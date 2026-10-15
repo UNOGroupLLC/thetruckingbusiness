@@ -96,13 +96,13 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
   if (booked) {
     return (
       <div className="card text-center">
-        <p aria-hidden="true" className="text-4xl">📅</p>
-        <h2 className="mt-3 text-xl font-extrabold text-navy">Your call is scheduled</h2>
+        <p aria-hidden="true" className="text-[36px]">📅</p>
+        <h2 className="mt-3 text-[20px] font-extrabold text-navy">Your call is scheduled</h2>
         <p className="mt-2 text-steel">
           <span className="font-bold text-charcoal">{fmtLong(booked.date)}</span> at{' '}
           <span className="font-bold text-charcoal">{booked.time} Eastern</span>
         </p>
-        <p className="mt-2 text-sm text-steel">
+        <p className="mt-2 text-[13.5px] text-steel">
           We&apos;ll call you at the phone number from your intake form. A calendar invite is on its way to your email.
         </p>
         <button onClick={onDone} className="btn-primary mt-6 w-full">
@@ -114,7 +114,7 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
 
   return (
     <div className="card">
-      <h2 className="text-xl font-extrabold text-navy">Pick a date</h2>
+      <h2 className="text-[20px] font-extrabold text-navy">Pick a date</h2>
       <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
         {days.map((d, i) => (
           <button
@@ -127,18 +127,18 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
             className={`min-w-[76px] rounded-xl border px-3 py-2 text-center transition ${
               i === dayIdx
                 ? 'border-navy bg-navy text-white'
-                : 'border-slate-200 bg-white text-charcoal hover:border-navy'
+                : 'border-[#dde3ec] bg-white text-charcoal hover:border-navy'
             }`}
             aria-pressed={i === dayIdx}
           >
-            <span className="block text-xs font-semibold uppercase">{fmtDay(d)}</span>
-            <span className="block text-sm font-bold">{fmtDate(d)}</span>
+            <span className="block text-[11px] font-semibold uppercase">{fmtDay(d)}</span>
+            <span className="block text-[13.5px] font-bold">{fmtDate(d)}</span>
           </button>
         ))}
       </div>
 
-      <h2 className="mt-6 text-xl font-extrabold text-navy">
-        Pick a time <span className="text-sm font-semibold text-steel">(Eastern — one client per hour)</span>
+      <h2 className="mt-6 text-[20px] font-extrabold text-navy">
+        Pick a time <span className="text-[13.5px] font-semibold text-steel">(Eastern — one client per hour)</span>
       </h2>
       <div className="mt-3 grid grid-cols-3 gap-2">
         {slots.map((s, i) => (
@@ -149,15 +149,15 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
             onClick={() => setSlotIdx(i)}
             className={`rounded-xl border px-2 py-2 text-center transition ${
               !s.available
-                ? 'cursor-not-allowed border-slate-100 bg-slate-50 text-slate-300'
+                ? 'cursor-not-allowed border-[#dde3ec] bg-[#f6f7f9] text-[#cbd5e3]'
                 : i === slotIdx
                   ? 'border-navy bg-navy text-white'
-                  : 'border-slate-200 bg-white text-charcoal hover:border-navy'
+                  : 'border-[#dde3ec] bg-white text-charcoal hover:border-navy'
             }`}
             aria-pressed={i === slotIdx}
             aria-disabled={!s.available}
           >
-            <span className="block text-sm font-semibold">{s.label}</span>
+            <span className="block text-[13.5px] font-semibold">{s.label}</span>
             {!s.available && <span className="block text-[11px] font-medium">Booked</span>}
           </button>
         ))}
@@ -166,7 +166,7 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
       <button onClick={confirm} disabled={slotIdx === null} className="btn-primary mt-6 w-full disabled:opacity-40">
         Schedule my call
       </button>
-      <button onClick={onDone} className="mt-3 w-full text-center text-sm font-semibold text-steel underline">
+      <button onClick={onDone} className="mt-3 w-full text-center text-[13.5px] font-semibold text-steel underline">
         Skip for now — no call needed
       </button>
     </div>
