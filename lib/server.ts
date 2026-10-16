@@ -133,6 +133,25 @@ export async function dbUpsert(
   });
 }
 
+/**
+ * Update rows matching one column value (PATCH). Use this instead of
+ * dbUpsert when only some columns change: an upsert first builds a full
+ * insertion row, so it fails on tables whose other columns are NOT NULL
+ * without defaults (order_documents is one) even when the row exists.
+ */
+export async function dbUpdate(
+  table: string,
+  matchColumn: string,
+  matchValue: string,
+  patch: Record<string, unknown>
+): Promise<DbResult> {
+  if (!backendConfigured()) return { ok: false, status: 0, error: 'backend not configured' };
+  return supa(`${table}?${matchColumn}=eq.${encodeURIComponent(matchValue)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+  });
+}
+
 /** Select rows via Supabase REST. Returns rows on success (empty when unconfigured). */
 export async function dbSelect<T = Record<string, unknown>>(
   path: string

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   backendConfigured,
   dbSelect,
-  dbUpsert,
+  dbUpdate,
   emailConfigured,
   logOrderEvent,
   sendClientEmail,
@@ -101,12 +101,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   const status = action === 'accept' ? 'accepted' : 'needs_new_copy';
+  // A true UPDATE, not an upsert: order_documents has NOT NULL columns
+  // without defaults (order_id, slot_key, file_name, ...), and an upsert
+  // builds a full insertion row first, so a partial row always fails.
   const persisted = (
-    await dbUpsert(
-      'order_documents',
-      { id: doc.id, status, staff_note: action === 'accept' ? null : note },
-      'id'
-    )
+    await dbUpdate('order_documents', 'id', doc.id, {
+      status,
+      staff_note: action === 'accept' ? null : note,
+    })
   ).ok;
   if (!persisted) {
     return NextResponse.json(
