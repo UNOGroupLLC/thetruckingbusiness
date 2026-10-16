@@ -105,9 +105,12 @@ export async function GET(req: NextRequest) {
   const uploadsByOrder = new Map<string, OrderUpload[]>();
   for (const d of docsRes.rows) {
     if (!mine.has(d.order_id)) continue;
-    if (d.direction === 'from_client') {
+    if (d.direction === 'from_client' && d.slot_key !== 'limited-poa') {
       // Client uploads are reported separately and never carry a storage
       // path or a signed URL: the office opens those files from the admin.
+      // Exception: the signed limited POA copy (slot 'limited-poa') is the
+      // client's own copy of a document they signed, so it falls through
+      // to the documents list below and renders with a download link.
       const list = uploadsByOrder.get(d.order_id) ?? [];
       list.push({
         id: d.id,

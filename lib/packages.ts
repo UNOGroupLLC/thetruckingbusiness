@@ -22,11 +22,17 @@ export interface PriceOption {
 /** Which intake form a product uses. New services get dedicated intakes. */
 export type IntakeKind =
   | 'authority'
+  | 'intrastate'
+  | 'reinstatement'
   | 'compliance'
   | 'state-permit'
   | 'motus'
+  | 'clearinghouse-setup'
   | 'clearinghouse-query'
-  | 'mcs150';
+  | 'ucr'
+  | 'mcs150'
+  | 'audit-kit'
+  | 'audit-plus';
 
 export interface ExpectedDocument {
   key: string;
@@ -100,6 +106,11 @@ export const SEED_PACKAGES: Package[] = [
         key: 'insurance-cert',
         label: 'Insurance certificate',
         hint: 'From your insurance agent, showing current coverage.',
+      },
+      {
+        key: 'driver-consent',
+        label: 'Signed driver consent form',
+        hint: 'Signed by each driver on your roster. We cannot run their annual queries without it.',
       },
     ],
     intake: 'authority',
@@ -180,7 +191,7 @@ export const SEED_PACKAGES: Package[] = [
     expectedDocuments: [
       { key: 'dot-confirm', label: 'DOT number assignment confirmation' },
     ],
-    intake: 'authority',
+    intake: 'intrastate',
     inclusions: [
       'USDOT number registration for intrastate operation',
       'All paperwork handled for you',
@@ -199,7 +210,14 @@ export const SEED_PACKAGES: Package[] = [
     expectedDocuments: [
       { key: 'reinstatement-confirm', label: 'DOT reinstatement confirmation' },
     ],
-    intake: 'authority',
+    requestedDocuments: [
+      {
+        key: 'fmcsa-notice',
+        label: 'FMCSA notice you received',
+        hint: 'The letter or email FMCSA sent about your deactivation, if you have it.',
+      },
+    ],
+    intake: 'reinstatement',
     inclusions: [
       'Reinstatement filing handled for you',
       'Status review and next steps',
@@ -283,7 +301,7 @@ export const SEED_PACKAGES: Package[] = [
     expectedDocuments: [
       { key: 'audit-kit', label: 'Audit prep kit (digital download)', auto: true },
     ],
-    intake: 'compliance',
+    intake: 'audit-kit',
     inclusions: [
       'Folder 1 — Driver List + Equipment List (PDF + Excel)',
       'Folder 3 — Accident Register (PDF + Excel)',
@@ -306,7 +324,29 @@ export const SEED_PACKAGES: Package[] = [
     category: 'package',
     cta: 'Buy Audit Plus',
     expectedDocuments: [],
-    intake: 'compliance',
+    requestedDocuments: [
+      {
+        key: 'dq-files',
+        label: 'Driver qualification files',
+        hint: 'One file per driver is fine. Your coach reviews these in the mock audit.',
+      },
+      {
+        key: 'maintenance-records',
+        label: 'Vehicle maintenance records',
+        hint: 'Inspection, repair, and maintenance records for your trucks and trailers.',
+      },
+      {
+        key: 'drug-alcohol-records',
+        label: 'Drug and alcohol testing records',
+        hint: 'Your testing program records and past results paperwork.',
+      },
+      {
+        key: 'hos-records',
+        label: 'Hours of service records',
+        hint: 'Logs or ELD reports for your drivers.',
+      },
+    ],
+    intake: 'audit-plus',
     inclusions: [
       'Everything in the Audit Assistance Kit',
       '1-on-1 mock safety audit with a compliance coach reviewing your actual files',
@@ -346,7 +386,7 @@ export const SEED_PACKAGES: Package[] = [
     expectedDocuments: [
       { key: 'setup-confirm', label: 'Clearinghouse account setup confirmation' },
     ],
-    intake: 'compliance',
+    intake: 'clearinghouse-setup',
     inclusions: ['Clearinghouse account registration', 'Setup guidance'],
     fees: [{ label: 'Our service fee', amount: 139, kind: 'ours' }],
   },
@@ -393,7 +433,7 @@ export const SEED_PACKAGES: Package[] = [
     expectedDocuments: [
       { key: 'ucr-confirm', label: 'UCR registration confirmation' },
     ],
-    intake: 'compliance',
+    intake: 'ucr',
     inclusions: [
       'UCR registration renewed each year',
       '2027 UCR government fee (0–2 units) included',

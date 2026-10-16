@@ -163,7 +163,20 @@ function NextSteps({ order }: { order: OrderRecord }) {
       title: 'We prepare your filing',
       text: 'Our team checks your answers and prepares everything your package includes.',
     };
-  } else if (status === 'submitted' || status === 'corrected') {
+  } else if (status === 'submitted') {
+    // The first submission is already authorized by the intake's own
+    // confirm step, so there is nothing left for the client to certify.
+    // Certification only exists after the client uses their correction.
+    next = {
+      title: 'We are preparing your filing',
+      text: 'Your intake is in. Our team is putting your filing together now, and we will email you if we need anything else.',
+      cta: { label: 'View my intake', href: intakeHref },
+    };
+    then = {
+      title: 'We submit your filing',
+      text: 'Once it is ready, our team sends your filing to the agency.',
+    };
+  } else if (status === 'corrected') {
     next = {
       title: 'Certify your answers',
       text: 'Review your intake and certify it as final so we can file for you.',
@@ -345,6 +358,47 @@ const FIELD_LABELS: Record<string, string> = {
   affiliated: 'Connected to another trucking company in the last 3 years',
   affiliateName: 'Affiliated company name',
   affiliateMc: 'Affiliated MC number',
+  insuranceStatus: 'Insurance status',
+  operationState: 'State you operate in',
+  mcNumber: 'MC number',
+  reason: 'Why the DOT number was deactivated',
+  stillOperating: 'Still operating',
+  cargo: 'Cargo hauled',
+  hazmat: 'Hazardous materials',
+  annualMiles: 'Total miles driven last year',
+  isContact: 'Is the compliance contact',
+  contactName: 'Compliance contact name',
+  contactEmail: 'Compliance contact email',
+  driverRoster: 'Driver roster',
+  chAccount: 'Clearinghouse account established',
+  designationStatus: 'C/TPA designation status',
+  queryPlan: 'Query plan or balance',
+  driverDob: 'Driver date of birth',
+  driverIs: 'This driver is',
+  consentStatus: 'Driver consent signed',
+  consentTimeframe: 'Driver consent timeframe',
+  title: 'Officer title',
+  logingov: 'Has a Login.gov account',
+  bestTime: 'Best time to reach you',
+  role: 'Your role',
+  derSame: 'DER is the same person as you',
+  derName: 'DER full name',
+  derEmail: 'DER email',
+  derPhone: 'DER phone',
+  designationChoice: 'C/TPA designation',
+  existingAccounts: 'Existing state account numbers',
+  vehicles: 'Vehicle details (Oregon)',
+  carrierOperation: 'Carrier operation',
+  trailers: 'Number of trailers',
+  cdlDrivers: 'Drivers holding a CDL',
+  auditType: 'Type of audit',
+  auditAgency: 'Auditing agency',
+  auditDate: 'Audit date',
+  recordsDq: 'Driver qualification files ready',
+  recordsMaint: 'Vehicle maintenance records ready',
+  recordsDa: 'Drug and alcohol records ready',
+  recordsHos: 'Hours of service records ready',
+  recordsNone: 'No records ready yet',
 };
 const FIELD_ORDER = Object.keys(FIELD_LABELS);
 const HIDDEN_FIELDS = new Set([
@@ -359,6 +413,15 @@ const HIDDEN_FIELDS = new Set([
   'verifyAck',
   'signature',
   'signDate',
+  'intraAuth',
+  'reinstateAuth',
+  'ucrAuth',
+  'auditPlusAuth',
+  'setupAuth',
+  'designationAck',
+  'designationAckSetup',
+  'consortiumEnrollAuth',
+  'filingAuth',
 ]);
 
 function humanizeKey(key: string): string {
@@ -456,7 +519,10 @@ function FilingInfoCard({ order }: { order: OrderRecord }) {
 function DocumentsCard({ order }: { order: OrderRecord }) {
   const pkg = getPackage(order.packageSlug);
   const expected = pkg?.expectedDocuments ?? [];
-  if (expected.length === 0) return null;
+  // The signed limited POA copy lives outside the expected slots: it is
+  // generated when the client signs the POA inside the authority intake.
+  const poaDoc = order.documents?.find((d) => d.slotKey === 'limited-poa');
+  if (expected.length === 0 && !poaDoc) return null;
   return (
     <div
       className="mt-[14px] rounded-xl border bg-white p-[18px]"
@@ -518,6 +584,37 @@ function DocumentsCard({ order }: { order: OrderRecord }) {
             </div>
           );
         })}
+        {poaDoc && (
+          <div
+            className="flex items-center justify-between gap-[10px] py-[11px]"
+            style={
+              expected.length > 0 ? { borderTop: '1px solid #eef1f6' } : undefined
+            }
+          >
+            <div>
+              <p className={`${T_BODY} font-extrabold`} style={{ color: NAVY }}>
+                Signed limited power of attorney
+              </p>
+              <p className={`${T_SMALL} mt-[2px]`} style={{ color: MUTED }}>
+                {poaDoc.fileName} · added {formatDate(poaDoc.uploadedAt)}
+              </p>
+            </div>
+            {poaDoc.dataUrl ? (
+              <a
+                href={poaDoc.dataUrl}
+                download={poaDoc.fileName}
+                className="shrink-0 text-[12.5px] font-extrabold hover:underline"
+                style={{ color: '#1755a8' }}
+              >
+                Download
+              </a>
+            ) : (
+              <span className={`${T_SMALL} shrink-0`} style={{ color: MUTED }}>
+                On file
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
