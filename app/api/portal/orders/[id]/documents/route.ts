@@ -6,6 +6,7 @@ import {
   emailConfigured,
   logOrderEvent,
   sendOwnerEmail,
+  storageRemove,
   storageUpload,
   verifyPortalToken,
 } from '@/lib/server';
@@ -141,6 +142,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     staff_note: null,
   });
   if (!inserted.ok) {
+    // The row was not recorded: remove the uploaded file so a failed
+    // upload never leaves an orphaned file in the bucket.
+    await storageRemove('order-documents', path);
     return NextResponse.json(
       { ok: false, error: 'We could not record that upload. Please try again.' },
       { status: 502 }

@@ -113,6 +113,12 @@ export async function verifyOtpCode(email: string, token: string): Promise<DbRes
   return supaAuth('verify', { email, token, type: 'email' });
 }
 
+/** An email attachment for Resend: file name + base64-encoded content. */
+export interface EmailAttachment {
+  filename: string;
+  content: string;
+}
+
 /** Insert one row. Returns ok=false when the backend isn't configured. */
 export async function dbInsert(table: string, row: Record<string, unknown>): Promise<DbResult> {
   if (!backendConfigured()) return { ok: false, status: 0, error: 'backend not configured' };
@@ -152,6 +158,18 @@ export async function dbUpdate(
   });
 }
 
+/** Delete rows matching one column value. Returns ok=false when unconfigured. */
+export async function dbDelete(
+  table: string,
+  matchColumn: string,
+  matchValue: string
+): Promise<DbResult> {
+  if (!backendConfigured()) return { ok: false, status: 0, error: 'backend not configured' };
+  return supa(`${table}?${matchColumn}=eq.${encodeURIComponent(matchValue)}`, {
+    method: 'DELETE',
+  });
+}
+
 /** Select rows via Supabase REST. Returns rows on success (empty when unconfigured). */
 export async function dbSelect<T = Record<string, unknown>>(
   path: string
@@ -177,7 +195,8 @@ async function sendEmail(
   to: string,
   subject: string,
   html: string,
-  replyTo?: string
+  replyTo?: string,
+  attachments?: EmailAttachment[]
 ): Promise<DbResult> {
   if (!emailConfigured()) return { ok: false, status: 0, error: 'email not configured' };
   try {
@@ -193,6 +212,7 @@ async function sendEmail(
         subject,
         html,
         ...(replyTo ? { reply_to: replyTo } : {}),
+        ...(attachments && attachments.length ? { attachments } : {}),
       }),
     });
     if (!res.ok) {
@@ -209,19 +229,21 @@ async function sendEmail(
 export async function sendOwnerEmail(
   subject: string,
   html: string,
-  replyTo?: string
+  replyTo?: string,
+  attachments?: EmailAttachment[]
 ): Promise<DbResult> {
-  return sendEmail(OWNER_EMAIL, subject, html, replyTo);
+  return sendEmail(OWNER_EMAIL, subject, html, replyTo, attachments);
 }
 
 /** Notify the customer. */
 export async function sendClientEmail(
   to: string,
   subject: string,
-  html: string
+  html: string,
+  attachments?: EmailAttachment[]
 ): Promise<DbResult> {
   if (!to || !to.includes('@')) return { ok: false, status: 0, error: 'bad recipient' };
-  return sendEmail(to.trim(), subject, html);
+  return sendEmail(to.trim(), subject, html, undefined, attachments);
 }
 
 /**
@@ -318,13 +340,18 @@ export function verifyPortalToken(token: string | null | undefined): string | nu
 }
 
 /**
- * Create a short-lived signed download URL for a private Storage object.
+ * Create a short-lived signed URL for a private Storage object.
  * Returns the absolute URL, or null when storage isn't configured/fails.
+ * Pass downloadName to make Storage serve the file as an attachment with
+ * that file name (a real download). Without it the file opens inline,
+ * which is what a View link wants. The HTML download attribute alone
+ * cannot do this: browsers ignore it for cross-origin URLs.
  */
 export async function storageSignedUrl(
   bucket: string,
   path: string,
-  expiresInSeconds = 3600
+  expiresInSeconds = 3600,
+  downloadName?: string
 ): Promise<string | null> {
   if (!backendConfigured()) return null;
   try {
@@ -336,8 +363,29 @@ export async function storageSignedUrl(
     if (!res.ok) return null;
     const data = (await res.json()) as { signedURL?: string };
     if (!data.signedURL) return null;
-    return `${SUPABASE_URL}/storage/v1${data.signedURL}`;
+    const url = `${SUPABASE_URL}/storage/v1${data.signedURL}`;
+    if (!downloadName) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}download=${encodeURIComponent(downloadName)}`;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Best-effort removal of one Storage object. Used to clean up the file
+ * when its database row could not be recorded, so a failed upload never
+ * leaves an orphaned file behind. Never throws.
+ */
+export async function storageRemove(bucket: string, path: string): Promise<void> {
+  if (!backendConfigured()) return;
+  try {
+    await fetch(`${SUPABASE_URL}/storage/v1/object/${bucket}`, {
+      method: 'DELETE',
+      headers: { ...supabaseRestHeaders(SUPABASE_KEY), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefixes: [path] }),
+    });
+  } catch {
+    /* best effort only */
   }
 }

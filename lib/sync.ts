@@ -77,8 +77,43 @@ export function syncIntake(
   post(`/api/orders/${encodeURIComponent(orderId)}/intake`, { order, data: pretty, labels, ...meta });
 }
 
-export function syncBooking(orderId: string, order: SyncOrderInfo, date: string, time: string): void {
-  post(`/api/orders/${encodeURIComponent(orderId)}/call-booking`, { order, date, time });
+export interface SyncBookingResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * Kickoff-call booking: unlike the other sync helpers this one reports
+ * back, because the server enforces one client per hour and can refuse
+ * a slot that was just taken (409). The scheduler must not show a
+ * success card for a booking that was never saved.
+ */
+export async function syncBooking(
+  orderId: string,
+  order: SyncOrderInfo,
+  date: string,
+  time: string
+): Promise<SyncBookingResult> {
+  try {
+    const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/call-booking`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...adminKeyHeaders() },
+      body: JSON.stringify({ order, date, time }),
+      keepalive: true,
+    });
+    const data = (await res.json().catch(() => null)) as
+      | { ok?: boolean; error?: string }
+      | null;
+    if (!res.ok || !data?.ok) {
+      return {
+        ok: false,
+        error: data?.error ?? 'We could not reach the server. Please try again.',
+      };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'We could not reach the server. Please try again.' };
+  }
 }
 
 export function syncFiling(orderId: string): void {

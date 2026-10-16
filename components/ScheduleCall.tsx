@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { saveCallBooking, getCallBooking } from '@/lib/store';
 import { syncBooking, type SyncOrderInfo } from '@/lib/sync';
 
@@ -80,17 +80,59 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
   const [booked, setBooked] = useState<{ date: string; time: string } | null>(
     existing ? { date: existing.date, time: existing.time } : null
   );
+  // Slots other clients already hold, as "YYYY-MM-DD|11:00 AM" keys,
+  // loaded from the server. Empty when the load fails: window rules only.
+  const [taken, setTaken] = useState<Set<string>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
-  function confirm() {
-    if (slotIdx === null || !slots[slotIdx].available) return;
+  const loadTaken = useCallback(async (): Promise<Set<string> | null> => {
+    if (!orderId) return null;
+    try {
+      const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/call-booking`);
+      const data = (await res.json().catch(() => null)) as
+        | { ok?: boolean; taken?: Array<{ date: string; time: string }> }
+        | null;
+      if (data?.ok && Array.isArray(data.taken)) {
+        const fresh = new Set(data.taken.map((t) => `${t.date}|${t.time}`));
+        setTaken(fresh);
+        return fresh;
+      }
+    } catch {
+      /* offline or demo mode: the window rules below still apply */
+    }
+    return null;
+  }, [orderId]);
+
+  useEffect(() => {
+    void loadTaken();
+  }, [loadTaken]);
+
+  async function confirm() {
+    if (slotIdx === null || !slots[slotIdx].available || busy) return;
     const date = isoDay(days[dayIdx]);
     const time = slots[slotIdx].label;
-    saveCallBooking(orderId, date, time);
-    // Phase 2: persist server-side + notify the owner (best-effort).
-    if (order) syncBooking(orderId, order, date, time);
-    // Phase 2: also create a real calendar event + send the invite email here.
-    // The backend must enforce one booking per slot (no double-booking).
-    setBooked({ date, time });
+    if (taken.has(`${date}|${time}`)) return;
+    if (!order) {
+      // Pure local/demo usage (no order details): keep the local save.
+      saveCallBooking(orderId, date, time);
+      setBooked({ date, time });
+      return;
+    }
+    // The server is the authority now: it enforces one client per hour
+    // and only then sends the invites. No success card before it agrees.
+    setBusy(true);
+    setError('');
+    const result = await syncBooking(orderId, order, date, time);
+    setBusy(false);
+    if (result.ok) {
+      saveCallBooking(orderId, date, time);
+      setBooked({ date, time });
+      return;
+    }
+    setError(result.error ?? 'We could not reach the server. Please try again.');
+    const fresh = await loadTaken();
+    if (fresh?.has(`${date}|${time}`)) setSlotIdx(null);
   }
 
   if (booked) {
@@ -141,30 +183,42 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
         Pick a time <span className="text-[13.5px] font-semibold text-steel">(Eastern — one client per hour)</span>
       </h2>
       <div className="mt-3 grid grid-cols-3 gap-2">
-        {slots.map((s, i) => (
-          <button
-            key={s.label}
-            type="button"
-            disabled={!s.available}
-            onClick={() => setSlotIdx(i)}
-            className={`rounded-xl border px-2 py-2 text-center transition ${
-              !s.available
-                ? 'cursor-not-allowed border-[#dde3ec] bg-[#f6f7f9] text-[#cbd5e3]'
-                : i === slotIdx
-                  ? 'border-navy bg-navy text-white'
-                  : 'border-[#dde3ec] bg-white text-charcoal hover:border-navy'
-            }`}
-            aria-pressed={i === slotIdx}
-            aria-disabled={!s.available}
-          >
-            <span className="block text-[13.5px] font-semibold">{s.label}</span>
-            {!s.available && <span className="block text-[11px] font-medium">Booked</span>}
-          </button>
-        ))}
+        {slots.map((s, i) => {
+          const unavailable = !s.available || taken.has(`${isoDay(days[dayIdx])}|${s.label}`);
+          return (
+            <button
+              key={s.label}
+              type="button"
+              disabled={unavailable}
+              onClick={() => setSlotIdx(i)}
+              className={`rounded-xl border px-2 py-2 text-center transition ${
+                unavailable
+                  ? 'cursor-not-allowed border-[#dde3ec] bg-[#f6f7f9] text-[#cbd5e3]'
+                  : i === slotIdx
+                    ? 'border-navy bg-navy text-white'
+                    : 'border-[#dde3ec] bg-white text-charcoal hover:border-navy'
+              }`}
+              aria-pressed={i === slotIdx}
+              aria-disabled={unavailable}
+            >
+              <span className="block text-[13.5px] font-semibold">{s.label}</span>
+              {unavailable && <span className="block text-[11px] font-medium">Booked</span>}
+            </button>
+          );
+        })}
       </div>
 
-      <button onClick={confirm} disabled={slotIdx === null} className="btn-primary mt-6 w-full disabled:opacity-40">
-        Schedule my call
+      {error && (
+        <p className="mt-4 text-[13.5px] font-bold text-red-700" role="alert">
+          {error}
+        </p>
+      )}
+      <button
+        onClick={confirm}
+        disabled={slotIdx === null || busy}
+        className="btn-primary mt-6 w-full disabled:opacity-40"
+      >
+        {busy ? 'Booking…' : 'Schedule my call'}
       </button>
       <button onClick={onDone} className="mt-3 w-full text-center text-[13.5px] font-semibold text-steel underline">
         Skip for now — no call needed

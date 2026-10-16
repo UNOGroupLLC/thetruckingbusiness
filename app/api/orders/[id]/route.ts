@@ -115,6 +115,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     status?: string;
     staffNote?: string;
     url?: string;
+    downloadUrl?: string;
   }
   const documents: DocOut[] = [];
   const uploads: DocOut[] = [];
@@ -130,8 +131,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       staffNote: d.staff_note ?? undefined,
     };
     if (d.direction === 'from_client') {
-      const url = await storageSignedUrl('order-documents', d.storage_path, 3600);
-      const withUrl = { ...base, url: url ?? undefined };
+      // 12-hour links in the admin: the page can sit open through a work
+      // session, and a one-hour link expiring mid-session looks broken.
+      const url = await storageSignedUrl('order-documents', d.storage_path, 43200);
+      // Separate download URL: Storage serves it as an attachment, so the
+      // Download button saves the file instead of opening it like View.
+      const downloadUrl = await storageSignedUrl(
+        'order-documents',
+        d.storage_path,
+        43200,
+        String(d.file_name)
+      );
+      const withUrl = { ...base, url: url ?? undefined, downloadUrl: downloadUrl ?? undefined };
       documents.push(withUrl);
       uploads.push(withUrl);
     } else {

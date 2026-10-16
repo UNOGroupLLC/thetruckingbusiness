@@ -177,8 +177,10 @@ interface ServerDoc {
   direction?: string;
   status?: string;
   staffNote?: string;
-  /** Signed view/download URL (client uploads only). */
+  /** Signed view URL (client uploads only); opens the file inline. */
   url?: string;
+  /** Signed download URL (client uploads only); saves the file. */
+  downloadUrl?: string;
 }
 
 interface OrderDetailData {
@@ -392,6 +394,9 @@ function CopyEditor() {
 function OrderDocuments({ order }: { order: OrderRecord }) {
   const pkg = getPackage(order.packageSlug);
   const slots = pkg?.expectedDocuments ?? [];
+  // Documents can only be saved against a real (database) order; demo
+  // orders live in this browser only, so their uploads can never persist.
+  const isDb = order.source === 'database';
   const [uploading, setUploading] = useState<string | null>(null);
   // Result of the last document action, shown until the next one so an
   // upload is never silently assumed to have saved.
@@ -400,7 +405,7 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
   if (slots.length === 0) return null;
 
   async function onFile(slotKey: string, slotLabel: string, file: File | undefined) {
-    if (!file) return;
+    if (!file || !isDb) return;
     setUploading(slotKey);
     setDocMsg(null);
     try {
@@ -456,7 +461,10 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
     <div>
       <ul className="space-y-2">
         {slots.map((s) => {
-          const doc = order.documents?.find((d) => d.slotKey === s.key);
+          // Newest file wins for the slot: a replaced document must be the
+          // one shown here, not the first version ever uploaded.
+          const slotDocs = (order.documents ?? []).filter((d) => d.slotKey === s.key);
+          const doc = slotDocs[slotDocs.length - 1];
           const inputId = `doc-${order.id}-${s.key}`;
           return (
             <li key={s.key} className="flex items-center justify-between gap-3 rounded-lg bg-[#f6f7f9] px-3 py-2.5">
@@ -486,7 +494,9 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
                 )}
                 <label
                   htmlFor={inputId}
-                  className="cursor-pointer rounded-lg px-3 py-1.5 text-[12.5px] font-bold text-white"
+                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-bold text-white ${
+                    isDb ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
+                  }`}
                   style={{ background: NAVY }}
                 >
                   {uploading === s.key ? 'Uploading…' : doc ? 'Replace' : 'Upload'}
@@ -496,6 +506,7 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg"
                   className="hidden"
+                  disabled={!isDb}
                   onChange={(e) => {
                     onFile(s.key, s.label, e.target.files?.[0]);
                     e.target.value = '';
@@ -516,8 +527,9 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
         </p>
       )}
       <p className={`mt-2 ${T_SMALL}`} style={{ color: MUTED }}>
-        Uploading notifies the customer by email, and the file appears in their portal under
-        their documents.
+        {isDb
+          ? 'Uploading notifies the customer by email, and the file appears in their portal under their documents.'
+          : 'Document uploads are available on real orders only.'}
       </p>
     </div>
   );
@@ -1149,7 +1161,7 @@ function ClientDocumentsSection({
                           <a
                             className={`${T_SMALL} font-extrabold`}
                             style={{ color: '#1755a8' }}
-                            href={d.url}
+                            href={d.downloadUrl ?? d.url}
                             download={d.fileName}
                           >
                             Download

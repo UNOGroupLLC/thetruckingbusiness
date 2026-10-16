@@ -124,9 +124,12 @@ export async function GET(req: NextRequest) {
       uploadsByOrder.set(d.order_id, list);
       continue;
     }
-    const url = await storageSignedUrl('order-documents', d.storage_path, 3600);
+    // Minted with the file name as a download: Storage serves it as an
+    // attachment, so the portal's Download link saves the file instead of
+    // opening it (the HTML download attribute is ignored cross-origin).
+    const url = await storageSignedUrl('order-documents', d.storage_path, 3600, d.file_name);
     const list = docsByOrder.get(d.order_id) ?? [];
-    list.push({
+    const docEntry = {
       id: d.id,
       slotKey: d.slot_key,
       slotLabel: d.slot_label,
@@ -135,7 +138,15 @@ export async function GET(req: NextRequest) {
       // The portal renders a Download link when dataUrl exists; here it
       // carries a one-hour signed URL for the real file.
       dataUrl: url ?? undefined,
-    });
+    };
+    // One entry per slot: rows arrive oldest first, so replacing an
+    // existing slot entry keeps the NEWEST file. Without this, a replaced
+    // deliverable would keep showing the client the old file.
+    const prior = list.findIndex(
+      (e) => (e as { slotKey?: string }).slotKey === d.slot_key
+    );
+    if (prior >= 0) list[prior] = docEntry;
+    else list.push(docEntry);
     docsByOrder.set(d.order_id, list);
   }
 

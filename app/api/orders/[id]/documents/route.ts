@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   backendConfigured,
   dbInsert,
+  storageRemove,
   storageUpload,
   sendClientEmail,
   emailConfigured,
@@ -60,6 +61,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ).ok;
       if (persisted) {
         await logOrderEvent(id, 'Owner', 'document_uploaded', slotLabel || slotKey);
+      } else {
+        // The row was not recorded: remove the uploaded file so a failed
+        // save never leaves an orphaned file in the bucket.
+        await storageRemove('order-documents', path);
       }
     }
   }
