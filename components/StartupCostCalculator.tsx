@@ -184,7 +184,7 @@ function StepProgress({
                 {n}&nbsp;&nbsp;{name}
               </div>
               <div
-                className="h-[4px] rounded-full"
+                className="h-[4px] rounded-none"
                 style={{ background: filled ? NAVY : '#dde4ee' }}
               />
             </div>
@@ -206,7 +206,7 @@ function WizardCard({
 }) {
   return (
     <section
-      className="rounded-[20px] border bg-white px-6 py-8 sm:px-10 sm:py-[38px]"
+      className="rounded-none border bg-white px-6 py-8 sm:px-10 sm:py-[38px]"
       style={{ borderColor: LINE, boxShadow: '0 14px 34px rgba(10,26,54,0.06)' }}
     >
       <h3
@@ -223,7 +223,7 @@ function WizardCard({
 
 function Notice({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mb-4 rounded-[10px] border-l-4 border-[#ffc61a] bg-[#fff8e1] px-4 py-3 text-[13.5px] leading-relaxed text-[#5a4b2e]">
+    <div className="mb-4 rounded-none border-l-4 border-[#ffc61a] bg-[#fff8e1] px-4 py-3 text-[13.5px] leading-relaxed text-[#5a4b2e]">
       {children}
     </div>
   );
@@ -249,7 +249,7 @@ function CostRow({
   const multiplier = item.perTruck ? ' × trucks' : item.perDriver ? ' × drivers' : '';
   return (
     <div
-      className={`grid grid-cols-1 items-center gap-3 rounded-[14px] border border-[#e3e8f0] bg-white p-4 transition sm:grid-cols-[minmax(0,1fr)_170px] sm:gap-4 ${
+      className={`grid grid-cols-1 items-center gap-3 rounded-none border border-[#e3e8f0] bg-white p-4 transition sm:grid-cols-[minmax(0,1fr)_170px] sm:gap-4 ${
         disabledByOperation ? 'opacity-60' : ''
       }`}
     >
@@ -265,31 +265,31 @@ function CostRow({
           />
           <span
             aria-hidden="true"
-            className="absolute inset-0 rounded-full bg-[#cbd5e3] transition-colors peer-checked:bg-[#1755a8] peer-disabled:cursor-not-allowed peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-[#1755a8]"
+            className="absolute inset-0 rounded-none bg-[#cbd5e3] transition-colors peer-checked:bg-[#1755a8] peer-disabled:cursor-not-allowed peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-[#1755a8]"
           />
           <span
             aria-hidden="true"
-            className="absolute left-[3px] top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow transition-transform peer-checked:translate-x-[18px]"
+            className="absolute left-[3px] top-[3px] h-[18px] w-[18px] rounded-none bg-white shadow transition-transform peer-checked:translate-x-[18px]"
           />
         </label>
         <div className="min-w-0">
           <div className="text-[13.5px] font-bold text-[#16233c]">{item.name}</div>
           <div className="mt-0.5 text-[12.5px] leading-relaxed text-[#5b6b84]">{item.note}</div>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
-            <span className="inline-block whitespace-nowrap rounded-full bg-[#eef1f6] px-[9px] py-[3px] text-[11px] font-bold uppercase tracking-[0.06em] text-[#3d4f6d]">
+            <span className="inline-block whitespace-nowrap rounded-none bg-[#eef1f6] px-[9px] py-[3px] text-[11px] font-bold uppercase tracking-[0.06em] text-[#3d4f6d]">
               {period === 'one-time' ? 'One-time' : 'Per month'}
             </span>
             {item.type === 'official' ? (
-              <span className="inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
+              <span className="inline-block rounded-none bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
                 Federal Fee / Official $0
               </span>
             ) : (
-              <span className="inline-block rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-amber-800">
+              <span className="inline-block rounded-none bg-amber-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-amber-800">
                 Editable Estimate
               </span>
             )}
             {disabledByOperation && (
-              <span className="inline-block rounded-full bg-slate-200 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-600">
+              <span className="inline-block rounded-none bg-slate-200 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-slate-600">
                 Interstate only
               </span>
             )}
@@ -312,7 +312,7 @@ function CostRow({
               onAmount(item.id, Number.isFinite(n) ? Math.max(0, n) : 0);
             }}
             aria-label={`Cost of ${item.name}`}
-            className="w-full rounded-[10px] border-[1.5px] border-[#ccd6e4] bg-white py-[10px] pl-7 pr-3 text-right text-[15px] font-semibold text-[#0a1a36] outline-none focus:border-[#1755a8] disabled:cursor-not-allowed disabled:bg-[#f0f3f7]"
+            className="w-full rounded-none border-[1.5px] border-[#ccd6e4] bg-white py-[10px] pl-7 pr-3 text-right text-[15px] font-semibold text-[#0a1a36] outline-none focus:border-[#1755a8] disabled:cursor-not-allowed disabled:bg-[#f0f3f7]"
           />
         </div>
         <div className="mt-1 text-left text-[12.5px] text-[#5b6b84] sm:text-right">
@@ -376,7 +376,7 @@ function EmailResultsPanel({
   }
 
   return (
-    <div className="rounded-[20px] p-[28px] text-white" style={{ background: NAVY }}>
+    <div className="rounded-none p-[28px] text-white" style={{ background: NAVY }}>
       <h4
         className="text-[17px] font-extrabold"
         style={{ fontFamily: HEADING, letterSpacing: '-0.01em' }}
@@ -399,12 +399,12 @@ function EmailResultsPanel({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 aria-label="Your email"
-                className="min-w-[220px] flex-1 rounded-full border border-white/25 bg-white/[0.08] px-4 py-3 text-[15px] text-white outline-none placeholder:text-[#8fa3c4] focus:border-[#ffc61a]"
+                className="min-w-[220px] flex-1 rounded-none border border-white/25 bg-white/[0.08] px-4 py-3 text-[15px] text-white outline-none placeholder:text-[#8fa3c4] focus:border-[#ffc61a]"
               />
               <button
                 type="submit"
                 disabled={sending}
-                className="rounded-full px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] disabled:opacity-60"
+                className="rounded-none px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] disabled:opacity-60"
                 style={{ background: YELLOW, boxShadow: '0 8px 24px rgba(255,198,26,0.35)' }}
               >
                 {sending ? 'Sending...' : 'Email my results'}
@@ -472,7 +472,7 @@ const STEP_DESCRIPTIONS = [
 
 const CONFIG_LABEL = 'mb-[9px] block text-[13.5px] font-bold text-[#16233c]';
 const CONFIG_INPUT =
-  'w-full rounded-[12px] border-[1.5px] border-[#ccd6e4] bg-white px-[18px] py-[14px] text-[17px] font-semibold text-[#0a1a36] outline-none focus:border-[#1755a8]';
+  'w-full rounded-none border-[1.5px] border-[#ccd6e4] bg-white px-[18px] py-[14px] text-[17px] font-semibold text-[#0a1a36] outline-none focus:border-[#1755a8]';
 
 export default function StartupCostCalculator() {
   const [truckCount, setTruckCount] = useState(1);
@@ -608,13 +608,13 @@ export default function StartupCostCalculator() {
     <div className="w-full">
       {/* Hero */}
       <section
-        className="rounded-[20px] px-6 py-12 text-white sm:px-10 sm:py-14"
+        className="rounded-none px-6 py-12 text-white sm:px-10 sm:py-14"
         style={{ background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 88%)` }}
       >
         <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <div>
             <span
-              className="inline-flex items-center gap-2 rounded-full px-3 py-[7px] text-[12.5px] font-semibold text-white"
+              className="inline-flex items-center gap-2 rounded-none px-3 py-[7px] text-[12.5px] font-semibold text-white"
               style={{
                 background: 'rgba(255,255,255,0.09)',
                 border: '1px solid rgba(255,255,255,0.16)',
@@ -622,7 +622,7 @@ export default function StartupCostCalculator() {
               }}
             >
               <span
-                className="h-[7px] w-[7px] shrink-0 rounded-full"
+                className="h-[7px] w-[7px] shrink-0 rounded-none"
                 style={{ background: YELLOW, boxShadow: '0 0 0 5px rgba(255,198,26,0.18)' }}
               />
               Free startup cost calculator
@@ -660,7 +660,7 @@ export default function StartupCostCalculator() {
 
           {/* Live preview card */}
           <div
-            className="rounded-[20px] p-7 sm:p-8"
+            className="rounded-none p-7 sm:p-8"
             style={{
               background: 'rgba(255,255,255,0.055)',
               border: '1px solid rgba(255,255,255,0.16)',
@@ -690,7 +690,7 @@ export default function StartupCostCalculator() {
               </div>
             </div>
             <div
-              className="mt-6 flex h-[13px] overflow-hidden rounded-full"
+              className="mt-6 flex h-[13px] overflow-hidden rounded-none"
               style={{ background: 'rgba(255,255,255,0.12)' }}
             >
               {segColors.map((color, i) => (
@@ -704,7 +704,7 @@ export default function StartupCostCalculator() {
               {segLabels.map((label, i) => (
                 <div key={label} className="flex items-center gap-[9px] text-[13.5px] text-[#dbe4f2]">
                   <span
-                    className="h-[10px] w-[10px] shrink-0 rounded-[3px]"
+                    className="h-[10px] w-[10px] shrink-0 rounded-none"
                     style={{ background: segColors[i] }}
                   />
                   {label}
@@ -740,7 +740,7 @@ export default function StartupCostCalculator() {
             {/* Total bar */}
             <section
               aria-live="polite"
-              className="rounded-[20px] p-6 text-white sm:p-7"
+              className="rounded-none p-6 text-white sm:p-7"
               style={{ background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 88%)` }}
             >
               <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
@@ -766,7 +766,7 @@ export default function StartupCostCalculator() {
 
             {/* Category breakdown */}
             <section
-              className="rounded-[20px] border bg-white p-6 sm:p-7"
+              className="rounded-none border bg-white p-6 sm:p-7"
               style={{ borderColor: LINE }}
             >
               <h3
@@ -788,7 +788,7 @@ export default function StartupCostCalculator() {
                 ))}
               </dl>
               <div
-                className="mt-3.5 rounded-[14px] border bg-[#f6f7f9] p-3.5"
+                className="mt-3.5 rounded-none border bg-[#f6f7f9] p-3.5"
                 style={{ borderColor: LINE }}
               >
                 <div className="text-[12.5px] text-[#5b6b84]">Operating Reserve</div>
@@ -811,7 +811,7 @@ export default function StartupCostCalculator() {
               <button
                 type="button"
                 onClick={backToCalculator}
-                className="rounded-full border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
+                className="rounded-none border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
               >
                 Back to the calculator
               </button>
@@ -904,8 +904,8 @@ export default function StartupCostCalculator() {
                         </select>
                       </div>
                     </div>
-                    <div className="mt-5 flex items-start gap-2.5 rounded-[14px] border border-[#ecd28a] bg-[#fff8e1] px-4 py-3 text-[13.5px] leading-relaxed text-[#624c21]">
-                      <span aria-hidden="true" className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-[#ffc61a]" />
+                    <div className="mt-5 flex items-start gap-2.5 rounded-none border border-[#ecd28a] bg-[#fff8e1] px-4 py-3 text-[13.5px] leading-relaxed text-[#624c21]">
+                      <span aria-hidden="true" className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-none bg-[#ffc61a]" />
                       <div>
                         <strong>Tip:</strong> The cost of starting does not end when you obtain your operating
                         authority. A trucking company also needs cash for fuel, insurance, maintenance,
@@ -933,7 +933,7 @@ export default function StartupCostCalculator() {
                       <button
                         type="button"
                         onClick={alreadyOwn}
-                        className="rounded-full border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[13.5px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
+                        className="rounded-none border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[13.5px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
                       >
                         I Already Own My Truck &amp; Trailer
                       </button>
@@ -952,7 +952,7 @@ export default function StartupCostCalculator() {
                     <div className="mt-2.5">
                       {interstate ? (
                         <div
-                          className="flex flex-col gap-3 rounded-[14px] bg-[#f6f7f9] p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6"
+                          className="flex flex-col gap-3 rounded-none bg-[#f6f7f9] p-4 sm:flex-row sm:items-start sm:justify-between sm:gap-6"
                           style={{ border: '1px solid rgba(23,85,168,0.25)' }}
                         >
                           <div>
@@ -960,7 +960,7 @@ export default function StartupCostCalculator() {
                             <div className="mt-1 text-[12.5px] leading-relaxed text-[#5b6b84]">
                               Fee automatically calculated based on the number of vehicles entered ({truckCount}).
                             </div>
-                            <span className="mt-1.5 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
+                            <span className="mt-1.5 inline-block rounded-none bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
                               Official 2027 Fee
                             </span>
                           </div>
@@ -972,14 +972,14 @@ export default function StartupCostCalculator() {
                           </div>
                         </div>
                       ) : (
-                        <div className="flex flex-col gap-3 rounded-[14px] border border-[#e3e8f0] bg-white p-4 opacity-60 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
+                        <div className="flex flex-col gap-3 rounded-none border border-[#e3e8f0] bg-white p-4 opacity-60 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
                           <div>
                             <strong className="text-[15px] text-[#0a1a36]">2027 UCR Registration</strong>
                             <div className="mt-1 text-[12.5px] leading-relaxed text-[#5b6b84]">
                               Not automatically added when &quot;Intrastate Only&quot; is selected. Verify
                               whether UCR applies to your operation.
                             </div>
-                            <span className="mt-1.5 inline-block rounded-full bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
+                            <span className="mt-1.5 inline-block rounded-none bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
                               Official 2027 Fee
                             </span>
                           </div>
@@ -1011,7 +1011,7 @@ export default function StartupCostCalculator() {
                   <button
                     type="button"
                     onClick={() => (step < 6 ? setStep(step + 1) : seeResults())}
-                    className="rounded-[12px] px-[34px] py-[15px] text-[15px] font-bold text-[#0a1a36]"
+                    className="rounded-none px-[34px] py-[15px] text-[15px] font-bold text-[#0a1a36]"
                     style={{ background: YELLOW, boxShadow: '0 10px 22px rgba(255,198,26,0.3)' }}
                   >
                     {step < 6 ? 'Continue' : 'See my results'}
@@ -1022,7 +1022,7 @@ export default function StartupCostCalculator() {
 
             {/* Live summary chip */}
             <div
-              className="mt-[18px] flex flex-wrap items-center justify-between gap-3 rounded-[14px] px-[22px] py-[15px] text-white"
+              className="mt-[18px] flex flex-wrap items-center justify-between gap-3 rounded-none px-[22px] py-[15px] text-white"
               style={{ background: NAVY }}
               aria-live="polite"
             >
@@ -1047,7 +1047,7 @@ export default function StartupCostCalculator() {
                     className="flex items-center gap-[9px] text-[13.5px] font-semibold text-[#5b6b84]"
                   >
                     <span
-                      className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold"
+                      className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-none text-[11px] font-extrabold"
                       style={{ background: '#e7eefb', color: BLUE }}
                     >
                       ✓
@@ -1062,7 +1062,7 @@ export default function StartupCostCalculator() {
 
         {/* Compliance notice + official references */}
         <section
-          className="mt-[26px] rounded-[20px] border border-[#e3e8f0] bg-white p-6 text-[12.5px] leading-relaxed text-[#5b6b84]"
+          className="mt-[26px] rounded-none border border-[#e3e8f0] bg-white p-6 text-[12.5px] leading-relaxed text-[#5b6b84]"
         >
           <strong className="text-[#0a1a36]">Compliance Notice:</strong> This calculator is an educational
           planning tool and does not constitute a quote, legal advice, or an official determination

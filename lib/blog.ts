@@ -289,7 +289,7 @@ const EMBED_HEIGHTS: Record<string, number> = {
 
 function embedFrame(src: string): string {
   const h = EMBED_HEIGHTS[src.replace('/embeds/', '')] || 700;
-  return `<div class="blog-embed"><iframe src="${src}" title="Interactive embed" loading="lazy" style="width:100%;height:${h}px;border:1px solid #e3e9ef;border-radius:12px;" sandbox="allow-scripts allow-same-origin allow-popups"></iframe></div>`;
+  return `<div class="blog-embed"><iframe src="${src}" title="Interactive embed" loading="lazy" style="width:100%;height:${h}px;border:1px solid #e3e9ef;border-radius:0;" sandbox="allow-scripts allow-same-origin allow-popups"></iframe></div>`;
 }
 
 /**

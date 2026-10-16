@@ -105,7 +105,7 @@ function ReceiptInner() {
     <div className="bg-mist py-14">
       <div className="mx-auto max-w-2xl px-4">
         <div className="card text-center">
-          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-100 text-[20px] font-extrabold text-green-700" aria-hidden="true">✓</span>
+          <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-none bg-green-100 text-[20px] font-extrabold text-green-700" aria-hidden="true">✓</span>
           <h1 className="mt-4 text-[28px] font-extrabold text-navy">Payment successful</h1>
           {!realPayment && (
             <p className="mt-1 text-[13.5px] font-semibold text-steel">SIMULATED — no real payment was processed</p>

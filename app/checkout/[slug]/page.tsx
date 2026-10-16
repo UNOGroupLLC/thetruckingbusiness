@@ -93,7 +93,7 @@ function CheckoutInner() {
           <h1 className="mt-2 text-[20px] font-extrabold text-navy">{pkg.name}</h1>
           <p className="mt-1 text-[13.5px] text-steel">{pkg.tagline}</p>
           {option && (
-            <p className="mt-2 inline-block rounded-full bg-navy/10 px-3 py-1 text-[11px] font-bold text-navy">
+            <p className="mt-2 inline-block rounded-none bg-navy/10 px-3 py-1 text-[11px] font-bold text-navy">
               {option.label}
             </p>
           )}
@@ -121,7 +121,7 @@ function CheckoutInner() {
 
         <div className="card">
           <h2 className="text-[20px] font-extrabold text-navy">Checkout</h2>
-          <p className="mt-1 rounded-lg bg-[#e8effa] px-3 py-2 text-[12.5px] font-semibold text-navy">
+          <p className="mt-1 rounded-none bg-[#e8effa] px-3 py-2 text-[12.5px] font-semibold text-navy">
             Secure checkout — you&rsquo;ll complete payment on Stripe&rsquo;s encrypted page. Cards
             and financing options (Afterpay, Klarna) accepted where available.
           </p>

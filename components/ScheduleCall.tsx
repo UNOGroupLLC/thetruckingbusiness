@@ -137,7 +137,7 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
 
   if (booked) {
     return (
-      <div className="card text-center">
+      <div className="card sharp text-center">
         <p aria-hidden="true" className="text-[36px]">📅</p>
         <h2 className="mt-3 text-[20px] font-extrabold text-navy">Your call is scheduled</h2>
         <p className="mt-2 text-steel">
@@ -155,7 +155,7 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
   }
 
   return (
-    <div className="card">
+    <div className="card sharp">
       <h2 className="text-[20px] font-extrabold text-navy">Pick a date</h2>
       <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
         {days.map((d, i) => (
@@ -166,7 +166,7 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
               setDayIdx(i);
               setSlotIdx(null);
             }}
-            className={`min-w-[76px] rounded-xl border px-3 py-2 text-center transition ${
+            className={`min-w-[76px] rounded-none border px-3 py-2 text-center transition ${
               i === dayIdx
                 ? 'border-navy bg-navy text-white'
                 : 'border-[#dde3ec] bg-white text-charcoal hover:border-navy'
@@ -191,7 +191,7 @@ export default function ScheduleCall({ orderId, order, onDone }: Props) {
               type="button"
               disabled={unavailable}
               onClick={() => setSlotIdx(i)}
-              className={`rounded-xl border px-2 py-2 text-center transition ${
+              className={`rounded-none border px-2 py-2 text-center transition ${
                 unavailable
                   ? 'cursor-not-allowed border-[#dde3ec] bg-[#f6f7f9] text-[#cbd5e3]'
                   : i === slotIdx

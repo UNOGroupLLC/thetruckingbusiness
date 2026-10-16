@@ -748,7 +748,7 @@ function IntakeInner() {
 
   if (!intakeMeta) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
+      <div className="sharp mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="text-[20px] font-extrabold text-navy">Unknown service</h1>
         <Link href="/pricing" className="btn-dark mt-6">Back to pricing</Link>
       </div>
@@ -756,7 +756,7 @@ function IntakeInner() {
   }
   if (!order) {
     return (
-      <div className="mx-auto max-w-2xl px-4 py-16 text-center">
+      <div className="sharp mx-auto max-w-2xl px-4 py-16 text-center">
         <h1 className="text-[20px] font-extrabold text-navy">Order not found</h1>
         <p className="mt-2 text-steel">Please complete checkout first — intake is linked to your order.</p>
         <Link href="/pricing" className="btn-dark mt-6">Back to pricing</Link>
@@ -887,7 +887,7 @@ function IntakeInner() {
 
   if (step === 'schedule') {
     return (
-      <div className="bg-mist py-14">
+      <div className="sharp bg-mist py-14">
         <div className="mx-auto max-w-2xl px-4">
           <p className="eyebrow">Intake received ✓</p>
           <h1 className="mt-2 text-[28px] font-extrabold text-navy md:text-[36px]">Want a kickoff call?</h1>
@@ -926,14 +926,14 @@ function IntakeInner() {
       ? `${latestVersion.certifiedName} · ${latestVersion.certifiedDate}`
       : 'Certified final';
     return (
-      <div className="bg-mist py-14">
+      <div className="sharp bg-mist py-14">
         <div className="mx-auto max-w-2xl px-4">
           <p className="eyebrow">Intake locked</p>
           <h1 className="mt-2 text-[28px] font-extrabold text-navy md:text-[36px]">Your intake is certified final</h1>
           <p className="mt-2 text-steel">
             Order <span className="font-bold text-charcoal">{order.id}</span> · {order.packageName}
           </p>
-          <div className="mt-4 rounded-lg border border-navy/20 bg-white px-4 py-3">
+          <div className="mt-4 rounded-none border border-navy/20 bg-white px-4 py-3">
             <p className="text-[13.5px] font-bold text-navy">🔒 {cert}</p>
             <p className="mt-1 text-[13.5px] text-steel">
               {status === 'filing'
@@ -960,7 +960,7 @@ function IntakeInner() {
 
   if (step === 'certify') {
     return (
-      <div className="bg-mist py-14">
+      <div className="sharp bg-mist py-14">
         <div className="mx-auto max-w-2xl px-4">
           <p className="eyebrow">Final step — certify your corrections</p>
           <h1 className="mt-2 text-[28px] font-extrabold text-navy md:text-[36px]">Review &amp; certify</h1>
@@ -1010,7 +1010,7 @@ function IntakeInner() {
   }
 
   return (
-    <div className="bg-mist py-14">
+    <div className="sharp bg-mist py-14">
       <div className="mx-auto max-w-2xl px-4">
         <p className="eyebrow">Step 3 of 3 — intake</p>
         <h1 className="mt-2 text-[28px] font-extrabold text-navy md:text-[36px]">{title}</h1>
@@ -1019,7 +1019,7 @@ function IntakeInner() {
         </p>
         <p className="mt-2 text-[13.5px] text-steel">{intro}</p>
         {alreadySubmitted && !isLocked && (
-          <div className="mt-4 rounded-lg border border-highway/60 bg-highway/10 px-4 py-3">
+          <div className="mt-4 rounded-none border border-highway/60 bg-highway/10 px-4 py-3">
             <p className="text-[13.5px] font-bold text-navy">You&rsquo;ve already submitted this intake ✓</p>
             <p className="mt-1 text-[13.5px] text-steel">
               Your answers are loaded below. You have <strong>one correction</strong> left — edit
@@ -1032,10 +1032,10 @@ function IntakeInner() {
         <div className="relative mx-1 mt-6">
           <div
             aria-hidden
-            className="absolute left-[10%] right-[10%] top-[15px] h-[3px] rounded-full bg-[#e6ebf2]"
+            className="absolute left-[10%] right-[10%] top-[15px] h-[3px] rounded-none bg-[#e6ebf2]"
           >
             <div
-              className="h-full rounded-full bg-navy transition-all"
+              className="h-full rounded-none bg-navy transition-all"
               style={{
                 width: `${
                   stepGroups.length > 1
@@ -1058,7 +1058,7 @@ function IntakeInner() {
               return (
                 <div key={g.name || n} className="text-center">
                   <span
-                    className={`inline-flex h-[30px] w-[30px] items-center justify-center rounded-full text-[12.5px] font-extrabold ${
+                    className={`inline-flex h-[30px] w-[30px] items-center justify-center rounded-none text-[12.5px] font-extrabold ${
                       done
                         ? 'bg-navy text-white'
                         : now
@@ -1090,7 +1090,7 @@ function IntakeInner() {
           {currentGroup?.fields.map((f) => (
             <div key={f.key}>
               {f.type === 'note' ? (
-                <div className="rounded-lg border border-[#cfe0f2] bg-[#eef4fb] px-3.5 py-3">
+                <div className="rounded-none border border-[#cfe0f2] bg-[#eef4fb] px-3.5 py-3">
                   {f.label && (
                     <p className="text-[13.5px] font-bold text-navy">{f.label}</p>
                   )}
@@ -1108,7 +1108,7 @@ function IntakeInner() {
               ) : f.type === 'checkbox' ? (
                 <div>
                   {f.poaPanel && (
-                    <div className="mb-4 max-h-[230px] overflow-y-auto rounded-lg border border-[#dde3ec] bg-[#fbfcfe] px-4 py-3.5">
+                    <div className="mb-4 max-h-[230px] overflow-y-auto rounded-none border border-[#dde3ec] bg-[#fbfcfe] px-4 py-3.5">
                       <p className="text-[13.5px] font-extrabold text-navy">{POA_TITLE}</p>
                       {POA_SECTIONS.map((s) => (
                         <div key={s.heading || 'intro'}>

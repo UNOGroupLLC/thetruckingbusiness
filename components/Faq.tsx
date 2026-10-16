@@ -11,7 +11,7 @@ export default function Faq({ items }: { items: FaqItem[] }) {
   const [open, setOpen] = useState<number | null>(0);
 
   return (
-    <div className="divide-y divide-[#dde3ec] rounded-2xl border border-[#dde3ec] bg-white">
+    <div className="divide-y divide-[#dde3ec] rounded-none border border-[#dde3ec] bg-white">
       {items.map((item, i) => {
         const isOpen = open === i;
         return (

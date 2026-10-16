@@ -142,12 +142,12 @@ export default function StartupRoadmap() {
           </span>
           <span style={{ fontSize: 12.5, fontWeight: 800, color: BLUE }}>{pct}%</span>
         </div>
-        <div style={{ height: 8, borderRadius: 99, background: LINE, overflow: 'hidden' }}>
+        <div style={{ height: 8, borderRadius: 0, background: LINE, overflow: 'hidden' }}>
           <div
             style={{
               height: '100%',
               width: `${pct}%`,
-              borderRadius: 99,
+              borderRadius: 0,
               background: `linear-gradient(90deg, ${BLUE}, #15803d)`,
               transition: 'width 0.4s ease',
             }}
@@ -164,7 +164,7 @@ export default function StartupRoadmap() {
               key={s.t}
               style={{
                 border: `1px solid ${LINE}`,
-                borderRadius: 10,
+                borderRadius: 0,
                 marginBottom: 8,
                 background: isDone ? '#f0f7f2' : '#fff',
                 overflow: 'hidden',
@@ -197,7 +197,7 @@ export default function StartupRoadmap() {
                     flex: '0 0 auto',
                     width: 26,
                     height: 26,
-                    borderRadius: '50%',
+                    borderRadius: 0,
                     border: isDone ? `2px solid #15803d` : `2px solid ${LINE}`,
                     background: isDone ? '#15803d' : '#fff',
                     color: '#fff',
@@ -217,7 +217,7 @@ export default function StartupRoadmap() {
                     flex: '0 0 auto',
                     width: 26,
                     height: 26,
-                    borderRadius: '50%',
+                    borderRadius: 0,
                     background: isDone ? '#d9e9de' : NAVY,
                     color: isDone ? '#15803d' : '#fff',
                     fontSize: 13,
@@ -249,7 +249,7 @@ export default function StartupRoadmap() {
                       fontWeight: 700,
                       color: BLUE,
                       background: '#e8f1fa',
-                      borderRadius: 99,
+                      borderRadius: 0,
                       padding: '2px 8px',
                     }}
                   >

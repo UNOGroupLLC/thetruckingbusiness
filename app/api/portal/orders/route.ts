@@ -30,6 +30,8 @@ interface OrderRow {
   refunded_cents?: number | null;
   priority?: boolean | null;
   assignee?: string | null;
+  /** Migration-010 column; absent until that migration has run. */
+  completed_at?: string | null;
   created_at: string;
 }
 
@@ -176,6 +178,7 @@ export async function GET(req: NextRequest) {
       refundedCents: o.refunded_cents ?? undefined,
       priority: Boolean(o.priority),
       assignee: o.assignee ?? undefined,
+      completedAt: o.completed_at ?? undefined,
     };
   });
   return NextResponse.json({ ok: true, configured: true, orders });

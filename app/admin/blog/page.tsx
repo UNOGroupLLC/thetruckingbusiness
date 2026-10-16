@@ -55,7 +55,7 @@ function slugify(t: string) {
 const inputStyle: React.CSSProperties = {
   width: '100%',
   border: '1px solid #dbe3ea',
-  borderRadius: 10,
+  borderRadius: 0,
   padding: '10px 12px',
   fontSize: 14,
 };
@@ -172,7 +172,7 @@ export default function AdminBlog() {
 
   if (!key) {
     return (
-      <div className="wrap" style={{ paddingTop: 48, paddingBottom: 64, maxWidth: 560 }}>
+      <div className="wrap sharp" style={{ paddingTop: 48, paddingBottom: 64, maxWidth: 560 }}>
         <Link href="/admin" style={{ fontSize: 13 }}>← Back to admin</Link>
         <h1 style={{ color: '#0b2e4f', fontWeight: 900, fontSize: 28, margin: '12px 0' }}>
           Blog — API key
@@ -198,7 +198,7 @@ export default function AdminBlog() {
   }
 
   return (
-    <div className="wrap" style={{ paddingTop: 40, paddingBottom: 64 }}>
+    <div className="wrap sharp" style={{ paddingTop: 40, paddingBottom: 64 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <Link href="/admin" style={{ fontSize: 13 }}>← Back to admin</Link>
@@ -225,7 +225,7 @@ export default function AdminBlog() {
       {loading && <p style={{ color: '#5b6b7b' }}>Loading…</p>}
 
       {!editing && (
-        <div style={{ marginTop: 20, border: '1px solid #e3e9ef', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ marginTop: 20, border: '1px solid #e3e9ef', borderRadius: 0, overflow: 'hidden' }}>
           {posts.map((p: Post) => (
             <div
               key={p.slug}
@@ -254,7 +254,7 @@ export default function AdminBlog() {
                     textTransform: 'uppercase',
                     letterSpacing: 1,
                     padding: '4px 10px',
-                    borderRadius: 999,
+                    borderRadius: 0,
                     background: p.status === 'published' ? '#e6f4ea' : '#fff4d6',
                     color: p.status === 'published' ? '#0a7a2f' : '#8a6d00',
                   }}
@@ -293,7 +293,7 @@ export default function AdminBlog() {
       )}
 
       {editing && (
-        <div style={{ marginTop: 20, background: '#fff', border: '1px solid #e3e9ef', borderRadius: 14, padding: 24 }}>
+        <div style={{ marginTop: 20, background: '#fff', border: '1px solid #e3e9ef', borderRadius: 0, padding: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 style={{ color: '#0b2e4f', fontSize: 20, fontWeight: 800, margin: 0 }}>
               {isNew ? 'New article' : 'Edit article'}
@@ -446,7 +446,7 @@ export default function AdminBlog() {
               </h1>
               <div
                 className="blog-body"
-                style={{ border: '1px dashed #c9d3dd', borderRadius: 10, padding: 20, marginTop: 12 }}
+                style={{ border: '1px dashed #c9d3dd', borderRadius: 0, padding: 20, marginTop: 12 }}
                 dangerouslySetInnerHTML={{ __html: marked.parse(
                     (editing.content_md || '*Nothing yet*')
                       .replace(/^\[calculator:([a-z0-9-]+)\]$/gm, '*[Calculator embed: $1 — shows on the live site]*')

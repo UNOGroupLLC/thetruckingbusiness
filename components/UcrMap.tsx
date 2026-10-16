@@ -24,11 +24,11 @@ export default function UcrMap() {
     <div>
       <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#0a1a36' }}>
-          <span style={{ width: 16, height: 16, borderRadius: 4, background: '#0a1a36', display: 'inline-block' }} />
+          <span style={{ width: 16, height: 16, borderRadius: 0, background: '#0a1a36', display: 'inline-block' }} />
           Participates (41 states)
         </span>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13.5, fontWeight: 700, color: '#0a1a36' }}>
-          <span style={{ width: 16, height: 16, borderRadius: 4, background: '#9aa5b1', display: 'inline-block' }} />
+          <span style={{ width: 16, height: 16, borderRadius: 0, background: '#9aa5b1', display: 'inline-block' }} />
           Does not participate (9 states)
         </span>
       </div>
@@ -83,7 +83,7 @@ export default function UcrMap() {
           style={{
             padding: '10px 12px',
             fontSize: 16,
-            borderRadius: 8,
+            borderRadius: 0,
             border: '2px solid #0a1a36',
             color: '#0a1a36',
             fontWeight: 600,

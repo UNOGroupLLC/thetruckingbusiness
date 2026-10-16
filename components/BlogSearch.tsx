@@ -58,7 +58,7 @@ export default function BlogSearch({ posts }: { posts: BlogCardPost[] }) {
             padding: '12px 16px',
             fontSize: 15,
             border: '2px solid #dde3ec',
-            borderRadius: 12,
+            borderRadius: 0,
             outline: 'none',
           }}
           onFocus={(e) => (e.currentTarget.style.borderColor = '#1755a8')}

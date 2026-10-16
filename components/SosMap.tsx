@@ -64,7 +64,7 @@ export default function SosMap() {
           style={{
             padding: '10px 12px',
             fontSize: 16,
-            borderRadius: 8,
+            borderRadius: 0,
             border: '2px solid #0a1a36',
             color: '#0a1a36',
             fontWeight: 600,

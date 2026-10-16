@@ -21,7 +21,7 @@ function shell(title: string, kicker: string, body: string): string {
   return `<!DOCTYPE html><html><body style="margin:0;padding:0;background-color:${MIST};font-family:${FONT};color:${CHARCOAL};">
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:${MIST};padding:32px 16px;">
 <tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(7,32,51,0.08);">
+<table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:0;overflow:hidden;box-shadow:0 2px 12px rgba(7,32,51,0.08);">
 <tr><td style="background:${NAVY_DARK};padding:30px 34px 26px;">
 <p style="margin:0 0 10px;color:${YELLOW};font-size:11px;letter-spacing:3px;font-weight:bold;">THETRUCKINGBUSINESS.COM</p>
 <h1 style="margin:0;color:#ffffff;font-family:${HEADING_FONT};font-size:25px;font-weight:800;line-height:1.25;">${title}</h1>
@@ -54,7 +54,7 @@ function kv(rows: [string, string][]): string {
 }
 
 function highlightBox(label: string, value: string): string {
-  return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px;background:${MIST};border-radius:10px;border-left:4px solid ${YELLOW};">
+  return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px;background:${MIST};border-radius:0;border-left:4px solid ${YELLOW};">
 <tr><td style="padding:16px 20px;">
 <p style="margin:0 0 4px;color:${STEEL};font-size:12px;letter-spacing:1px;font-weight:bold;text-transform:uppercase;">${label}</p>
 <p style="margin:0;color:${NAVY};font-family:${HEADING_FONT};font-size:28px;font-weight:800;">${value}</p>
@@ -100,7 +100,7 @@ function receiptCard(o: OrderInfo, logoUrl: string): string {
   const sumRow = (k: string, v: string) =>
     `<tr><td style="color:${STEEL};padding:4px 0;font-size:14px;">${k}</td><td align="right" style="color:${CHARCOAL};padding:4px 0;font-size:14px;">${v}</td></tr>`;
   return (
-    `<table width="440" cellpadding="0" cellspacing="0" role="presentation" style="max-width:440px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 3px 16px rgba(7,32,51,0.10);">` +
+    `<table width="440" cellpadding="0" cellspacing="0" role="presentation" style="max-width:440px;width:100%;background:#ffffff;border-radius:0;overflow:hidden;box-shadow:0 3px 16px rgba(7,32,51,0.10);">` +
     `<tr><td style="background:${NAVY};height:6px;line-height:6px;font-size:0;">&nbsp;</td></tr>` +
     `<tr><td style="padding:30px 36px 8px;" align="center">` +
     `<img src="${logoUrl}" width="96" alt="The Trucking Business" style="display:block;">` +
@@ -295,7 +295,7 @@ export function documentNeedsNewCopyEmail(
         note(
           'Our team reviewed the copy you uploaded, and we need a clearer one before we can use it. Here is what to fix:'
         ) +
-        `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px;background:${MIST};border-radius:10px;border-left:4px solid ${YELLOW};"><tr><td style="padding:16px 20px;"><p style="margin:0;font-size:14px;line-height:1.65;color:${CHARCOAL};">${esc(staffNote)}</p></td></tr></table>` +
+        `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px;background:${MIST};border-radius:0;border-left:4px solid ${YELLOW};"><tr><td style="padding:16px 20px;"><p style="margin:0;font-size:14px;line-height:1.65;color:${CHARCOAL};">${esc(staffNote)}</p></td></tr></table>` +
         note(
           'Sign in to your portal and upload a new copy under “Documents we need from you.” A phone photo is fine as long as every word is clear.'
         ) +
@@ -359,7 +359,7 @@ export function bookingEmail(
   );
   const gcalButton = gcal
     ? `<table cellpadding="0" cellspacing="0" role="presentation" style="margin:18px 0 4px;">
-<tr><td align="center" style="border:2px solid ${NAVY};border-radius:9px;">
+<tr><td align="center" style="border:2px solid ${NAVY};border-radius:0;">
 <a href="${gcal}" style="display:inline-block;padding:12px 26px;color:${NAVY};font-family:${HEADING_FONT};font-weight:800;font-size:14px;text-decoration:none;">📅 Add to Google Calendar</a>
 </td></tr>
 </table>`
@@ -455,7 +455,7 @@ function calendarLink(title: string, date: string, time: string, details: string
 
 function ctaButton(label: string, url: string): string {
   return `<table cellpadding="0" cellspacing="0" role="presentation" style="margin:24px 0 8px;">
-<tr><td align="center" style="background:${YELLOW};border-radius:9px;">
+<tr><td align="center" style="background:${YELLOW};border-radius:0;">
 <a href="${esc(url)}" style="display:inline-block;padding:15px 32px;color:${NAVY_DARK};font-family:${HEADING_FONT};font-weight:800;font-size:15px;text-decoration:none;">${label}</a>
 </td></tr>
 </table>`;
@@ -477,10 +477,10 @@ export function clientPurchaseEmail(
   const F = HEADING_FONT;
   const nextCard =
     `<table width="440" cellpadding="0" cellspacing="0" role="presentation" style="max-width:440px;width:100%;margin-top:22px;">` +
-    `<tr><td style="background:#ffffff;border-radius:12px;padding:24px 30px;box-shadow:0 3px 16px rgba(7,32,51,0.08);">` +
+    `<tr><td style="background:#ffffff;border-radius:0;padding:24px 30px;box-shadow:0 3px 16px rgba(7,32,51,0.08);">` +
     `<p style="margin:0;color:${NAVY};font-family:${F};font-size:16px;font-weight:800;">What happens next</p>` +
     `<p style="margin:10px 0 18px;color:${CHARCOAL};font-size:13.5px;line-height:1.65;"><strong>Step 1:</strong> your intake form is below &mdash; it contains everything we need to start your filing. If you need to change anything, just click through and update your answers.</p>` +
-    `<table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;"><tr><td align="center" style="background:${YELLOW};border-radius:10px;"><a href="${esc(intakeUrl)}" style="display:inline-block;padding:14px 34px;color:${NAVY};font-family:${F};font-size:15px;font-weight:800;text-decoration:none;">Your intake form</a></td></tr></table>` +
+    `<table cellpadding="0" cellspacing="0" role="presentation" style="margin:0 auto;"><tr><td align="center" style="background:${YELLOW};border-radius:0;"><a href="${esc(intakeUrl)}" style="display:inline-block;padding:14px 34px;color:${NAVY};font-family:${F};font-size:15px;font-weight:800;text-decoration:none;">Your intake form</a></td></tr></table>` +
     `<p style="margin:18px 0 0;color:${CHARCOAL};font-size:13.5px;line-height:1.65;"><strong>Step 2:</strong> we review everything and get to work. You&rsquo;ll get an email the moment your intake is received.</p>` +
     `</td></tr></table>`;
   return {
@@ -537,7 +537,7 @@ export function clientBookingEmail(
   );
   const gcalButton = gcal
     ? `<table cellpadding="0" cellspacing="0" role="presentation" style="margin:18px 0 4px;">
-<tr><td align="center" style="border:2px solid ${NAVY};border-radius:9px;">
+<tr><td align="center" style="border:2px solid ${NAVY};border-radius:0;">
 <a href="${gcal}" style="display:inline-block;padding:12px 26px;color:${NAVY};font-family:${HEADING_FONT};font-weight:800;font-size:14px;text-decoration:none;">📅 Add to Google Calendar</a>
 </td></tr>
 </table>`
@@ -593,7 +593,7 @@ export function calculatorResultsEmail(
   const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background-color:${C_BG};font-family:${FONT};color:${C_INK};">
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:${C_BG};padding:32px 16px;">
 <tr><td align="center">
-<table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(10,26,54,0.08);">
+<table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:0;overflow:hidden;box-shadow:0 2px 12px rgba(10,26,54,0.08);">
 <tr><td style="background:${C_NAVY};padding:30px 34px 26px;">
 <p style="margin:0 0 10px;color:${C_YELLOW};font-size:11px;letter-spacing:3px;font-weight:bold;">THETRUCKINGBUSINESS.COM</p>
 <h1 style="margin:0;color:#ffffff;font-family:${HEADING_FONT};font-size:25px;font-weight:800;line-height:1.25;">Your calculator results</h1>
@@ -602,7 +602,7 @@ export function calculatorResultsEmail(
 <tr><td style="background:${C_YELLOW};height:4px;line-height:4px;font-size:0;">&nbsp;</td></tr>
 <tr><td style="padding:30px 34px 10px;">
 <p style="font-size:14px;line-height:1.65;color:${C_INK};margin:0 0 22px;">You asked for these results from the ${esc(calculatorTitle)} on TheTruckingBusiness.com. Here is the full breakdown from your session.</p>
-<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px;background:${C_BG};border-radius:10px;border-left:4px solid ${C_YELLOW};">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 22px;background:${C_BG};border-radius:0;border-left:4px solid ${C_YELLOW};">
 <tr><td style="padding:16px 20px;">
 <p style="margin:0;color:${C_NAVY};font-family:${HEADING_FONT};font-size:24px;font-weight:800;line-height:1.3;">${esc(headline)}</p>
 </td></tr>

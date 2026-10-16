@@ -138,7 +138,7 @@ export default async function BlogArticle({
             style={{
               background: '#fff8e1',
               border: '1px solid #ffc61a',
-              borderRadius: 10,
+              borderRadius: 0,
               padding: '12px 16px',
               fontSize: 13.5,
               color: '#5b4a00',
@@ -166,7 +166,7 @@ export default async function BlogArticle({
                 key={i}
                 style={{
                   border: '1px solid #dde3ec',
-                  borderRadius: 10,
+                  borderRadius: 0,
                   padding: '12px 16px',
                   marginBottom: 10,
                   background: '#f6f7f9',
@@ -185,7 +185,7 @@ export default async function BlogArticle({
           style={{
             marginTop: 40,
             background: '#0a1a36',
-            borderRadius: 14,
+            borderRadius: 0,
             padding: '28px 28px',
             color: '#fff',
           }}

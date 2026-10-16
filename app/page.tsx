@@ -219,7 +219,7 @@ export default function HomePage() {
               <ol className="mt-5 flex-1 space-y-2.5">
                 {STARTUP_STEPS.map((step, i) => (
                   <li key={step} className="flex items-center gap-3 text-sm">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-navy text-xs font-bold text-white">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-none bg-navy text-xs font-bold text-white">
                       {i + 1}
                     </span>
                     <span className="font-medium">{step}</span>
@@ -238,7 +238,7 @@ export default function HomePage() {
               <ul className="mt-5 flex-1 space-y-2.5">
                 {EXISTING_STEPS.map((step) => (
                   <li key={step} className="flex items-center gap-3 text-sm">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-dotblue text-xs font-bold text-white" aria-hidden="true">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-none bg-dotblue text-xs font-bold text-white" aria-hidden="true">
                       ✓
                     </span>
                     <span className="font-medium">{step}</span>
@@ -288,7 +288,7 @@ export default function HomePage() {
             mile before you spend a dollar.
           </p>
           <div className="mt-10 grid gap-5 md:grid-cols-2">
-            <Link href="/calculators/startup-cost" className="rounded-2xl bg-white/10 p-6 backdrop-blur transition hover:bg-white/15">
+            <Link href="/calculators/startup-cost" className="rounded-none bg-white/10 p-6 backdrop-blur transition hover:bg-white/15">
               <h3 className="text-xl font-extrabold text-highway">Trucking Startup Cost Calculator</h3>
               <p className="mt-2 text-sm text-slate-200">
                 Estimate everything it takes to launch — filings, equipment, insurance, permits —
@@ -296,7 +296,7 @@ export default function HomePage() {
               </p>
               <span className="mt-4 inline-block text-sm font-bold text-white">Open calculator →</span>
             </Link>
-            <Link href="/calculators/cost-per-mile" className="rounded-2xl bg-white/10 p-6 backdrop-blur transition hover:bg-white/15">
+            <Link href="/calculators/cost-per-mile" className="rounded-none bg-white/10 p-6 backdrop-blur transition hover:bg-white/15">
               <h3 className="text-xl font-extrabold text-highway">Cost-Per-Mile Calculator</h3>
               <p className="mt-2 text-sm text-slate-200">
                 Loaded and empty miles, fixed and variable costs — know your break-even rate per

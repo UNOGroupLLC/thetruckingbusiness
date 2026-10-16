@@ -32,7 +32,7 @@ const T_CARD = 'text-[15px] font-extrabold';
 const T_BODY = 'text-[13.5px]';
 const T_SMALL = 'text-[12.5px]';
 const T_LABEL = 'text-[11px] font-extrabold uppercase tracking-[0.08em]';
-const PILL = 'rounded-full px-[10px] py-[3px] text-[11px] font-extrabold';
+const PILL = 'rounded-none px-[10px] py-[3px] text-[11px] font-extrabold';
 
 const SUPPORT_PHONE = '+1 (725) 244-6771';
 const SUPPORT_EMAIL = 'hello@thetruckingbusiness.com';
@@ -83,8 +83,17 @@ function stepPlan(status: IntakeStatus | undefined): { doneCount: number; curren
   }
 }
 
-function Timeline({ status }: { status: IntakeStatus | undefined }) {
-  const { doneCount, current } = stepPlan(status);
+function Timeline({
+  status,
+  completed,
+}: {
+  status: IntakeStatus | undefined;
+  completed?: boolean;
+}) {
+  // A completed order lights all five steps, including Complete.
+  const { doneCount, current } = completed
+    ? { doneCount: STEPS.length, current: -1 }
+    : stepPlan(status);
   // The progress line runs between the first and last step centers. It fills
   // up to the furthest step reached: a finished step, or the step in
   // progress. Intake pending means only step one is done, so the fill is 0%.
@@ -94,10 +103,10 @@ function Timeline({ status }: { status: IntakeStatus | undefined }) {
     <div className="relative mt-5" role="list" aria-label="Order progress">
       <div
         aria-hidden
-        className="absolute left-[10%] right-[10%] top-[15px] h-[3px] rounded-full bg-[#e6ebf2]"
+        className="absolute left-[10%] right-[10%] top-[15px] h-[3px] rounded-none bg-[#e6ebf2]"
       >
         <div
-          className="h-full rounded-full"
+          className="h-full rounded-none"
           style={{ width: `${fillPct}%`, background: NAVY }}
         />
       </div>
@@ -108,7 +117,7 @@ function Timeline({ status }: { status: IntakeStatus | undefined }) {
           return (
             <div key={label} role="listitem" className="text-center">
               <span
-                className={`inline-flex h-[30px] w-[30px] items-center justify-center rounded-full text-[12.5px] font-extrabold ${
+                className={`inline-flex h-[30px] w-[30px] items-center justify-center rounded-none text-[12.5px] font-extrabold ${
                   done
                     ? 'text-white'
                     : isCurrent
@@ -153,7 +162,17 @@ function NextSteps({ order }: { order: OrderRecord }) {
     title: 'Your documents land here',
     text: 'Finished paperwork appears under Your documents with a download, and we email you too.',
   };
-  if (!status) {
+  if (order.completedAt) {
+    next = {
+      title: 'Your order is complete',
+      text: `Your ${order.packageName} is finished. Your documents are below, ready to download.`,
+      cta: { label: 'View my documents', href: '#documents' },
+    };
+    then = {
+      title: 'Everything is saved',
+      text: 'Your order, your intake, and your documents stay here in your portal whenever you need them.',
+    };
+  } else if (!status) {
     next = {
       title: 'Complete your intake',
       text: 'A few minutes of questions so we can start on your order.',
@@ -236,7 +255,7 @@ function NextSteps({ order }: { order: OrderRecord }) {
           {c.cta && (
             <Link
               href={c.cta.href}
-              className="mt-[9px] inline-block rounded-lg px-[13px] py-2 text-[12.5px] font-extrabold text-white transition hover:brightness-125"
+              className="mt-[9px] inline-block rounded-none px-[13px] py-2 text-[12.5px] font-extrabold text-white transition hover:brightness-125"
               style={{ background: NAVY }}
             >
               {c.cta.label}
@@ -290,7 +309,7 @@ function CallCard({ order }: { order: OrderRecord }) {
   const booking = order.booking ?? getCallBooking(order.id);
   if (!booking) return null;
   return (
-    <div className="mt-[14px] rounded-xl p-[18px]" style={{ background: NAVY }}>
+    <div className="mt-[14px] rounded-none p-[18px]" style={{ background: NAVY }}>
       <p className={`${T_CARD} text-white`}>Your kickoff call</p>
       <p className={`${T_TITLE} mt-[6px]`} style={{ color: YELLOW }}>
         {bookingDayLabel(booking.date)} · {booking.time} ET
@@ -302,7 +321,7 @@ function CallCard({ order }: { order: OrderRecord }) {
         href={gcalLink(booking.date, booking.time, order.id)}
         target="_blank"
         rel="noopener noreferrer"
-        className="mt-3 inline-block rounded-lg px-[14px] py-[9px] text-[12.5px] font-extrabold transition hover:brightness-105"
+        className="mt-3 inline-block rounded-none px-[14px] py-[9px] text-[12.5px] font-extrabold transition hover:brightness-105"
         style={{ background: YELLOW, color: NAVY }}
       >
         Add to Google Calendar
@@ -453,7 +472,7 @@ function FilingInfoCard({ order }: { order: OrderRecord }) {
     (order.intakeStatus === 'certified' || order.intakeStatus === 'filing') && entries.length > 0;
   return (
     <div
-      className="mt-[14px] rounded-xl border bg-white p-[18px]"
+      className="mt-[14px] rounded-none border bg-white p-[18px]"
       style={{ borderColor: LINE }}
     >
       <h3 className={T_CARD} style={{ color: NAVY }}>
@@ -468,7 +487,7 @@ function FilingInfoCard({ order }: { order: OrderRecord }) {
         <>
           {certified && (
             <p
-              className={`${T_SMALL} mt-2 rounded-[9px] border px-3 py-[9px] font-semibold`}
+              className={`${T_SMALL} mt-2 rounded-none-[9px] border px-3 py-[9px] font-semibold`}
               style={{ background: '#f0fdf4', borderColor: '#bbf7d0', color: '#166534' }}
             >
               Certified final
@@ -496,7 +515,7 @@ function FilingInfoCard({ order }: { order: OrderRecord }) {
             ))}
           </div>
           <div
-            className="mt-3 rounded-[10px] border-[1.5px] border-dashed px-[14px] py-3"
+            className="mt-3 rounded-none-[10px] border-[1.5px] border-dashed px-[14px] py-3"
             style={{ borderColor: '#c3ccd9' }}
           >
             <p className={`${T_BODY} font-extrabold`} style={{ color: NAVY }}>
@@ -525,7 +544,8 @@ function DocumentsCard({ order }: { order: OrderRecord }) {
   if (expected.length === 0 && !poaDoc) return null;
   return (
     <div
-      className="mt-[14px] rounded-xl border bg-white p-[18px]"
+      id="documents"
+      className="mt-[14px] rounded-none border bg-white p-[18px]"
       style={{ borderColor: LINE }}
     >
       <h3 className={T_CARD} style={{ color: NAVY }}>
@@ -626,7 +646,7 @@ function UploadStateDot({ color, mark }: { color: string; mark: string }) {
   return (
     <span
       aria-hidden
-      className="flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
+      className="flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-none text-[11px] font-extrabold text-white"
       style={{ background: color }}
     >
       {mark}
@@ -708,11 +728,11 @@ function UploadsCard({
   }
 
   const navyButton =
-    'shrink-0 cursor-pointer rounded-full px-[15px] py-2 text-[12.5px] font-extrabold text-white transition hover:brightness-125 disabled:cursor-wait disabled:opacity-60';
+    'shrink-0 cursor-pointer rounded-none px-[15px] py-2 text-[12.5px] font-extrabold text-white transition hover:brightness-125 disabled:cursor-wait disabled:opacity-60';
 
   return (
     <div
-      className="mt-[14px] rounded-xl border bg-white p-[18px]"
+      className="mt-[14px] rounded-none border bg-white p-[18px]"
       style={{ borderColor: LINE }}
     >
       <h3 className={T_CARD} style={{ color: NAVY }}>
@@ -724,7 +744,7 @@ function UploadsCard({
         back of a license.
       </p>
       <div
-        className="mt-[14px] h-[6px] overflow-hidden rounded-full"
+        className="mt-[14px] h-[6px] overflow-hidden rounded-none"
         style={{ background: '#eef1f6' }}
         role="progressbar"
         aria-valuenow={acceptedCount}
@@ -733,7 +753,7 @@ function UploadsCard({
         aria-label="Documents accepted"
       >
         <div
-          className="h-full rounded-full"
+          className="h-full rounded-none"
           style={{ width: `${pct}%`, background: YELLOW }}
         />
       </div>
@@ -852,7 +872,7 @@ function UploadsCard({
               )}
               {status === 'needs_new_copy' && latest?.staffNote && (
                 <div
-                  className="mt-2 rounded-[9px] px-3 py-[9px]"
+                  className="mt-2 rounded-none-[9px] px-3 py-[9px]"
                   style={{
                     background: '#fdf3f3',
                     border: '1px solid #f3d2d2',
@@ -962,7 +982,7 @@ function PaymentCard({ order }: { order: OrderRecord }) {
     : 'Government filing fees';
   return (
     <div
-      className="mt-[14px] rounded-xl border bg-white p-[18px]"
+      className="mt-[14px] rounded-none border bg-white p-[18px]"
       style={{ borderColor: LINE }}
     >
       <h3 className={T_CARD} style={{ color: NAVY }}>
@@ -1011,7 +1031,7 @@ function OrderPanel({
   return (
     <div>
       <div
-        className="rounded-xl border bg-white p-[18px] shadow-[0_8px_24px_rgba(10,26,54,0.05)]"
+        className="rounded-none border bg-white p-[18px] shadow-[0_8px_24px_rgba(10,26,54,0.05)]"
         style={{ borderColor: LINE }}
       >
         <div className="flex flex-wrap items-start gap-[10px]">
@@ -1029,7 +1049,7 @@ function OrderPanel({
             <span className={`${PILL} ${status.cls}`}>{status.label}</span>
           </div>
         </div>
-        <Timeline status={order.intakeStatus} />
+        <Timeline status={order.intakeStatus} completed={Boolean(order.completedAt)} />
         <NextSteps order={order} />
       </div>
       <CallCard order={order} />
@@ -1155,11 +1175,11 @@ export default function PortalDashboardPage() {
   const header = (
     <div>
       <span
-        className="inline-flex items-center gap-[7px] rounded-full border bg-white px-3 py-[5px]"
+        className="inline-flex items-center gap-[7px] rounded-none border bg-white px-3 py-[5px]"
         style={{ borderColor: LINE }}
       >
         <span
-          className="h-[7px] w-[7px] rounded-full"
+          className="h-[7px] w-[7px] rounded-none"
           style={{ background: YELLOW }}
           aria-hidden
         />
@@ -1182,11 +1202,11 @@ export default function PortalDashboardPage() {
 
   if (!portalEmail) {
     return (
-      <div style={{ background: '#f6f7f9', fontFamily: "'Libre Franklin', Arial, sans-serif" }}>
+      <div className="sharp" style={{ background: '#f6f7f9', fontFamily: "'Libre Franklin', Arial, sans-serif" }}>
         <div className="mx-auto max-w-[1180px] px-4 py-10 sm:px-[26px]">
           {header}
           <div
-            className="mt-6 max-w-xl rounded-xl border bg-white p-[18px]"
+            className="mt-6 max-w-xl rounded-none border bg-white p-[18px]"
             style={{ borderColor: LINE }}
           >
             <h2 className={T_CARD} style={{ color: NAVY }}>
@@ -1197,7 +1217,7 @@ export default function PortalDashboardPage() {
             </p>
             <Link
               href="/portal/login"
-              className="mt-4 inline-block rounded-lg px-[13px] py-2 text-[12.5px] font-extrabold text-white transition hover:brightness-125"
+              className="mt-4 inline-block rounded-none px-[13px] py-2 text-[12.5px] font-extrabold text-white transition hover:brightness-125"
               style={{ background: NAVY }}
             >
               Go to login
@@ -1211,13 +1231,13 @@ export default function PortalDashboardPage() {
   const selected = myOrders.find((o) => o.id === selectedId) ?? myOrders[0];
 
   return (
-    <div style={{ background: '#f6f7f9', fontFamily: "'Libre Franklin', Arial, sans-serif" }}>
+    <div className="sharp" style={{ background: '#f6f7f9', fontFamily: "'Libre Franklin', Arial, sans-serif" }}>
       <div className="mx-auto max-w-[1180px] px-4 py-[26px] sm:px-[26px]">
         {header}
 
         {myOrders.length === 0 ? (
           <div
-            className="mt-6 rounded-xl border bg-white p-[18px]"
+            className="mt-6 rounded-none border bg-white p-[18px]"
             style={{ borderColor: LINE }}
           >
             <p className={T_BODY} style={{ color: MUTED }}>
@@ -1226,7 +1246,7 @@ export default function PortalDashboardPage() {
             </p>
             <Link
               href="/pricing"
-              className="mt-4 inline-block rounded-lg px-[13px] py-2 text-[12.5px] font-extrabold text-white transition hover:brightness-125"
+              className="mt-4 inline-block rounded-none px-[13px] py-2 text-[12.5px] font-extrabold text-white transition hover:brightness-125"
               style={{ background: NAVY }}
             >
               View packages
@@ -1253,7 +1273,7 @@ export default function PortalDashboardPage() {
                       type="button"
                       onClick={() => setSelectedId(o.id)}
                       aria-pressed={isSel}
-                      className="block w-full cursor-pointer rounded-xl border-2 px-[14px] py-3 text-left transition"
+                      className="block w-full cursor-pointer rounded-none border-2 px-[14px] py-3 text-left transition"
                       style={{
                         background: isSel ? '#ffffff' : '#eef1f6',
                         borderColor: isSel ? NAVY : LINE,
@@ -1279,7 +1299,7 @@ export default function PortalDashboardPage() {
 
               {/* My information */}
               <div
-                className="mt-4 rounded-xl border bg-white p-[14px]"
+                className="mt-4 rounded-none border bg-white p-[14px]"
                 style={{ borderColor: LINE }}
               >
                 <p className={T_LABEL} style={{ color: MUTED }}>
@@ -1296,13 +1316,13 @@ export default function PortalDashboardPage() {
                       setGreetingDraft(e.target.value);
                     }}
                     aria-label="How we greet you"
-                    className="min-w-0 flex-1 rounded-lg border px-[9px] py-[7px] text-[13.5px]"
+                    className="min-w-0 flex-1 rounded-none border px-[9px] py-[7px] text-[13.5px]"
                     style={{ borderColor: LINE, color: NAVY, fontFamily: 'inherit' }}
                   />
                   <button
                     type="button"
                     onClick={saveGreeting}
-                    className="shrink-0 cursor-pointer rounded-lg px-3 py-[7px] text-[12.5px] font-extrabold text-white transition hover:brightness-125"
+                    className="shrink-0 cursor-pointer rounded-none px-3 py-[7px] text-[12.5px] font-extrabold text-white transition hover:brightness-125"
                     style={{ background: NAVY, fontFamily: 'inherit' }}
                   >
                     Save
@@ -1334,7 +1354,7 @@ export default function PortalDashboardPage() {
               </div>
 
               {/* Need help */}
-              <div className="mt-4 rounded-xl p-[14px]" style={{ background: NAVY }}>
+              <div className="mt-4 rounded-none p-[14px]" style={{ background: NAVY }}>
                 <p className={T_LABEL} style={{ color: '#9db1d4' }}>
                   NEED HELP?
                 </p>
@@ -1351,7 +1371,7 @@ export default function PortalDashboardPage() {
                 </p>
                 <Link
                   href="/contact"
-                  className="mt-3 inline-block rounded-lg px-3 py-2 text-[12.5px] font-extrabold transition hover:brightness-105"
+                  className="mt-3 inline-block rounded-none px-3 py-2 text-[12.5px] font-extrabold transition hover:brightness-105"
                   style={{ background: YELLOW, color: NAVY }}
                 >
                   Send us a message

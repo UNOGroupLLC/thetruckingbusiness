@@ -69,7 +69,7 @@ export default function TruckMarkings() {
 
   return (
     <div style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: NAVY }}>
-      <svg viewBox="0 0 420 250" style={{ width: '100%', height: 'auto', display: 'block', background: '#f6f7f9', borderRadius: 12, border: `1px solid ${LINE}` }} role="img" aria-label="Diagram of truck door markings">
+      <svg viewBox="0 0 420 250" style={{ width: '100%', height: 'auto', display: 'block', background: '#f6f7f9', borderRadius: 0, border: `1px solid ${LINE}` }} role="img" aria-label="Diagram of truck door markings">
         {/* cab body */}
         <rect x="20" y="30" width="240" height="150" rx="14" fill="#ffffff" stroke={NAVY} strokeWidth="3" />
         {/* hood */}
@@ -125,7 +125,7 @@ export default function TruckMarkings() {
               style={{
                 textAlign: 'left',
                 border: `2px solid ${isActive ? BLUE : LINE}`,
-                borderRadius: 10,
+                borderRadius: 0,
                 background: isActive ? '#f0f6fd' : '#fff',
                 padding: '8px 10px',
                 cursor: 'pointer',
@@ -142,7 +142,7 @@ export default function TruckMarkings() {
                   letterSpacing: 0.5,
                   color: '#fff',
                   background: m.required ? GREEN : GRAY,
-                  borderRadius: 99,
+                  borderRadius: 0,
                   padding: '2px 8px',
                 }}
               >
@@ -157,7 +157,7 @@ export default function TruckMarkings() {
         style={{
           marginTop: 10,
           border: `1px solid ${LINE}`,
-          borderRadius: 10,
+          borderRadius: 0,
           padding: '10px 12px',
           background: '#fff',
           fontSize: 13.5,

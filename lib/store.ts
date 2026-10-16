@@ -128,6 +128,16 @@ export interface OrderRecord {
   priority?: boolean;
   /** Admin workflow: who holds this order ('owner' in the solo admin). */
   assignee?: string;
+  /** Set when the team marks the order complete (migration-010). A
+   *  completed order leaves the Orders queue and lives in Finished. */
+  completedAt?: string; // ISO
+  /** Company name from the latest intake, when the feed provides it
+   *  (admin list/search + the Finished company column). */
+  companyName?: string;
+  /** USDOT number from the latest intake, when the feed provides it. */
+  usdot?: string;
+  /** Stripe payment id, when the record carries one (export reference). */
+  stripePaymentId?: string;
 }
 
 interface State {
@@ -476,6 +486,7 @@ export interface ServerOrder {
   refundedCents?: number;
   priority?: boolean;
   assignee?: string;
+  completedAt?: string;
 }
 
 /**
@@ -512,6 +523,7 @@ export function mergeServerOrders(serverOrders: ServerOrder[]) {
         refundedCents: so.refundedCents,
         priority: so.priority,
         assignee: so.assignee,
+        completedAt: so.completedAt,
         source: 'database',
       });
       continue;
@@ -532,6 +544,7 @@ export function mergeServerOrders(serverOrders: ServerOrder[]) {
       refundedCents: so.refundedCents ?? local.refundedCents,
       priority: so.priority ?? local.priority,
       assignee: so.assignee ?? local.assignee,
+      completedAt: so.completedAt ?? local.completedAt,
       source: 'database',
       isRealPayment: true,
     });

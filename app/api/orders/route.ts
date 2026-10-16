@@ -89,6 +89,10 @@ interface OrderRow {
   assignee?: string | null;
   pay_status?: string | null;
   refunded_cents?: number | null;
+  /** Migration-010 column; absent until that migration has run. */
+  completed_at?: string | null;
+  /** Present only if the orders table ever carries the Stripe reference. */
+  stripe_payment_id?: string | null;
   created_at: string;
 }
 
@@ -120,7 +124,8 @@ export async function GET(req: NextRequest) {
       status: 'submitted' | 'corrected' | 'certified' | 'filing';
       version: number;
       certified?: { name?: string; date?: string } | null;
-    }>('intake_submissions?select=order_id,status,version,certified&order=version.desc'),
+      data?: Record<string, string> | null;
+    }>('intake_submissions?select=order_id,status,version,certified,data&order=version.desc'),
     dbSelect<{ order_id: string; date: string; time: string }>(
       'call_bookings?select=order_id,date,time'
     ),
@@ -201,6 +206,10 @@ export async function GET(req: NextRequest) {
       booking: booking ? { date: booking.date, time: booking.time } : undefined,
       documentCount: docCount.get(o.id) ?? 0,
       clientDocs: clientDocsFor(o.id, o.package_slug),
+      completedAt: o.completed_at ?? undefined,
+      companyName: latestIntake?.data?.companyName ?? undefined,
+      usdot: latestIntake?.data?.usdot ?? undefined,
+      stripePaymentId: o.stripe_payment_id ?? undefined,
     };
   });
   return NextResponse.json({ ok: true, configured: true, orders });

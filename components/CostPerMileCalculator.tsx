@@ -227,7 +227,7 @@ function Field({
         <input
           id={def.key}
           type="number"
-          className="w-full rounded-[12px] border-[1.5px] border-[#ccd6e4] bg-white px-[18px] py-[14px] text-[17px] font-semibold text-[#0a1a36] outline-none focus:border-[#1755a8]"
+          className="w-full rounded-none border-[1.5px] border-[#ccd6e4] bg-white px-[18px] py-[14px] text-[17px] font-semibold text-[#0a1a36] outline-none focus:border-[#1755a8]"
           style={def.unit ? { paddingRight: 64 } : undefined}
           value={value}
           min={def.min ?? 0}
@@ -263,8 +263,8 @@ function Metric({
     <div
       className={
         featured
-          ? "rounded-[14px] border-[3px] border-[#ffc61a] bg-white p-4 text-[#0a1a36]"
-          : "rounded-[14px] border border-white/15 bg-white/[0.08] p-4"
+          ? "rounded-none border-[3px] border-[#ffc61a] bg-white p-4 text-[#0a1a36]"
+          : "rounded-none border border-white/15 bg-white/[0.08] p-4"
       }
     >
       <span
@@ -322,7 +322,7 @@ function StepProgress({
                 {n}&nbsp;&nbsp;{name}
               </div>
               <div
-                className="h-[4px] rounded-full"
+                className="h-[4px] rounded-none"
                 style={{ background: filled ? NAVY : "#dde4ee" }}
               />
             </div>
@@ -387,7 +387,7 @@ function EmailResultsPanel({
 
   return (
     <div
-      className="mt-[26px] rounded-[20px] p-[28px] text-white"
+      className="mt-[26px] rounded-none p-[28px] text-white"
       style={{ background: NAVY }}
     >
       <h4
@@ -414,12 +414,12 @@ function EmailResultsPanel({
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
                 aria-label="Your email"
-                className="min-w-[220px] flex-1 rounded-full border border-white/25 bg-white/[0.08] px-4 py-3 text-[15px] text-white outline-none placeholder:text-[#8fa3c4] focus:border-[#ffc61a]"
+                className="min-w-[220px] flex-1 rounded-none border border-white/25 bg-white/[0.08] px-4 py-3 text-[15px] text-white outline-none placeholder:text-[#8fa3c4] focus:border-[#ffc61a]"
               />
               <button
                 type="submit"
                 disabled={sending}
-                className="rounded-full px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] disabled:opacity-60"
+                className="rounded-none px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] disabled:opacity-60"
                 style={{
                   background: YELLOW,
                   boxShadow: "0 8px 24px rgba(255,198,26,0.35)",
@@ -648,7 +648,7 @@ export default function CostPerMileCalculator() {
   };
 
   const togglePill = (active: boolean) =>
-    `inline-flex cursor-pointer items-center gap-2 rounded-full px-4 py-2.5 text-[13.5px] font-semibold transition ${
+    `inline-flex cursor-pointer items-center gap-2 rounded-none px-4 py-2.5 text-[13.5px] font-semibold transition ${
       active
         ? "bg-[#e8effa] text-[#0a1a36] ring-[1.5px] ring-[#1755a8]"
         : "bg-[#f0f3f7] text-[#16233c] hover:bg-[#e3e8f0]"
@@ -658,7 +658,7 @@ export default function CostPerMileCalculator() {
     <div className="w-full">
       {/* Hero */}
       <section
-        className="rounded-[20px] px-6 py-12 text-white sm:px-10 sm:py-14"
+        className="rounded-none px-6 py-12 text-white sm:px-10 sm:py-14"
         style={{
           background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 88%)`,
         }}
@@ -666,7 +666,7 @@ export default function CostPerMileCalculator() {
         <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-14">
           <div>
             <span
-              className="inline-flex items-center gap-2 rounded-full px-3 py-[7px] text-[12.5px] font-semibold text-white"
+              className="inline-flex items-center gap-2 rounded-none px-3 py-[7px] text-[12.5px] font-semibold text-white"
               style={{
                 background: "rgba(255,255,255,0.09)",
                 border: "1px solid rgba(255,255,255,0.16)",
@@ -674,7 +674,7 @@ export default function CostPerMileCalculator() {
               }}
             >
               <span
-                className="h-[7px] w-[7px] shrink-0 rounded-full"
+                className="h-[7px] w-[7px] shrink-0 rounded-none"
                 style={{
                   background: YELLOW,
                   boxShadow: "0 0 0 5px rgba(255,198,26,0.18)",
@@ -718,7 +718,7 @@ export default function CostPerMileCalculator() {
 
           {/* Live preview card */}
           <div
-            className="rounded-[20px] p-7 sm:p-8"
+            className="rounded-none p-7 sm:p-8"
             style={{
               background: "rgba(255,255,255,0.055)",
               border: "1px solid rgba(255,255,255,0.16)",
@@ -750,7 +750,7 @@ export default function CostPerMileCalculator() {
               </div>
             </div>
             <div
-              className="mt-6 flex h-[13px] overflow-hidden rounded-full"
+              className="mt-6 flex h-[13px] overflow-hidden rounded-none"
               style={{ background: "rgba(255,255,255,0.12)" }}
             >
               {SEGMENTS.map((s, i) => (
@@ -768,7 +768,7 @@ export default function CostPerMileCalculator() {
               {SEGMENTS.map((s, i) => (
                 <div key={s.label} className="flex items-center gap-[9px] text-[13.5px] text-[#dbe4f2]">
                   <span
-                    className="h-[10px] w-[10px] shrink-0 rounded-[3px]"
+                    className="h-[10px] w-[10px] shrink-0 rounded-none"
                     style={{ background: s.color }}
                   />
                   {s.label}
@@ -810,7 +810,7 @@ export default function CostPerMileCalculator() {
           <>
             {/* Results */}
             <section
-              className="mt-[26px] rounded-[20px] p-6 text-white sm:p-7"
+              className="mt-[26px] rounded-none p-6 text-white sm:p-7"
               style={{
                 background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 88%)`,
               }}
@@ -852,7 +852,7 @@ export default function CostPerMileCalculator() {
               {results.warning ? (
                 <div
                   role="alert"
-                  className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-[13.5px] font-medium text-amber-900"
+                  className="mt-4 rounded-none border border-amber-300 bg-amber-50 p-3.5 text-[13.5px] font-medium text-amber-900"
                 >
                   {results.warning}
                 </div>
@@ -870,7 +870,7 @@ export default function CostPerMileCalculator() {
               <button
                 type="button"
                 onClick={backToCalculator}
-                className="rounded-full border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
+                className="rounded-none border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
               >
                 Back to the calculator
               </button>
@@ -885,7 +885,7 @@ export default function CostPerMileCalculator() {
 
             {/* How to Interpret Your Results */}
             <section
-              className="mt-[26px] rounded-[20px] border bg-white p-6 text-[15px] leading-relaxed text-[#16233c] sm:p-7"
+              className="mt-[26px] rounded-none border bg-white p-6 text-[15px] leading-relaxed text-[#16233c] sm:p-7"
               style={{ borderColor: LINE }}
             >
               <p
@@ -925,7 +925,7 @@ export default function CostPerMileCalculator() {
           <>
             {/* Step card */}
             <div
-              className="mt-[26px] rounded-[20px] border bg-white px-6 py-8 sm:px-10 sm:py-[38px]"
+              className="mt-[26px] rounded-none border bg-white px-6 py-8 sm:px-10 sm:py-[38px]"
               style={{
                 borderColor: LINE,
                 boxShadow: "0 14px 34px rgba(10,26,54,0.06)",
@@ -1057,7 +1057,7 @@ export default function CostPerMileCalculator() {
                 <button
                   type="button"
                   onClick={() => (step < 6 ? setStep(step + 1) : seeResults())}
-                  className="rounded-[12px] px-[34px] py-[15px] text-[15px] font-bold text-[#0a1a36]"
+                  className="rounded-none px-[34px] py-[15px] text-[15px] font-bold text-[#0a1a36]"
                   style={{
                     background: YELLOW,
                     boxShadow: "0 10px 22px rgba(255,198,26,0.3)",
@@ -1070,7 +1070,7 @@ export default function CostPerMileCalculator() {
 
             {/* Live summary chip */}
             <div
-              className="mt-[18px] flex flex-wrap items-center justify-between gap-3 rounded-[14px] px-[22px] py-[15px] text-white"
+              className="mt-[18px] flex flex-wrap items-center justify-between gap-3 rounded-none px-[22px] py-[15px] text-white"
               style={{ background: NAVY }}
               aria-live="polite"
             >
@@ -1100,7 +1100,7 @@ export default function CostPerMileCalculator() {
                   className="flex items-center gap-[9px] text-[13.5px] font-semibold text-[#5b6b84]"
                 >
                   <span
-                    className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold"
+                    className="flex h-[19px] w-[19px] shrink-0 items-center justify-center rounded-none text-[11px] font-extrabold"
                     style={{ background: "#e7eefb", color: BLUE }}
                   >
                     ✓

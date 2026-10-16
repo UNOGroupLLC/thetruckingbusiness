@@ -16,8 +16,10 @@ import { getPackage } from '@/lib/packages';
  * call booking, and the activity trail. ADMIN_KEY required (same lock as
  * GET /api/orders).
  *
- * PATCH: { priority?: boolean, assignee?: string } — workflow fields.
- * Every change is written to the activity trail (order_events).
+ * PATCH: { priority?: boolean, assignee?: string, completed_at?: string | null }
+ * — workflow fields. Setting completed_at completes the order (it moves
+ * to Finished); setting it to null reopens it. Every change is written to
+ * the activity trail (order_events).
  */
 
 function unauthorized(req: NextRequest): NextResponse | null {
@@ -42,6 +44,8 @@ interface OrderRow {
   assignee: string | null;
   pay_status: string | null;
   refunded_cents: number | null;
+  /** Migration-010 column; absent until that migration has run. */
+  completed_at?: string | null;
   created_at: string;
 }
 
@@ -177,6 +181,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         ? { date: bookingRes.rows[0].date, time: bookingRes.rows[0].time }
         : undefined,
       documentCount: docsRes.rows.length,
+      completedAt: o.completed_at ?? undefined,
     },
     intake: intake
       ? {
@@ -216,6 +221,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       action: 'assigned',
       detail: body.assignee ? `Assigned to ${body.assignee}` : 'Unassigned',
     });
+  }
+  if (body && 'completed_at' in body) {
+    if (typeof body.completed_at === 'string' && body.completed_at) {
+      patch.completed_at = body.completed_at;
+      events.push({ action: 'order_completed' });
+    } else if (body.completed_at === null) {
+      patch.completed_at = null;
+      events.push({ action: 'order_reopened' });
+    }
   }
   if (Object.keys(patch).length === 1) {
     return NextResponse.json({ ok: false, error: 'Nothing to update.' }, { status: 400 });

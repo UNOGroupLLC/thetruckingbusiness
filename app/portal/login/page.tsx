@@ -88,7 +88,7 @@ export default function PortalLoginPage() {
   }
 
   return (
-    <div className="bg-mist py-16">
+    <div className="sharp bg-mist py-16">
       <div className="mx-auto max-w-md px-4">
         <div className="card">
           <p className="eyebrow">Client portal</p>

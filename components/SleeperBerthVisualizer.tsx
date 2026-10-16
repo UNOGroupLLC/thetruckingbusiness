@@ -85,7 +85,7 @@ export default function SleeperBerthVisualizer() {
             onClick={() => setActive(s)}
             style={{
               border: '2px solid #0a1a36',
-              borderRadius: 999,
+              borderRadius: 0,
               padding: '8px 18px',
               fontSize: 13.5,
               fontWeight: 800,
@@ -103,7 +103,7 @@ export default function SleeperBerthVisualizer() {
                   fontWeight: 700,
                   background: active.id === s.id ? '#ffc61a' : '#f0f3f7',
                   color: '#0a1a36',
-                  borderRadius: 999,
+                  borderRadius: 0,
                   padding: '2px 8px',
                 }}
               >
@@ -118,7 +118,7 @@ export default function SleeperBerthVisualizer() {
       <div
         style={{
           display: 'flex',
-          borderRadius: 12,
+          borderRadius: 0,
           overflow: 'hidden',
           border: '1px solid #dde3ec',
           minHeight: 84,
@@ -160,14 +160,14 @@ export default function SleeperBerthVisualizer() {
       <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', marginTop: 12, fontSize: 12.5 }}>
         {Object.entries(KIND_STYLE).map(([k, st]) => (
           <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 14, height: 14, borderRadius: 4, background: st.bg, display: 'inline-block' }} />
+            <span style={{ width: 14, height: 14, borderRadius: 0, background: st.bg, display: 'inline-block' }} />
             {st.name}
           </span>
         ))}
       </div>
 
       {/* Explanation */}
-      <div style={{ marginTop: 18, background: '#f6f7f9', borderRadius: 12, padding: '18px 20px' }}>
+      <div style={{ marginTop: 18, background: '#f6f7f9', borderRadius: 0, padding: '18px 20px' }}>
         <h3 style={{ margin: '0 0 10px', color: '#0a1a36', fontSize: 15, fontWeight: 800 }}>
           What just happened
         </h3>
@@ -180,7 +180,7 @@ export default function SleeperBerthVisualizer() {
       </div>
 
       {/* Rules */}
-      <div style={{ marginTop: 14, border: '1px dashed #9fb3c8', borderRadius: 12, padding: '16px 20px' }}>
+      <div style={{ marginTop: 14, border: '1px dashed #9fb3c8', borderRadius: 0, padding: '16px 20px' }}>
         <h3 style={{ margin: '0 0 8px', color: '#0a1a36', fontSize: 15, fontWeight: 800 }}>
           The split-sleeper rules (49 CFR 395.1(g))
         </h3>

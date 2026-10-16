@@ -109,6 +109,48 @@ function ageLong(iso: string): string {
   return `${days} day${days === 1 ? '' : 's'}`;
 }
 
+/** What the team does next with an order, by stage (orders table). */
+const NEXT_STEP: Record<Stage, string> = {
+  pending: 'Waiting on client intake',
+  'intake-in': 'Review intake and documents',
+  ready: 'File now',
+  filing: 'Waiting on the agency',
+  refunded: 'Refunded',
+};
+
+/** The company to show for an order: the intake company name when the
+ *  record carries one, else the buyer who paid. */
+function companyOf(o: OrderRecord): string {
+  return o.companyName || o.intake?.companyName || o.buyerName;
+}
+
+function orderMatches(o: OrderRecord, q: string): boolean {
+  return [o.id, o.buyerName, o.buyerEmail, o.packageName, companyOf(o), o.usdot ?? '']
+    .join(' ')
+    .toLowerCase()
+    .includes(q);
+}
+
+/** Download one order's sealed case file (ZIP when the server can build
+ *  it, the summary HTML when it cannot) via the admin-only route. */
+async function downloadCaseFile(id: string): Promise<void> {
+  try {
+    const res = await adminFetch(`/api/orders/${encodeURIComponent(id)}/case-file`);
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (res.headers.get('Content-Type') ?? '').includes('zip')
+      ? `${id}-case-file.zip`
+      : `${id}-case-file.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
+    /* download unavailable; the order detail still shows everything */
+  }
+}
+
 function initials(name: string): string {
   return name
     .split(' ')
@@ -139,6 +181,8 @@ const EVENT_LABEL: Record<string, string> = {
   document_accepted: 'Client document accepted',
   document_new_copy_requested: 'Clearer copy requested',
   filing_started: 'Filing started',
+  order_completed: 'Order completed',
+  order_reopened: 'Order reopened',
   assigned: 'Assigned',
   priority_on: 'Marked priority',
   priority_off: 'Priority removed',
@@ -467,7 +511,7 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
           const doc = slotDocs[slotDocs.length - 1];
           const inputId = `doc-${order.id}-${s.key}`;
           return (
-            <li key={s.key} className="flex items-center justify-between gap-3 rounded-lg bg-[#f6f7f9] px-3 py-2.5">
+            <li key={s.key} className="flex items-center justify-between gap-3 rounded-none bg-[#f6f7f9] px-3 py-2.5">
               <div>
                 <p className={`font-semibold ${T_BODY}`} style={{ color: NAVY }}>{s.label}</p>
                 {doc ? (
@@ -494,7 +538,7 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
                 )}
                 <label
                   htmlFor={inputId}
-                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-bold text-white ${
+                  className={`rounded-none px-3 py-1.5 text-[12.5px] font-bold text-white ${
                     isDb ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
                   }`}
                   style={{ background: NAVY }}
@@ -537,37 +581,37 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
 
 /* ------------------------------ orders queue ----------------------------- */
 
-type ViewKey = 'myqueue' | 'all' | 'needs' | 'pending' | 'ready' | 'filing' | 'refunded';
+/** The work piles the queue is organized by. The three buckets are the
+ *  primary filter; 'all', 'myqueue', and 'refunded' stay reachable as
+ *  small text actions at the list header. */
+type QueueFilter = 'needs' | 'clients' | 'filing' | 'all' | 'myqueue' | 'refunded';
 
-const VIEWS: { key: ViewKey; label: string }[] = [
-  { key: 'myqueue', label: 'My queue' },
-  { key: 'all', label: 'All orders' },
-  { key: 'needs', label: 'Needs action' },
-  { key: 'pending', label: 'Intake pending' },
-  { key: 'ready', label: 'Ready to file' },
-  { key: 'filing', label: 'Filing' },
-  { key: 'refunded', label: 'Refunded' },
-];
-
-function inView(o: OrderRecord, view: ViewKey): boolean {
+function inQueue(o: OrderRecord, queue: QueueFilter): boolean {
   const stage = stageOf(o);
-  switch (view) {
-    case 'myqueue':
-      return o.assignee === OWNER && stage !== 'refunded';
-    case 'all':
-      return true;
+  switch (queue) {
     case 'needs':
-      return stage !== 'filing' && stage !== 'refunded' && (!o.assignee || !!o.priority || stage === 'pending');
-    case 'pending':
-      return stage === 'pending';
-    case 'ready':
       return stage === 'intake-in' || stage === 'ready';
+    case 'clients':
+      return stage === 'pending';
     case 'filing':
       return stage === 'filing';
+    case 'all':
+      return true;
+    case 'myqueue':
+      return o.assignee === OWNER && stage !== 'refunded';
     case 'refunded':
       return stage === 'refunded';
   }
 }
+
+const QUEUE_TITLE: Record<QueueFilter, string> = {
+  needs: 'Needs the team',
+  clients: 'Waiting on clients',
+  filing: 'In filing',
+  all: 'All open orders',
+  myqueue: 'My queue',
+  refunded: 'Refunded',
+};
 
 const PAGE_SIZE = 25;
 
@@ -582,7 +626,7 @@ function OrdersSection({
   onOpen: (id: string) => void;
   onRefresh: () => void;
 }) {
-  const [view, setView] = useState<ViewKey>('needs');
+  const [queue, setQueue] = useState<QueueFilter>('needs');
   const [mode, setMode] = useState<'table' | 'board'>('table');
   const [sort, setSort] = useState<'newest' | 'oldest' | 'amount-desc' | 'amount-asc' | 'waiting'>('newest');
   const [page, setPage] = useState(0);
@@ -591,26 +635,38 @@ function OrdersSection({
 
   useEffect(() => {
     setPage(0);
-  }, [view, search, sort]);
+  }, [queue, search, sort]);
 
   const counts = useMemo(() => {
-    const c: Record<ViewKey, number> = {
-      myqueue: 0, all: 0, needs: 0, pending: 0, ready: 0, filing: 0, refunded: 0,
+    const c: Record<QueueFilter, number> = {
+      needs: 0, clients: 0, filing: 0, all: 0, myqueue: 0, refunded: 0,
     };
-    for (const o of orders) for (const v of VIEWS) if (inView(o, v.key)) c[v.key] += 1;
+    for (const o of orders) {
+      if (inQueue(o, 'needs')) c.needs += 1;
+      if (inQueue(o, 'clients')) c.clients += 1;
+      if (inQueue(o, 'filing')) c.filing += 1;
+      if (inQueue(o, 'myqueue')) c.myqueue += 1;
+      if (inQueue(o, 'refunded')) c.refunded += 1;
+    }
+    c.all = orders.length;
     return c;
+  }, [orders]);
+
+  /** The order that has been waiting on a client the longest, for the
+   *  "Waiting on clients" bucket sub-line. */
+  const longestPending = useMemo(() => {
+    const pending = orders.filter((o) => stageOf(o) === 'pending');
+    return pending.reduce<OrderRecord | null>(
+      (acc, o) => (!acc || +new Date(o.createdAt) < +new Date(acc.createdAt) ? o : acc),
+      null
+    );
   }, [orders]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let list = orders.filter((o) => inView(o, view));
+    let list = orders.filter((o) => inQueue(o, queue));
     if (q) {
-      list = list.filter((o) =>
-        [o.id, o.buyerName, o.buyerEmail, o.packageName]
-          .join(' ')
-          .toLowerCase()
-          .includes(q)
-      );
+      list = list.filter((o) => orderMatches(o, q));
     }
     const sorted = [...list];
     switch (sort) {
@@ -631,27 +687,10 @@ function OrdersSection({
     // Priority always floats to the top.
     sorted.sort((a, b) => Number(b.priority ?? false) - Number(a.priority ?? false));
     return sorted;
-  }, [orders, view, search, sort]);
+  }, [orders, queue, search, sort]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
-
-  const stats = useMemo(() => {
-    const needs = counts.needs;
-    const active = orders.filter((o) => {
-      const s = stageOf(o);
-      return s !== 'filing' && s !== 'refunded';
-    });
-    const longest = active.reduce<OrderRecord | null>(
-      (acc, o) => (!acc || +new Date(o.createdAt) < +new Date(acc.createdAt) ? o : acc),
-      null
-    );
-    const weekAgo = Date.now() - 7 * 24 * 3600 * 1000;
-    const filingsWeek = orders.filter(
-      (o) => o.filingStartedAt && +new Date(o.filingStartedAt) > weekAgo
-    ).length;
-    return { needs, longest, filingsWeek };
-  }, [orders, counts]);
 
   function toggleSelect(id: string) {
     setSelected((prev) => {
@@ -712,49 +751,94 @@ function OrdersSection({
 
   const boardStages: Stage[] = ['pending', 'intake-in', 'ready', 'filing', 'refunded'];
 
+  const buckets: {
+    key: QueueFilter;
+    dot: string;
+    title: string;
+    count: number;
+    sub: string;
+  }[] = [
+    {
+      key: 'needs',
+      dot: '#dc2626',
+      title: 'Needs the team',
+      count: counts.needs,
+      sub: 'Waiting on us, not on anyone else. Work this pile first.',
+    },
+    {
+      key: 'clients',
+      dot: '#d97706',
+      title: 'Waiting on clients',
+      count: counts.clients,
+      sub: `Intakes and documents we cannot move without the client.${
+        longestPending ? ` Longest waiting: ${ageLong(longestPending.createdAt)}.` : ''
+      }`,
+    },
+    {
+      key: 'filing',
+      dot: '#0284c7',
+      title: 'In filing',
+      count: counts.filing,
+      sub: 'With the agencies. Nothing to do but watch for the result.',
+    },
+  ];
+
   return (
     <div>
-      {/* Today strip */}
+      {/* The three work piles. Clicking one filters the list below. */}
       <div className="grid gap-3 sm:grid-cols-3">
-        {[
-          { label: 'Needs action', value: String(stats.needs), sub: 'orders waiting on the team' },
-          {
-            label: 'Longest waiting',
-            value: stats.longest ? ageLong(stats.longest.createdAt) : 'None',
-            sub: stats.longest ? stats.longest.id : 'nothing is waiting',
-          },
-          { label: 'Filings started this week', value: String(stats.filingsWeek), sub: 'in the last 7 days' },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-[#dde3ec] bg-white px-4 py-3 shadow-sm">
-            <p className={T_LABEL} style={{ color: MUTED }}>{s.label}</p>
-            <p className={`${T_TITLE} mt-1`} style={{ color: NAVY }}>{s.value}</p>
-            <p className={T_SMALL} style={{ color: MUTED }}>{s.sub}</p>
-          </div>
+        {buckets.map((b) => (
+          <button
+            key={b.key}
+            onClick={() => setQueue(b.key)}
+            aria-pressed={queue === b.key}
+            className="border bg-white px-4 py-3 text-left shadow-sm"
+            style={
+              queue === b.key
+                ? { borderColor: NAVY, boxShadow: `0 0 0 1px ${NAVY}` }
+                : { borderColor: '#dde3ec' }
+            }
+          >
+            <p className={`${T_SMALL} font-bold`} style={{ color: MUTED }}>
+              <span className="mr-1.5 inline-block h-2 w-2 align-middle" style={{ background: b.dot }} />
+              {b.title}
+            </p>
+            <p className={`${T_TITLE} mt-1`} style={{ color: NAVY }}>{b.count}</p>
+            <p className={T_SMALL} style={{ color: MUTED }}>{b.sub}</p>
+          </button>
         ))}
       </div>
 
       {/* Index card */}
-      <div className="mt-4 overflow-hidden rounded-xl border border-[#dde3ec] bg-white shadow-sm">
+      <div className="mt-4 overflow-hidden rounded-none border border-[#dde3ec] bg-white shadow-sm">
         <div className="flex flex-wrap items-center gap-2 border-b border-[#dde3ec] px-4 py-3">
-          <div className="flex flex-wrap gap-1">
-            {VIEWS.map((v) => (
-              <button
-                key={v.key}
-                onClick={() => setView(v.key)}
-                className={`${T_SMALL} rounded-full px-3 py-1.5 font-bold`}
-                style={
-                  view === v.key
-                    ? { background: NAVY, color: '#fff' }
-                    : { background: '#eef1f6', color: MUTED }
-                }
-              >
-                {v.label} · {counts[v.key]}
-              </button>
-            ))}
-          </div>
+          <p className={`${T_BODY} font-extrabold`} style={{ color: NAVY }}>
+            {QUEUE_TITLE[queue]} · {filtered.length} order{filtered.length === 1 ? '' : 's'}
+          </p>
+          <button
+            onClick={() => setQueue('all')}
+            className={`${T_SMALL} font-bold underline-offset-2 hover:underline`}
+            style={{ color: queue === 'all' ? NAVY : MUTED }}
+          >
+            Show all open orders ({counts.all})
+          </button>
+          <button
+            onClick={() => setQueue('myqueue')}
+            className={`${T_SMALL} font-bold underline-offset-2 hover:underline`}
+            style={{ color: queue === 'myqueue' ? NAVY : MUTED }}
+          >
+            My queue
+          </button>
+          <button
+            onClick={() => setQueue('refunded')}
+            className={`${T_SMALL} font-bold underline-offset-2 hover:underline`}
+            style={{ color: queue === 'refunded' ? NAVY : MUTED }}
+          >
+            Refunded
+          </button>
           <div className="ml-auto flex items-center gap-2">
             <select
-              className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-2 py-1.5 font-semibold`}
+              className={`${T_SMALL} rounded-none border border-[#dde3ec] px-2 py-1.5 font-semibold`}
               value={sort}
               onChange={(e) => setSort(e.target.value as typeof sort)}
               aria-label="Sort orders"
@@ -765,7 +849,7 @@ function OrdersSection({
               <option value="amount-desc">Amount, high to low</option>
               <option value="amount-asc">Amount, low to high</option>
             </select>
-            <div className="flex overflow-hidden rounded-lg border border-[#dde3ec]">
+            <div className="flex overflow-hidden rounded-none border border-[#dde3ec]">
               {(['table', 'board'] as const).map((m) => (
                 <button
                   key={m}
@@ -783,7 +867,7 @@ function OrdersSection({
             </div>
             <button
               onClick={onRefresh}
-              className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-3 py-1.5 font-bold`}
+              className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold`}
               style={{ color: NAVY }}
             >
               Refresh
@@ -844,13 +928,11 @@ function OrdersSection({
                         }}
                       />
                     </th>
-                    <th className={`px-2 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>★</th>
                     <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Order</th>
-                    <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Customer</th>
-                    <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Payment</th>
+                    <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Order details</th>
                     <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Status</th>
-                    <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Waiting</th>
-                    <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Assigned</th>
+                    <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Priority</th>
+                    <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Next step</th>
                     <th className={`px-3 py-2.5 text-right ${T_LABEL}`} style={{ color: MUTED }}>Amount</th>
                   </tr>
                 </thead>
@@ -858,8 +940,6 @@ function OrdersSection({
                   {pageRows.map((o) => {
                     const stage = stageOf(o);
                     const pay = payPill(o);
-                    const waiting = ageLabel(o.createdAt);
-                    const hot = stage !== 'filing' && stage !== 'refunded' && Date.now() - +new Date(o.createdAt) > 48 * 3600 * 1000;
                     return (
                       <tr
                         key={o.id}
@@ -875,62 +955,72 @@ function OrdersSection({
                             onChange={() => toggleSelect(o.id)}
                           />
                         </td>
-                        <td className="px-2 py-3">
-                          <button
-                            aria-label={o.priority ? 'Remove priority' : 'Mark priority'}
-                            className="text-[15px]"
-                            style={{ color: o.priority ? '#e6a700' : '#c3ccd9' }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (o.source === 'database') {
-                                adminFetch(`/api/orders/${encodeURIComponent(o.id)}`, {
-                                  method: 'PATCH',
-                                  body: JSON.stringify({ priority: !o.priority }),
-                                }).then(onRefresh).catch(() => {});
-                              }
-                            }}
-                          >
-                            ★
-                          </button>
-                        </td>
                         <td className="px-3 py-3">
                           <p className={`${T_BODY} font-bold`} style={{ color: NAVY }}>{o.id}</p>
-                          <p className={T_SMALL} style={{ color: MUTED }}>{o.packageName}</p>
+                        </td>
+                        <td className="px-3 py-3">
+                          <p className={`${T_BODY} font-semibold`} style={{ color: NAVY }}>{o.packageName}</p>
+                          <p className={T_SMALL} style={{ color: MUTED }}>
+                            {companyOf(o)}{o.usdot ? ` · USDOT ${o.usdot}` : ''}
+                          </p>
+                          <p className={T_SMALL} style={{ color: MUTED }}>
+                            Ordered {formatDate(o.createdAt)}
+                            {stage === 'pending' ? ` · waiting ${ageLong(o.createdAt)}` : ''}
+                          </p>
                           {o.clientDocs && o.clientDocs.accepted < o.clientDocs.total && (
-                            <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-800">
+                            <span className="mt-1 inline-block rounded-none bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-800">
                               Waiting on client: {o.clientDocs.accepted} of {o.clientDocs.total} accepted
                             </span>
                           )}
                         </td>
                         <td className="px-3 py-3">
-                          <p className={`${T_BODY} font-semibold`} style={{ color: NAVY }}>{o.buyerName}</p>
-                          <p className={T_SMALL} style={{ color: MUTED }}>{o.buyerEmail}</p>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${pay.cls}`}>{pay.label}</span>
-                        </td>
-                        <td className="px-3 py-3">
-                          <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${stagePill(stage)}`}>
-                            {STAGE_LABEL[stage]}
+                          <span className="flex flex-col items-start gap-1">
+                            <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${stagePill(stage)}`}>
+                              {STAGE_LABEL[stage]}
+                            </span>
+                            <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${pay.cls}`}>{pay.label}</span>
                           </span>
                         </td>
-                        <td className={`px-3 py-3 ${T_SMALL} font-bold`} style={{ color: hot ? '#b45309' : MUTED }}>
-                          {stage === 'filing' || stage === 'refunded' ? '·' : waiting}
-                        </td>
                         <td className="px-3 py-3">
-                          {o.assignee ? (
-                            <span className="flex items-center gap-2">
-                              <span
-                                className="flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-extrabold text-white"
-                                style={{ background: NAVY }}
-                              >
-                                {initials(o.assignee)}
-                              </span>
-                              <span className={T_SMALL} style={{ color: MUTED }}>{o.assignee}</span>
-                            </span>
+                          {o.priority ? (
+                            <button
+                              aria-label="Remove priority"
+                              title="Remove priority"
+                              className="rounded-none bg-amber-100 px-2.5 py-1 text-[11px] font-extrabold text-amber-800"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (o.source === 'database') {
+                                  adminFetch(`/api/orders/${encodeURIComponent(o.id)}`, {
+                                    method: 'PATCH',
+                                    body: JSON.stringify({ priority: false }),
+                                  }).then(onRefresh).catch(() => {});
+                                }
+                              }}
+                            >
+                              ★ High
+                            </button>
                           ) : (
-                            <span className={`${T_SMALL} font-bold text-amber-700`}>Unassigned</span>
+                            <button
+                              aria-label="Mark priority"
+                              title="Mark priority"
+                              className={`${T_SMALL} font-semibold`}
+                              style={{ color: MUTED }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (o.source === 'database') {
+                                  adminFetch(`/api/orders/${encodeURIComponent(o.id)}`, {
+                                    method: 'PATCH',
+                                    body: JSON.stringify({ priority: true }),
+                                  }).then(onRefresh).catch(() => {});
+                                }
+                              }}
+                            >
+                              Normal
+                            </button>
                           )}
+                        </td>
+                        <td className={`px-3 py-3 ${T_SMALL} font-semibold`} style={{ color: NAVY }}>
+                          {NEXT_STEP[stage]}
                         </td>
                         <td className={`px-3 py-3 text-right ${T_BODY} font-bold`} style={{ color: NAVY }}>
                           {formatUSD(o.amount)}
@@ -940,8 +1030,8 @@ function OrdersSection({
                   })}
                   {pageRows.length === 0 && (
                     <tr>
-                      <td colSpan={9} className={`px-4 py-10 text-center ${T_BODY}`} style={{ color: MUTED }}>
-                        No orders in this view.
+                      <td colSpan={7} className={`px-4 py-10 text-center ${T_BODY}`} style={{ color: MUTED }}>
+                        No orders in this pile.
                       </td>
                     </tr>
                   )}
@@ -956,7 +1046,7 @@ function OrdersSection({
                 <button
                   disabled={page === 0}
                   onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-3 py-1.5 font-bold disabled:opacity-40`}
+                  className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold disabled:opacity-40`}
                   style={{ color: NAVY }}
                 >
                   Previous
@@ -964,7 +1054,7 @@ function OrdersSection({
                 <button
                   disabled={page >= pageCount - 1}
                   onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                  className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-3 py-1.5 font-bold disabled:opacity-40`}
+                  className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold disabled:opacity-40`}
                   style={{ color: NAVY }}
                 >
                   Next
@@ -977,7 +1067,7 @@ function OrdersSection({
             {boardStages.map((stage) => {
               const cards = filtered.filter((o) => stageOf(o) === stage);
               return (
-                <div key={stage} className="rounded-xl bg-[#f6f7f9] p-2.5">
+                <div key={stage} className="rounded-none bg-[#f6f7f9] p-2.5">
                   <p className={`${T_LABEL} px-1 pb-2`} style={{ color: MUTED }}>
                     {STAGE_LABEL[stage]} · {cards.length}
                   </p>
@@ -986,7 +1076,7 @@ function OrdersSection({
                       <button
                         key={o.id}
                         onClick={() => onOpen(o.id)}
-                        className="block w-full rounded-lg border border-[#dde3ec] bg-white p-3 text-left shadow-sm"
+                        className="block w-full rounded-none border border-[#dde3ec] bg-white p-3 text-left shadow-sm"
                       >
                         <p className={`${T_SMALL} font-extrabold`} style={{ color: NAVY }}>
                           {o.priority ? '★ ' : ''}{o.id}
@@ -994,7 +1084,7 @@ function OrdersSection({
                         <p className={`${T_SMALL} font-semibold`} style={{ color: NAVY }}>{o.buyerName}</p>
                         <p className={T_SMALL} style={{ color: MUTED }}>{o.packageName}</p>
                         {o.clientDocs && o.clientDocs.accepted < o.clientDocs.total && (
-                          <span className="mt-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-800">
+                          <span className="mt-1 inline-block rounded-none bg-amber-100 px-2 py-0.5 text-[11px] font-extrabold text-amber-800">
                             Waiting on client: {o.clientDocs.accepted} of {o.clientDocs.total} accepted
                           </span>
                         )}
@@ -1130,7 +1220,7 @@ function ClientDocumentsSection({
                   return (
                     <li
                       key={d.id}
-                      className="rounded-lg bg-[#f6f7f9] px-3 py-2.5"
+                      className="rounded-none bg-[#f6f7f9] px-3 py-2.5"
                     >
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <span className={`${T_SMALL} font-semibold`} style={{ color: NAVY }}>
@@ -1142,7 +1232,7 @@ function ClientDocumentsSection({
                       </div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-2">
                         <span
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${chip.cls}`}
+                          className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${chip.cls}`}
                         >
                           {chip.label}
                         </span>
@@ -1169,7 +1259,7 @@ function ClientDocumentsSection({
                         )}
                         {d.status !== 'accepted' && (
                           <button
-                            className={`${T_SMALL} rounded-lg px-3 py-1.5 font-extrabold text-white disabled:opacity-50`}
+                            className={`${T_SMALL} rounded-none px-3 py-1.5 font-extrabold text-white disabled:opacity-50`}
                             style={{ background: '#1755a8' }}
                             disabled={busy}
                             onClick={() => review(d, 'accept')}
@@ -1178,7 +1268,7 @@ function ClientDocumentsSection({
                           </button>
                         )}
                         <button
-                          className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-3 py-1.5 font-bold disabled:opacity-50`}
+                          className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold disabled:opacity-50`}
                           style={{ color: NAVY }}
                           disabled={busy}
                           onClick={() =>
@@ -1284,6 +1374,7 @@ function OrderDetail({
   const live = detail?.order ?? order;
   const stage = stageOf(live);
   const pay = payPill(live);
+  const completed = Boolean(live.completedAt);
   const intakeData = detail?.intake?.data ?? live.intake ?? null;
   const certified =
     detail?.intake?.certified ??
@@ -1307,6 +1398,10 @@ function OrderDetail({
     { label: 'Certified final', at: certified?.date, done: live.intakeStatus === 'certified' || stage === 'filing' },
     { label: 'Filing started', at: live.filingStartedAt, done: stage === 'filing' },
   ];
+  // Progress line fill, same treatment as the client portal timeline: the
+  // line fills up to the furthest completed step.
+  const furthestDone = timeline.reduce((acc, t, i) => (t.done ? i : acc), 0);
+  const progressFillPct = (furthestDone / (timeline.length - 1)) * 100;
 
   async function patch(patchBody: Record<string, unknown>) {
     if (!isDb) return;
@@ -1356,6 +1451,20 @@ function OrderDetail({
     }
   }
 
+  async function handleMarkComplete() {
+    if (
+      !window.confirm(
+        `Mark order ${live.id} complete? It will leave the Orders queue and live in Finished.`
+      )
+    )
+      return;
+    await patch({ completed_at: new Date().toISOString() });
+  }
+
+  async function handleReopen() {
+    await patch({ completed_at: null });
+  }
+
   async function handleStartFiling() {
     if (!window.confirm(`Start filing for order ${live.id}? The intake will be fully locked.`)) return;
     startFiling(live.id);
@@ -1377,12 +1486,12 @@ function OrderDetail({
       </button>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <h2 className={T_TITLE} style={{ color: NAVY }}>{live.id}</h2>
-        <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${pay.cls}`}>{pay.label}</span>
-        <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${stagePill(stage)}`}>
+        <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${pay.cls}`}>{pay.label}</span>
+        <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${stagePill(stage)}`}>
           {STAGE_LABEL[stage]}
         </span>
         {live.priority && (
-          <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-extrabold text-amber-800">
+          <span className="rounded-none bg-amber-100 px-2.5 py-1 text-[11px] font-extrabold text-amber-800">
             ★ Priority
           </span>
         )}
@@ -1391,7 +1500,7 @@ function OrderDetail({
           (() => {
             const progress = clientDocProgress(detail.uploads, detail.requestedDocuments);
             return progress.accepted < progress.total ? (
-              <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-extrabold text-amber-800">
+              <span className="rounded-none bg-amber-100 px-2.5 py-1 text-[11px] font-extrabold text-amber-800">
                 Waiting on client: {progress.accepted} of {progress.total} accepted
               </span>
             ) : null;
@@ -1400,7 +1509,7 @@ function OrderDetail({
           <label className={`${T_LABEL} flex items-center gap-2`} style={{ color: MUTED }}>
             Assigned to
             <select
-              className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-2 py-1.5 font-bold normal-case tracking-normal`}
+              className={`${T_SMALL} rounded-none border border-[#dde3ec] px-2 py-1.5 font-bold normal-case tracking-normal`}
               style={{ color: NAVY }}
               value={live.assignee ?? ''}
               onChange={(e) => patch({ assignee: e.target.value })}
@@ -1411,7 +1520,7 @@ function OrderDetail({
           </label>
           <button
             onClick={() => patch({ priority: !live.priority })}
-            className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-3 py-1.5 font-bold`}
+            className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold`}
             style={{ color: NAVY }}
           >
             {live.priority ? 'Remove priority' : 'Mark priority'}
@@ -1419,10 +1528,19 @@ function OrderDetail({
           {canFile && (
             <button
               onClick={handleStartFiling}
-              className={`${T_SMALL} rounded-lg px-3 py-1.5 font-extrabold text-white`}
+              className={`${T_SMALL} rounded-none px-3 py-1.5 font-extrabold text-white`}
               style={{ background: '#1755a8' }}
             >
               Start filing, lock intake
+            </button>
+          )}
+          {isDb && !completed && (
+            <button
+              onClick={handleMarkComplete}
+              className={`${T_SMALL} rounded-none px-3 py-1.5 font-extrabold text-white`}
+              style={{ background: '#15803d' }}
+            >
+              Mark complete
             </button>
           )}
         </div>
@@ -1432,37 +1550,78 @@ function OrderDetail({
         {live.filingStartedAt ? ` · filing started ${formatDate(live.filingStartedAt)}` : ''}
       </p>
 
-      {/* Timeline */}
-      <div className="mt-4 rounded-xl border border-[#dde3ec] bg-white px-4 py-4 shadow-sm">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {timeline.map((t) => (
-            <div key={t.label} className="flex items-start gap-2.5">
-              <span
-                className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold"
-                style={
-                  t.done
-                    ? { background: NAVY, color: '#fff' }
-                    : { background: '#e6ebf2', color: MUTED }
-                }
-              >
-                {t.done ? '✓' : ''}
-              </span>
-              <div>
-                <p className={`${T_SMALL} font-extrabold`} style={{ color: t.done ? NAVY : MUTED }}>{t.label}</p>
+      {/* Timeline: same progress treatment as the client portal (track line
+          with a navy fill up to the furthest completed step). */}
+      <div className="mt-4 rounded-none border border-[#dde3ec] bg-white px-4 py-4 shadow-sm">
+        <div className="relative" role="list" aria-label="Order progress">
+          <div
+            aria-hidden
+            className="absolute left-[12.5%] right-[12.5%] top-[15px] h-[3px] rounded-none bg-[#e6ebf2]"
+          >
+            <div
+              className="h-full rounded-none"
+              style={{ width: `${progressFillPct}%`, background: NAVY }}
+            />
+          </div>
+          <div className="relative z-[1] grid grid-cols-4">
+            {timeline.map((t, i) => (
+              <div key={t.label} role="listitem" className="text-center">
+                <span
+                  className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-none text-[12.5px] font-extrabold"
+                  style={
+                    t.done
+                      ? { background: NAVY, color: '#fff' }
+                      : { background: '#e6ebf2', color: MUTED }
+                  }
+                >
+                  {t.done ? '✓' : i + 1}
+                </span>
+                <p className={`${T_SMALL} mt-[6px] font-extrabold`} style={{ color: t.done ? NAVY : MUTED }}>{t.label}</p>
                 <p className={T_SMALL} style={{ color: MUTED }}>{t.at ? timeLabel(t.at) : 'Waiting'}</p>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
+
+      {completed && (
+        <div className="mt-4 border p-4" style={{ borderColor: '#15803d', background: '#f0fdf4' }}>
+          <h3 className={T_CARD} style={{ color: '#166534' }}>
+            ✓ Completed {live.completedAt ? formatDate(live.completedAt) : ''}
+          </h3>
+          <p className={`${T_BODY} mt-1`} style={{ color: '#166534' }}>
+            Completed {live.completedAt ? formatDate(live.completedAt) : ''}. This order now
+            lives in Finished. Its case file holds the order, the payment record, the signed
+            intake, the documents, and the activity trail.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              onClick={() => downloadCaseFile(live.id)}
+              className={`${T_SMALL} border px-3 py-1.5 font-extrabold`}
+              style={{ borderColor: '#15803d', color: '#166534', background: '#fff' }}
+            >
+              Download case file
+            </button>
+            {isDb && (
+              <button
+                onClick={handleReopen}
+                className={`${T_SMALL} px-3 py-1.5 font-bold`}
+                style={{ color: '#166534' }}
+              >
+                Reopen this order
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4 grid items-start gap-4 xl:grid-cols-[1fr_320px]">
         <div className="space-y-4">
           {/* Intake answers + staff edit */}
-          <div className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+          <div className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
             <h3 className={T_CARD} style={{ color: NAVY }}>Filing information</h3>
             {certified?.name && (
-              <p className={`mt-2 rounded-lg bg-green-50 px-3 py-2 ${T_SMALL} font-semibold text-green-800`}>
+              <p className={`mt-2 rounded-none bg-green-50 px-3 py-2 ${T_SMALL} font-semibold text-green-800`}>
                 Certified final by {certified.name}
                 {certified.date ? ` on ${certified.date}` : ''}. Safe to file from these answers.
               </p>
@@ -1519,7 +1678,7 @@ function OrderDetail({
           </div>
 
           {/* Documents */}
-          <div className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+          <div className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
             <h3 className={T_CARD} style={{ color: NAVY }}>Documents</h3>
             <div className="mt-3">
               <OrderDocuments order={live} />
@@ -1551,7 +1710,7 @@ function OrderDetail({
           </div>
 
           {/* Team notes */}
-          <div className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+          <div className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
             <h3 className={T_CARD} style={{ color: NAVY }}>Team notes</h3>
             <p className={`${T_SMALL} mt-1`} style={{ color: MUTED }}>
               Internal only. Customers never see these.
@@ -1576,7 +1735,7 @@ function OrderDetail({
                   {events
                     .filter((e) => e.action === 'note')
                     .map((e) => (
-                      <li key={e.id ?? `${e.action}-${eventAt(e)}`} className="rounded-lg bg-[#f6f7f9] px-3 py-2.5">
+                      <li key={e.id ?? `${e.action}-${eventAt(e)}`} className="rounded-none bg-[#f6f7f9] px-3 py-2.5">
                         <p className={T_BODY} style={{ color: NAVY }}>{e.detail}</p>
                         <p className={T_SMALL} style={{ color: MUTED }}>
                           {e.actor} · {timeLabel(eventAt(e))}
@@ -1595,7 +1754,7 @@ function OrderDetail({
 
         <div className="space-y-4">
           {/* Customer */}
-          <div className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+          <div className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
             <h3 className={T_CARD} style={{ color: NAVY }}>Customer</h3>
             <p className={`${T_BODY} mt-2 font-bold`} style={{ color: NAVY }}>{live.buyerName}</p>
             <p className={T_SMALL} style={{ color: MUTED }}>{live.buyerEmail}</p>
@@ -1614,7 +1773,7 @@ function OrderDetail({
           </div>
 
           {/* Payment */}
-          <div className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+          <div className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
             <h3 className={T_CARD} style={{ color: NAVY }}>Payment</h3>
             <dl className={`mt-2 space-y-1.5 ${T_BODY}`}>
               <div className="flex justify-between">
@@ -1645,7 +1804,7 @@ function OrderDetail({
           </div>
 
           {/* Activity */}
-          <div className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+          <div className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
             <h3 className={T_CARD} style={{ color: NAVY }}>Activity</h3>
             {isDb ? (
               <ul className="mt-3 space-y-3">
@@ -1653,7 +1812,7 @@ function OrderDetail({
                   .filter((e) => e.action !== 'note')
                   .map((e) => (
                     <li key={e.id ?? `${e.action}-${eventAt(e)}`} className="flex gap-2.5">
-                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: '#1755a8' }} />
+                      <span className="mt-1.5 h-2 w-2 shrink-0 rounded-none" style={{ background: '#1755a8' }} />
                       <div>
                         <p className={`${T_SMALL} font-bold`} style={{ color: NAVY }}>
                           {EVENT_LABEL[e.action] ?? e.action}
@@ -1699,17 +1858,17 @@ function ReturnsSection({ orders, onOpen }: { orders: OrderRecord[]; onOpen: (id
         your refund stages, so nothing depends on memory.
       </p>
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border border-[#dde3ec] bg-white px-4 py-3 shadow-sm">
+        <div className="rounded-none border border-[#dde3ec] bg-white px-4 py-3 shadow-sm">
           <p className={T_LABEL} style={{ color: MUTED }}>Refunds and cancellations</p>
           <p className={`${T_TITLE} mt-1`} style={{ color: NAVY }}>{rows.length}</p>
           <p className={T_SMALL} style={{ color: MUTED }}>orders on record</p>
         </div>
-        <div className="rounded-xl border border-[#dde3ec] bg-white px-4 py-3 shadow-sm">
+        <div className="rounded-none border border-[#dde3ec] bg-white px-4 py-3 shadow-sm">
           <p className={T_LABEL} style={{ color: MUTED }}>Total refunded</p>
           <p className={`${T_TITLE} mt-1`} style={{ color: NAVY }}>{formatUSD(totalRefunded)}</p>
           <p className={T_SMALL} style={{ color: MUTED }}>recorded from Stripe</p>
         </div>
-        <div className="rounded-xl border border-[#dde3ec] bg-white px-4 py-3 shadow-sm">
+        <div className="rounded-none border border-[#dde3ec] bg-white px-4 py-3 shadow-sm">
           <p className={T_LABEL} style={{ color: MUTED }}>Policy</p>
           <p className={`${T_BODY} mt-1.5 font-semibold`} style={{ color: NAVY }}>
             Full refund before intake, half the service fee kept after intake, no refund once a
@@ -1717,7 +1876,7 @@ function ReturnsSection({ orders, onOpen }: { orders: OrderRecord[]; onOpen: (id
           </p>
         </div>
       </div>
-      <div className="mt-4 overflow-hidden rounded-xl border border-[#dde3ec] bg-white shadow-sm">
+      <div className="mt-4 overflow-hidden rounded-none border border-[#dde3ec] bg-white shadow-sm">
         {rows.length === 0 ? (
           <p className={`px-4 py-10 text-center ${T_BODY}`} style={{ color: MUTED }}>
             No refunds or cancellations yet. When you issue a refund in Stripe, it lands here
@@ -1748,7 +1907,7 @@ function ReturnsSection({ orders, onOpen }: { orders: OrderRecord[]; onOpen: (id
                         <p className={T_SMALL} style={{ color: MUTED }}>{o.packageName}</p>
                       </td>
                       <td className="px-3 py-3">
-                        <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${pay.cls}`}>{pay.label}</span>
+                        <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${pay.cls}`}>{pay.label}</span>
                       </td>
                       <td className={`px-3 py-3 ${T_SMALL} max-w-[260px]`} style={{ color: MUTED }}>{stageLabel}</td>
                       <td className={`px-3 py-3 text-right ${T_BODY} font-bold`} style={{ color: NAVY }}>{formatUSD(due)}</td>
@@ -1848,10 +2007,10 @@ function InquiriesSection({ onCount }: { onCount: (n: number) => void }) {
       )}
       <div className="mt-4 space-y-3">
         {items.map((i) => (
-          <div key={i.id} className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+          <div key={i.id} className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <p className={`${T_BODY} font-extrabold`} style={{ color: NAVY }}>{i.name}</p>
-              <span className={`rounded-full px-2.5 py-1 text-[11px] font-extrabold ${statusCls[i.status]}`}>
+              <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${statusCls[i.status]}`}>
                 {statusLabel[i.status]}
               </span>
               <span className={`${T_SMALL} font-semibold`} style={{ color: MUTED }}>{i.topic}</span>
@@ -1862,22 +2021,22 @@ function InquiriesSection({ onCount }: { onCount: (n: number) => void }) {
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <a
                 href={`mailto:${i.email}?subject=${encodeURIComponent('Re: ' + i.topic)}`}
-                className={`${T_SMALL} rounded-lg px-3 py-1.5 font-extrabold text-white`}
+                className={`${T_SMALL} rounded-none px-3 py-1.5 font-extrabold text-white`}
                 style={{ background: '#1755a8' }}
               >
                 Reply by email
               </a>
               {i.status === 'new' && (
-                <button className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-3 py-1.5 font-bold`} style={{ color: NAVY }} onClick={() => patch(i.id, { status: 'in_progress' })}>
+                <button className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold`} style={{ color: NAVY }} onClick={() => patch(i.id, { status: 'in_progress' })}>
                   Start working it
                 </button>
               )}
               {i.status !== 'done' ? (
-                <button className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-3 py-1.5 font-bold`} style={{ color: NAVY }} onClick={() => patch(i.id, { status: 'done' })}>
+                <button className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold`} style={{ color: NAVY }} onClick={() => patch(i.id, { status: 'done' })}>
                   Mark done
                 </button>
               ) : (
-                <button className={`${T_SMALL} rounded-lg border border-[#dde3ec] px-3 py-1.5 font-bold`} style={{ color: NAVY }} onClick={() => patch(i.id, { status: 'new' })}>
+                <button className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold`} style={{ color: NAVY }} onClick={() => patch(i.id, { status: 'new' })}>
                   Reopen
                 </button>
               )}
@@ -1944,7 +2103,7 @@ function TeamSection({ orders, openInquiries }: { orders: OrderRecord[]; openInq
         their role allows. Sections a role cannot use do not appear at all.
       </p>
 
-      <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+      <div className="mt-4 rounded-none border border-amber-200 bg-amber-50 px-4 py-3">
         <p className={`${T_BODY} font-extrabold text-amber-900`}>The money rule</p>
         <p className={`${T_SMALL} mt-1 text-amber-900`}>
           Money lives only in your Stripe login: bank details, payouts, keys, and refunds. No
@@ -1955,7 +2114,7 @@ function TeamSection({ orders, openInquiries }: { orders: OrderRecord[]; openInq
 
       <div className="mt-4 grid gap-3 lg:grid-cols-3">
         {roles.map((r) => (
-          <div key={r.name} className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+          <div key={r.name} className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
             <h3 className={T_CARD} style={{ color: NAVY }}>{r.name}</h3>
             <p className={`${T_LABEL} mt-3`} style={{ color: MUTED }}>Can do</p>
             <p className={`${T_SMALL} mt-1`} style={{ color: NAVY }}>{r.sees}</p>
@@ -1971,7 +2130,7 @@ function TeamSection({ orders, openInquiries }: { orders: OrderRecord[]; openInq
       </p>
 
       <div className="mt-6 grid items-start gap-4 xl:grid-cols-[320px_1fr]">
-        <div className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+        <div className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
           <h3 className={T_CARD} style={{ color: NAVY }}>Current load</h3>
           <table className="mt-3 w-full border-collapse">
             <thead>
@@ -1985,7 +2144,7 @@ function TeamSection({ orders, openInquiries }: { orders: OrderRecord[]; openInq
             <tbody>
               <tr className="border-t border-[#eef1f6]">
                 <td className={`py-2 ${T_BODY} font-bold`} style={{ color: NAVY }}>
-                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-extrabold text-white" style={{ background: NAVY }}>
+                  <span className="mr-2 inline-flex h-6 w-6 items-center justify-center rounded-none text-[11px] font-extrabold text-white" style={{ background: NAVY }}>
                     {initials(OWNER)}
                   </span>
                   Owner
@@ -2001,7 +2160,7 @@ function TeamSection({ orders, openInquiries }: { orders: OrderRecord[]; openInq
           </p>
         </div>
 
-        <div className="rounded-xl border border-[#dde3ec] bg-white p-4 shadow-sm">
+        <div className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
           <h3 className={T_CARD} style={{ color: NAVY }}>Work log</h3>
           <p className={`${T_SMALL} mt-1`} style={{ color: MUTED }}>
             Every action in the admin is stamped with who did it and when. This is the pay sheet
@@ -2039,7 +2198,342 @@ function TeamSection({ orders, openInquiries }: { orders: OrderRecord[]; openInq
 
 /* ------------------------------- admin shell ----------------------------- */
 
-type Section = 'orders' | 'returns' | 'inquiries' | 'packages' | 'copy' | 'team';
+/* ------------------------------ finished ------------------------------- */
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/** Statement CSV for a set of finished orders (month or year export):
+ *  one row per order plus the section total. */
+function statementCsv(rows: OrderRecord[], filename: string) {
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const head = 'Order,Package,Company,Amount,Payment reference,Finished date\n';
+  const body = rows
+    .map((o) =>
+      [
+        o.id,
+        o.packageName,
+        companyOf(o),
+        String(o.amount),
+        o.stripePaymentId ?? '',
+        (o.completedAt ?? '').slice(0, 10),
+      ]
+        .map((v) => esc(String(v)))
+        .join(',')
+    )
+    .join('\n');
+  const total = rows.reduce((s, o) => s + o.amount, 0);
+  const text = `${head}${body}\n${esc('Total')},,,${total},,`;
+  const url = URL.createObjectURL(new Blob([text], { type: 'text/csv' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function FinishedSection({
+  orders,
+  onOpen,
+  onRefresh,
+}: {
+  orders: OrderRecord[];
+  onOpen: (id: string) => void;
+  onRefresh: () => void;
+}) {
+  const sorted = useMemo(
+    () =>
+      [...orders].sort(
+        (a, b) => +new Date(b.completedAt ?? b.createdAt) - +new Date(a.completedAt ?? a.createdAt)
+      ),
+    [orders]
+  );
+  const recent = sorted.slice(0, 5);
+  const years = useMemo(
+    () =>
+      [...new Set(sorted.map((o) => new Date(o.completedAt ?? o.createdAt).getFullYear()))].sort(
+        (a, b) => b - a
+      ),
+    [sorted]
+  );
+  const [pickedYear, setPickedYear] = useState<number | null>(null);
+  const activeYear = pickedYear ?? years[0];
+  const yearOrders = useMemo(
+    () =>
+      sorted.filter((o) => new Date(o.completedAt ?? o.createdAt).getFullYear() === activeYear),
+    [sorted, activeYear]
+  );
+  const months = useMemo(() => {
+    const byMonth = new Map<number, OrderRecord[]>();
+    for (const o of yearOrders) {
+      const m = new Date(o.completedAt ?? o.createdAt).getMonth();
+      byMonth.set(m, [...(byMonth.get(m) ?? []), o]);
+    }
+    return [...byMonth.entries()]
+      .sort((a, b) => b[0] - a[0])
+      .map(([m, rows]) => ({ month: m, rows, total: rows.reduce((s, o) => s + o.amount, 0) }));
+  }, [yearOrders]);
+  const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    // Default: the newest month of the year you are looking at is open.
+    setOpenMonths(months.length ? new Set([`${activeYear}-${months[0].month}`]) : new Set());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeYear]);
+
+  async function reopen(o: OrderRecord) {
+    if (o.source !== 'database') return;
+    await adminFetch(`/api/orders/${encodeURIComponent(o.id)}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ completed_at: null }),
+    }).catch(() => null);
+    onRefresh();
+  }
+
+  function finishedRow(o: OrderRecord, withActions: boolean) {
+    return (
+      <tr
+        key={o.id}
+        className="cursor-pointer border-b border-[#eef1f6] hover:bg-[#f6f7f9]"
+        onClick={() => onOpen(o.id)}
+      >
+        <td className={`px-3 py-3 ${T_BODY} font-bold`} style={{ color: NAVY }}>{o.id}</td>
+        <td className="px-3 py-3">
+          <p className={`${T_BODY} font-semibold`} style={{ color: NAVY }}>{o.packageName}</p>
+          <p className={T_SMALL} style={{ color: MUTED }}>{o.buyerName}</p>
+        </td>
+        <td className={`px-3 py-3 ${T_BODY}`} style={{ color: NAVY }}>{companyOf(o)}</td>
+        <td className={`px-3 py-3 ${T_SMALL} font-semibold`} style={{ color: MUTED }}>
+          {o.completedAt ? formatDate(o.completedAt) : ''}
+        </td>
+        <td className={`px-3 py-3 text-right ${T_BODY} font-bold`} style={{ color: NAVY }}>
+          {formatUSD(o.amount)}
+        </td>
+        <td className="px-3 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+          <span className="flex flex-wrap justify-end gap-2">
+            <button
+              onClick={() => downloadCaseFile(o.id)}
+              className={`${T_SMALL} border border-[#dde3ec] px-3 py-1.5 font-bold`}
+              style={{ color: NAVY }}
+            >
+              Download case file
+            </button>
+            {withActions && o.source === 'database' && (
+              <button
+                onClick={() => reopen(o)}
+                className={`${T_SMALL} font-bold`}
+                style={{ color: MUTED }}
+              >
+                Reopen
+              </button>
+            )}
+          </span>
+        </td>
+      </tr>
+    );
+  }
+
+  const finishedTable = (rows: OrderRecord[], withActions: boolean) => (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[760px] border-collapse">
+        <thead>
+          <tr className="border-b border-[#dde3ec] text-left" style={{ background: '#f6f7f9' }}>
+            <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Order</th>
+            <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Order details</th>
+            <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Company</th>
+            <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }}>Finished</th>
+            <th className={`px-3 py-2.5 text-right ${T_LABEL}`} style={{ color: MUTED }}>Amount</th>
+            <th className={`px-3 py-2.5 ${T_LABEL}`} style={{ color: MUTED }} aria-label="Actions" />
+          </tr>
+        </thead>
+        <tbody>{rows.map((o) => finishedRow(o, withActions))}</tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <div>
+      <h1 className={T_TITLE} style={{ color: NAVY }}>Finished</h1>
+      <p className={`${T_BODY} mt-1 max-w-[760px]`} style={{ color: MUTED }}>
+        Every finished order becomes a sealed case file: the order, the payment record, the
+        signed intake and power of attorney, the documents both ways, and the full activity
+        trail. Kept for at least 7 years, never deleted.
+      </p>
+
+      {sorted.length === 0 ? (
+        <div className="mt-4 border border-[#dde3ec] bg-white p-5 shadow-sm">
+          <p className={T_BODY} style={{ color: MUTED }}>
+            Nothing finished yet. When you mark an order complete from its detail page, it
+            moves here.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="mt-4 overflow-hidden border border-[#dde3ec] bg-white shadow-sm">
+            <div className="border-b border-[#dde3ec] px-4 py-3">
+              <p className={T_LABEL} style={{ color: MUTED }}>Recently finished</p>
+            </div>
+            {finishedTable(recent, true)}
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {years.map((y) => (
+              <button
+                key={y}
+                onClick={() => setPickedYear(y)}
+                aria-pressed={y === activeYear}
+                className={`${T_SMALL} border px-3 py-1.5 font-extrabold`}
+                style={
+                  y === activeYear
+                    ? { background: NAVY, color: '#fff', borderColor: NAVY }
+                    : { background: '#fff', color: MUTED, borderColor: '#dde3ec' }
+                }
+              >
+                {y}
+              </button>
+            ))}
+            <span className={T_SMALL} style={{ color: MUTED }}>
+              Year total: {formatUSD(yearOrders.reduce((s, o) => s + o.amount, 0))}
+            </span>
+            <button
+              onClick={() => statementCsv(yearOrders, `finished-${activeYear}.csv`)}
+              className={`${T_SMALL} ml-auto border border-[#dde3ec] bg-white px-3 py-1.5 font-bold`}
+              style={{ color: NAVY }}
+            >
+              Export year
+            </button>
+          </div>
+
+          {months.map(({ month, rows, total }) => {
+            const key = `${activeYear}-${month}`;
+            const open = openMonths.has(key);
+            return (
+              <div key={key} className="mt-3 overflow-hidden border border-[#dde3ec] bg-white shadow-sm">
+                <div className="flex flex-wrap items-center gap-2 px-4 py-3">
+                  <button
+                    onClick={() =>
+                      setOpenMonths((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(key)) next.delete(key);
+                        else next.add(key);
+                        return next;
+                      })
+                    }
+                    aria-expanded={open}
+                    className={`${T_BODY} font-extrabold`}
+                    style={{ color: NAVY }}
+                  >
+                    {open ? '▾' : '▸'} {MONTH_NAMES[month]} {activeYear}
+                  </button>
+                  <span className={T_SMALL} style={{ color: MUTED }}>
+                    {rows.length} order{rows.length === 1 ? '' : 's'} finished · {formatUSD(total)}
+                  </span>
+                  <button
+                    onClick={() => statementCsv(rows, `finished-${activeYear}-${String(month + 1).padStart(2, '0')}.csv`)}
+                    className={`${T_SMALL} ml-auto border border-[#dde3ec] px-3 py-1.5 font-bold`}
+                    style={{ color: NAVY }}
+                  >
+                    Export month
+                  </button>
+                </div>
+                {open && <div className="border-t border-[#dde3ec]">{finishedTable(rows, false)}</div>}
+              </div>
+            );
+          })}
+
+          <div className="mt-4 border border-[#dde3ec] bg-white p-4 shadow-sm">
+            <h3 className={T_CARD} style={{ color: NAVY }}>What an export contains</h3>
+            <p className={`${T_BODY} mt-1`} style={{ color: MUTED }}>
+              A statement lists every finished order in the period with its package, client,
+              amount, payment reference, and completion date, plus the total. A case file is
+              one order complete: the summary, the payment record, the intake and signed power
+              of attorney, every document both ways, and the activity trail. That is the
+              package an auditor, a CPA, or a chargeback review asks for.
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------- search -------------------------------- */
+
+function SearchResults({
+  query,
+  open,
+  finished,
+  onOpen,
+}: {
+  query: string;
+  open: OrderRecord[];
+  finished: OrderRecord[];
+  onOpen: (id: string) => void;
+}) {
+  const resultRow = (o: OrderRecord, done: boolean) => (
+    <button
+      key={o.id}
+      onClick={() => onOpen(o.id)}
+      className="flex w-full flex-wrap items-center gap-2 border-b border-[#eef1f6] px-4 py-3 text-left hover:bg-[#f6f7f9]"
+    >
+      <span className={`${T_BODY} font-extrabold`} style={{ color: NAVY }}>{o.id}</span>
+      <span className={`${T_BODY} font-semibold`} style={{ color: NAVY }}>{o.packageName}</span>
+      <span className={T_SMALL} style={{ color: MUTED }}>
+        {companyOf(o)} · {o.buyerName}
+        {o.usdot ? ` · USDOT ${o.usdot}` : ''}
+      </span>
+      <span className="ml-auto">
+        {done ? (
+          <span className="bg-[#dcfce7] px-2.5 py-1 text-[11px] font-extrabold text-[#166534]">
+            Finished
+          </span>
+        ) : (
+          <span className={`px-2.5 py-1 text-[11px] font-extrabold ${stagePill(stageOf(o))}`}>
+            {STAGE_LABEL[stageOf(o)]}
+          </span>
+        )}
+      </span>
+    </button>
+  );
+
+  return (
+    <div>
+      <h1 className={T_TITLE} style={{ color: NAVY }}>
+        Search: &ldquo;{query}&rdquo; · {open.length + finished.length} result
+        {open.length + finished.length === 1 ? '' : 's'}
+      </h1>
+      {open.length === 0 && finished.length === 0 ? (
+        <div className="mt-4 border border-[#dde3ec] bg-white p-5 shadow-sm">
+          <p className={T_BODY} style={{ color: MUTED }}>
+            No order matches that. Try an order number, a company name, or a USDOT.
+          </p>
+        </div>
+      ) : (
+        <>
+          {open.length > 0 && (
+            <div className="mt-4 overflow-hidden border border-[#dde3ec] bg-white shadow-sm">
+              <div className="border-b border-[#dde3ec] px-4 py-3">
+                <p className={T_LABEL} style={{ color: MUTED }}>Open orders</p>
+              </div>
+              {open.map((o) => resultRow(o, false))}
+            </div>
+          )}
+          {finished.length > 0 && (
+            <div className="mt-4 overflow-hidden border border-[#dde3ec] bg-white shadow-sm">
+              <div className="border-b border-[#dde3ec] px-4 py-3">
+                <p className={T_LABEL} style={{ color: MUTED }}>Finished orders</p>
+              </div>
+              {finished.map((o) => resultRow(o, true))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+type Section = 'orders' | 'returns' | 'inquiries' | 'packages' | 'copy' | 'team' | 'finished';
 
 export default function AdminPage() {
   const { packages, orders: localOrders } = useTtb();
@@ -2125,10 +2619,19 @@ export default function AdminPage() {
   const returnsCount = orders.filter(
     (o) => o.payStatus === 'refunded' || o.payStatus === 'cancelled' || (o.refundedCents ?? 0) > 0
   ).length;
+  // Completed orders leave the queue entirely: the Orders badge, the
+  // queue, and the counts only ever see open work. Finished holds the rest.
+  const openOrders = orders.filter((o) => !o.completedAt);
+  const finishedOrders = orders.filter((o) => Boolean(o.completedAt));
+  const searchQuery = search.trim().toLowerCase();
+  const searchOpen = searchQuery ? openOrders.filter((o) => orderMatches(o, searchQuery)) : [];
+  const searchFinished = searchQuery
+    ? finishedOrders.filter((o) => orderMatches(o, searchQuery))
+    : [];
 
   if (gate === 'loading') {
     return (
-      <div className="bg-[#f6f7f9] py-16">
+      <div className="sharp bg-[#f6f7f9] py-16">
         <div className="mx-auto max-w-md px-4">
           <div className="card">
             <p className={T_BODY} style={{ color: MUTED }}>Opening the admin…</p>
@@ -2140,7 +2643,7 @@ export default function AdminPage() {
 
   if (gate === 'locked') {
     return (
-      <div className="bg-[#f6f7f9] py-16">
+      <div className="sharp bg-[#f6f7f9] py-16">
         <div className="mx-auto max-w-md px-4">
           <div className="card">
             <p className={T_LABEL} style={{ color: MUTED }}>Owner only</p>
@@ -2196,7 +2699,7 @@ export default function AdminPage() {
     key: Section,
     icon: string,
     label: string,
-    badge?: { text: string; gold?: boolean }
+    badge?: { text: string; gold?: boolean; green?: boolean }
   ) => (
     <button
       key={key}
@@ -2204,7 +2707,7 @@ export default function AdminPage() {
         setSection(key);
         setOpenId(null);
       }}
-      className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left ${T_BODY}`}
+      className={`flex w-full items-center gap-2.5 rounded-none px-3 py-2 text-left ${T_BODY}`}
       style={
         section === key && !openId
           ? { background: 'rgba(255,255,255,0.14)', color: '#fff', fontWeight: 800 }
@@ -2215,11 +2718,13 @@ export default function AdminPage() {
       {label}
       {badge && (
         <span
-          className="ml-auto rounded-full px-2 py-0.5 text-[11px] font-extrabold"
+          className="ml-auto rounded-none px-2 py-0.5 text-[11px] font-extrabold"
           style={
             badge.gold
               ? { background: '#ffc61a', color: NAVY }
-              : { background: 'rgba(255,255,255,0.16)', color: '#fff' }
+              : badge.green
+                ? { background: '#15803d', color: '#fff' }
+                : { background: 'rgba(255,255,255,0.16)', color: '#fff' }
           }
         >
           {badge.text}
@@ -2229,7 +2734,7 @@ export default function AdminPage() {
   );
 
   return (
-    <div className="bg-[#f6f7f9]">
+    <div className="sharp bg-[#f6f7f9]">
       <div className="mx-auto flex max-w-[1400px] flex-col lg:flex-row">
         {/* Sidebar */}
         <aside
@@ -2242,18 +2747,18 @@ export default function AdminPage() {
           </div>
           <div className="mt-4">
             <input
-              className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-[13.5px] text-white placeholder:text-[#9db1d4]"
+              className="w-full rounded-none border border-white/20 bg-white/10 px-3 py-2 text-[13.5px] text-white placeholder:text-[#9db1d4]"
               placeholder="Search orders, customers…"
               value={search}
               onChange={(e) => {
                 setSearch(e.target.value);
-                setSection('orders');
                 setOpenId(null);
               }}
             />
           </div>
           <nav className="mt-4 space-y-1">
-            {navItem('orders', '▦', 'Orders', { text: String(orders.length) })}
+            {navItem('orders', '▦', 'Orders', { text: String(openOrders.length) })}
+            {navItem('finished', '✓', 'Finished', { text: String(finishedOrders.length), green: true })}
             {navItem('returns', '↩', 'Returns & refunds', { text: String(returnsCount) })}
             {navItem('inquiries', '✉', 'Inquiries', { text: String(inquiryCount) })}
             {navItem('packages', '▤', 'Packages & pricing')}
@@ -2262,13 +2767,13 @@ export default function AdminPage() {
           </nav>
           <Link
             href="/admin/blog"
-            className={`mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2 ${T_BODY}`}
+            className={`mt-1 flex items-center gap-2.5 rounded-none px-3 py-2 ${T_BODY}`}
             style={{ color: '#cbd8f0', fontWeight: 600 }}
           >
             <span className="w-4 text-center" aria-hidden="true">✎</span>
             Blog articles
           </Link>
-          <div className="mt-6 rounded-lg bg-white/10 px-3 py-3">
+          <div className="mt-6 rounded-none bg-white/10 px-3 py-3">
             <p className={`${T_SMALL} font-extrabold text-white`}>Owner</p>
             <p className={T_SMALL} style={{ color: '#9db1d4' }}>
               Signed in with the owner key. Actions are stamped Owner until staff logins ship.
@@ -2284,18 +2789,31 @@ export default function AdminPage() {
               onBack={() => setOpenId(null)}
               onRefresh={() => setRefreshKey((k) => k + 1)}
             />
+          ) : searchQuery ? (
+            <SearchResults
+              query={search.trim()}
+              open={searchOpen}
+              finished={searchFinished}
+              onOpen={setOpenId}
+            />
           ) : section === 'orders' ? (
             <>
               <h1 className={T_TITLE} style={{ color: NAVY }}>Orders</h1>
               <div className="mt-3">
                 <OrdersSection
-                  orders={orders}
-                  search={search}
+                  orders={openOrders}
+                  search=""
                   onOpen={setOpenId}
                   onRefresh={() => setRefreshKey((k) => k + 1)}
                 />
               </div>
             </>
+          ) : section === 'finished' ? (
+            <FinishedSection
+              orders={finishedOrders}
+              onOpen={setOpenId}
+              onRefresh={() => setRefreshKey((k) => k + 1)}
+            />
           ) : section === 'returns' ? (
             <ReturnsSection orders={orders} onOpen={setOpenId} />
           ) : section === 'inquiries' ? (

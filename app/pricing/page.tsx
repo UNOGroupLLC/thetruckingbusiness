@@ -48,7 +48,7 @@ function PackageCard({ pkg }: { pkg: Package }) {
               role="radio"
               aria-checked={o.id === option?.id}
               onClick={() => setOptId(o.id)}
-              className={`rounded-full border px-4 py-2 text-[13.5px] font-bold transition ${
+              className={`rounded-none border px-4 py-2 text-[13.5px] font-bold transition ${
                 o.id === option?.id
                   ? 'border-navy bg-navy text-white'
                   : 'border-[#cbd5e3] bg-white text-steel hover:border-navy'
@@ -60,7 +60,7 @@ function PackageCard({ pkg }: { pkg: Package }) {
         </div>
       )}
 
-              <div className="mt-5 rounded-xl bg-mist p-4">
+              <div className="mt-5 rounded-none bg-mist p-4">
                 <p className="text-[11px] font-bold uppercase tracking-wider text-steel">
                   All-in breakdown
                 </p>
@@ -70,7 +70,7 @@ function PackageCard({ pkg }: { pkg: Package }) {
                       <span>
                         {fee.label}
                         <span
-                          className={`ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                          className={`ml-2 rounded-none px-2 py-0.5 text-[11px] font-bold ${
                             fee.kind === 'government'
                               ? 'bg-dotblue/10 text-dotblue'
                               : 'bg-navy/10 text-navy'
