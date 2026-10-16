@@ -563,6 +563,198 @@ export function clientBookingEmail(
 /* --------------------- Calculator results (client) --------------------- */
 
 /**
+ * Structured results payloads for the redesigned calculator results emails
+ * (approved mocks 2 and 3). Every value is a display string computed live
+ * by the calculator components; the builders below only lay them out.
+ */
+export interface CpmResultsData {
+  kind: 'cpm';
+  cpm: string;
+  floorLoaded: string;
+  targetLoaded: string;
+  marginPct: string;
+  moneyRows: [string, string][];
+  moneyTotal: [string, string];
+  monthRows: [string, string][];
+  breakdownRows: [string, string][];
+}
+
+export interface StartupResultsData {
+  kind: 'startup';
+  capital: string;
+  coverRows: [string, string][];
+  monthly: string;
+  buffer: string;
+  bufferMonths: string;
+  readyMoney: string;
+  operation: string;
+}
+
+export type CalculatorResultsData = CpmResultsData | StartupResultsData;
+
+const CALC_LOGO_URL = 'https://www.thetruckingbusiness.com/logo-receipt.png';
+
+/** Shared shell for the redesigned calculator results emails: navy header
+ *  with the real logo lockup (logo tile + Libre Franklin wordmark, the same
+ *  asset the receipt emails use), yellow rule, white card, help footer. */
+function calcShell(calculatorTitle: string, body: string): string {
+  const C_NAVY = '#0a1a36';
+  const C_YELLOW = '#ffc61a';
+  const C_INK = '#16233c';
+  const C_GRAY = '#5b6a82';
+  const C_BG = '#f6f7f9';
+  const C_BORDER = '#dde3ec';
+  return `<!DOCTYPE html><html><body style="margin:0;padding:0;background-color:${C_BG};font-family:${FONT};color:${C_INK};">
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:${C_BG};padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:0;overflow:hidden;box-shadow:0 2px 12px rgba(10,26,54,0.08);">
+<tr><td style="background:${C_NAVY};padding:28px 34px 24px;">
+<table cellpadding="0" cellspacing="0" role="presentation"><tr>
+<td style="background:#ffffff;width:46px;height:46px;" align="center" valign="middle"><img src="${CALC_LOGO_URL}" width="38" alt="The Trucking Business" style="display:block;"></td>
+<td style="padding-left:12px;" valign="middle">
+<p style="margin:0;color:#ffffff;font-family:${HEADING_FONT};font-size:19px;font-weight:900;letter-spacing:-0.5px;line-height:0.95;">THE TRUCKING<br>BUSINESS</p>
+<p style="margin:3px 0 0;color:#9fb4d8;font-size:8px;font-weight:600;letter-spacing:2px;">THETRUCKINGBUSINESS.COM</p>
+</td>
+</tr></table>
+<h1 style="margin:18px 0 0;color:#ffffff;font-family:${HEADING_FONT};font-size:25px;font-weight:800;line-height:1.25;">Your calculator results</h1>
+<p style="margin:6px 0 0;color:#c9d6ea;font-size:13px;">${esc(calculatorTitle)}</p>
+</td></tr>
+<tr><td style="background:${C_YELLOW};height:4px;line-height:4px;font-size:0;">&nbsp;</td></tr>
+<tr><td style="padding:28px 34px 8px;">${body}</td></tr>
+<tr><td style="background:${C_BG};padding:18px 34px;border-top:1px solid ${C_BORDER};">
+<p style="margin:0;color:${C_GRAY};font-size:12px;line-height:1.6;">You received this email because you asked for your calculator results on our website. It is a one-time send, not a subscription.</p>
+</td></tr>
+</table>
+<p style="margin:18px 0 0;color:${C_GRAY};font-size:11px;line-height:1.6;max-width:600px;">TheTruckingBusiness.com, an independent private company, not affiliated with FMCSA or USDOT.</p>
+</td></tr>
+</table>
+</body></html>`;
+}
+
+function calcIntro(text: string): string {
+  return `<p style="font-size:14px;line-height:1.6;color:#33415c;margin:0 0 20px;">${text}</p>`;
+}
+
+function calcHeadline(big: string, sentence: string): string {
+  return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 18px;background:#f6f7f9;border-radius:0;border-left:4px solid #ffc61a;">
+<tr><td style="padding:16px 20px;">
+<p style="margin:0;color:#0a1a36;font-family:${HEADING_FONT};font-size:24px;font-weight:800;line-height:1.3;">${big}</p>
+<p style="margin:6px 0 0;font-size:13.5px;line-height:1.55;color:#33415c;">${sentence}</p>
+</td></tr>
+</table>`;
+}
+
+function calcRateBox(value: string, label: string, text: string, dashed = false): string {
+  const border = dashed ? 'border:1.5px dashed #8fa5c4;' : 'border:1px solid #dde3ec;';
+  return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin:0 0 10px;${border}border-radius:0;">
+<tr>
+<td style="padding:14px 6px 14px 18px;font-family:${HEADING_FONT};font-size:26px;font-weight:900;color:#0a1a36;white-space:nowrap;vertical-align:top;">${value}</td>
+<td style="padding:14px 18px 14px 10px;font-size:13px;line-height:1.5;color:#33415c;vertical-align:top;">
+<span style="display:block;font-size:11px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#5b6a82;margin-bottom:3px;">${label}</span>${text}</td>
+</tr>
+</table>`;
+}
+
+function calcSection(text: string): string {
+  return `<p style="font-size:11.5px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;color:#5b6a82;margin:22px 0 6px;">${text}</p>`;
+}
+
+function calcRows(rows: [string, string][], total?: [string, string], small = false): string {
+  const labelSize = small ? '12px' : '13.5px';
+  const pad = small ? '6px 0' : '9px 0';
+  const body = rows
+    .map(
+      ([k, v]) =>
+        `<tr><td style="padding:${pad};color:#33415c;font-size:${labelSize};border-bottom:1px solid #eef2f8;">${k}</td><td align="right" style="padding:${pad};font-weight:bold;color:#0e1728;font-size:${labelSize};white-space:nowrap;border-bottom:1px solid #eef2f8;">${v}</td></tr>`
+    )
+    .join('');
+  const totalRow = total
+    ? `<tr><td style="padding:${pad};color:#0a1a36;font-weight:800;font-size:${small ? '13px' : '14.5px'};border-top:2px solid #0a1a36;">${total[0]}</td><td align="right" style="padding:${pad};font-weight:800;color:#0a1a36;font-size:${small ? '13px' : '14.5px'};white-space:nowrap;border-top:2px solid #0a1a36;">${total[1]}</td></tr>`
+    : '';
+  return `<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="border-collapse:collapse;">${body}${totalRow}</table>`;
+}
+
+function calcHelp(): string {
+  return `<p style="font-size:13.5px;line-height:1.6;color:#33415c;margin:22px 0 24px;">If you want help with any of this, reply to this email or visit <a href="https://www.thetruckingbusiness.com" style="color:#1755a8;">thetruckingbusiness.com</a>.</p>`;
+}
+
+/** Cost Per Mile results email (approved mock 2). */
+export function cpmResultsEmail(data: CpmResultsData): { subject: string; html: string } {
+  const body =
+    calcIntro(
+      'Here are your results from the Cost Per Mile Calculator, in plain terms first and in full at the bottom.'
+    ) +
+    calcHeadline(
+      `Your cost per mile: ${esc(data.cpm)}`,
+      `Counting everything you entered, it costs ${esc(data.cpm)} to move your truck one mile. Every load offer is measured against this number.`
+    ) +
+    calcRateBox(
+      esc(data.floorLoaded),
+      'Do not go below, per loaded mile',
+      `Only loaded miles pay you. Below ${esc(data.floorLoaded)} per loaded mile, a load costs you money.`
+    ) +
+    calcRateBox(
+      esc(data.targetLoaded),
+      'Aim for this, per loaded mile',
+      `At ${esc(data.targetLoaded)} you cover every cost and keep your ${esc(data.marginPct)} profit margin.`
+    ) +
+    calcSection('Where your money goes each month') +
+    calcRows(data.moneyRows.map(([k, v]): [string, string] => [esc(k), esc(v)]), [
+      esc(data.moneyTotal[0]),
+      esc(data.moneyTotal[1]),
+    ]) +
+    calcSection('Your month') +
+    calcRows(data.monthRows.map(([k, v]): [string, string] => [esc(k), esc(v)])) +
+    calcSection('Full breakdown') +
+    calcRows(
+      data.breakdownRows.map(([k, v]): [string, string] => [esc(k), esc(v)]),
+      undefined,
+      true
+    ) +
+    calcHelp();
+  return { subject: 'Your results from the Cost Per Mile Calculator', html: calcShell('Cost Per Mile Calculator', body) };
+}
+
+/** Startup Cost results email (approved mock 3). Start-up capital is the
+ *  one-time money only; the safety buffer is separate and recommended. */
+export function startupResultsEmail(data: StartupResultsData): { subject: string; html: string } {
+  const monthsCap = data.bufferMonths.charAt(0).toUpperCase() + data.bufferMonths.slice(1);
+  const body =
+    calcIntro(
+      'Here are your results from the Startup Cost Calculator, in plain terms first and in full at the bottom.'
+    ) +
+    calcHeadline(
+      `Start-up capital: ${esc(data.capital)}`,
+      'Everything it costs to open your company and put your truck on the road, paid once. The safety buffer is separate, below, as a recommendation.'
+    ) +
+    calcSection('What the start money covers') +
+    calcRows(data.coverRows.map(([k, v]): [string, string] => [esc(k), esc(v)]), [
+      'Estimated start-up capital',
+      esc(data.capital),
+    ]) +
+    calcSection('After you are rolling') +
+    calcRows([['Running the truck, each month', esc(data.monthly)]]) +
+    calcRateBox(
+      esc(data.buffer),
+      'Safety buffer, recommendation only',
+      `${esc(monthsCap)} of running costs set aside, so a slow first month, a repair, or a late paying broker does not end the business. This buffer is not part of your start-up capital.`,
+      true
+    ) +
+    calcSection('The full picture') +
+    calcRows(
+      [
+        ['Start-up capital', esc(data.capital)],
+        ['Safety buffer (recommended)', esc(data.buffer)],
+      ],
+      ['Ready money, with the buffer', esc(data.readyMoney)]
+    ) +
+    calcSection('Your operation') +
+    calcRows([['Setup you entered', esc(data.operation)]]) +
+    calcHelp();
+  return { subject: 'Your results from the Startup Cost Calculator', html: calcShell('Startup Cost Calculator', body) };
+}
+
+/**
  * Client: the breakdown from one of the free calculators, emailed at the
  * visitor's own request from the results screen. Built on the site email
  * style: Libre Franklin headings, navy #0a1a36, one gray for secondary text.

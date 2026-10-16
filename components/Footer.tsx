@@ -21,13 +21,13 @@ export default function Footer() {
           </div>
           <div>
             <b>Compliance</b>
-            <Link href="/#compliance">All Services</Link>
+            <Link href="/pricing">All Services</Link>
             <Link href="/#checker">Audit Readiness Check</Link>
             <Link href="/calculators/cost-per-mile">Cost-Per-Mile Tool</Link>
           </div>
           <div>
             <b>Company</b>
-            <Link href="/#resources">Free Guides</Link>
+            <Link href="/resources">Free Guides</Link>
             <Link href="/contact">Talk to us</Link>
             <a href="https://negociodecamionero.com" target="_blank" rel="noopener">
               Español ↗

@@ -16,7 +16,7 @@ const STARTUP_STEPS = [
   'MC operating authority',
   'BOC-3 filing',
   'Insurance',
-  'Registrations (UCR / IRP / IFTA)',
+  'Registrations (UCR / IRP / IFTA / HVUT 2290)',
   'Driver & vehicle compliance',
   'Operating legally',
 ];
@@ -61,7 +61,7 @@ const SERVICES = [
 const FAQS = [
   {
     q: 'How fast can I get my operating authority?',
-    a: 'Timelines vary with FMCSA processing. When you purchase a package we give you a current estimate and handle the filing for you — you can track everything in your client portal.',
+    a: 'Plan on 3 to 6 weeks from the day your application is filed to the day your authority is active. The timeline is set by federal steps, not by us. After the FMCSA publishes your application, a 10 day protest period has to run, and it cannot be skipped. Your insurance filing and your BOC-3 must reach the FMCSA within 20 days of that publication. We handle the filing, track every step, and you can watch it move in your client portal.',
   },
   {
     q: 'What does "all-in pricing" mean?',
@@ -88,7 +88,7 @@ const GUIDES = [
     bg: 'linear-gradient(135deg,#dbeafe,#bfdbfe)',
     title: 'How to Start a Trucking Company: The Complete Checklist',
     desc: 'Business setup → authority → insurance → first load, in the right order.',
-    link: '/#start',
+    link: '/resources/blog/how-to-start-a-trucking-company',
     linkLabel: 'Read the guide →',
   },
   {

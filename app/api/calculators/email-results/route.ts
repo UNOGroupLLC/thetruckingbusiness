@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { emailConfigured, sendClientEmail, backendConfigured, dbInsert } from '@/lib/server';
-import { calculatorResultsEmail } from '@/lib/email';
+import {
+  calculatorResultsEmail,
+  cpmResultsEmail,
+  startupResultsEmail,
+  type CalculatorResultsData,
+} from '@/lib/email';
 
 /**
  * POST /api/calculators/email-results: "Email my results" on the free
@@ -28,6 +33,78 @@ const CALCULATORS = {
 type CalculatorKey = keyof typeof CALCULATORS;
 
 const stripTags = (s: string): string => s.replace(/<[^>]*>/g, '').trim();
+
+const cleanStr = (v: unknown, max = 120): string =>
+  stripTags(typeof v === 'string' ? v : '').slice(0, max);
+
+function cleanRows(v: unknown, maxRows = 8): [string, string][] {
+  if (!Array.isArray(v)) return [];
+  const out: [string, string][] = [];
+  for (const r of v.slice(0, maxRows)) {
+    if (Array.isArray(r)) out.push([cleanStr(r[0], 90), cleanStr(r[1], 60)]);
+  }
+  return out;
+}
+
+function cleanPair(v: unknown): [string, string] | null {
+  if (!Array.isArray(v)) return null;
+  return [cleanStr(v[0], 90), cleanStr(v[1], 60)];
+}
+
+/**
+ * Sanitized structured results payload for the redesigned results emails.
+ * Returns null when anything essential is missing or the kind does not
+ * match the calculator, so the caller falls back to the plain line email.
+ */
+function cleanData(raw: unknown, calculator: string): CalculatorResultsData | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const d = raw as Record<string, unknown>;
+  if (calculator === 'cost-per-mile' && d.kind === 'cpm') {
+    const cpm = cleanStr(d.cpm, 40);
+    const floorLoaded = cleanStr(d.floorLoaded, 40);
+    const targetLoaded = cleanStr(d.targetLoaded, 40);
+    const marginPct = cleanStr(d.marginPct, 12);
+    const moneyRows = cleanRows(d.moneyRows, 6);
+    const moneyTotal = cleanPair(d.moneyTotal);
+    const monthRows = cleanRows(d.monthRows, 6);
+    const breakdownRows = cleanRows(d.breakdownRows, 20);
+    if (!cpm || !floorLoaded || !targetLoaded || !moneyTotal || moneyRows.length === 0) {
+      return null;
+    }
+    return {
+      kind: 'cpm',
+      cpm,
+      floorLoaded,
+      targetLoaded,
+      marginPct,
+      moneyRows,
+      moneyTotal,
+      monthRows,
+      breakdownRows,
+    };
+  }
+  if (calculator === 'startup' && d.kind === 'startup') {
+    const capital = cleanStr(d.capital, 40);
+    const coverRows = cleanRows(d.coverRows, 6);
+    const monthly = cleanStr(d.monthly, 40);
+    const buffer = cleanStr(d.buffer, 40);
+    const bufferMonths = cleanStr(d.bufferMonths, 30);
+    const readyMoney = cleanStr(d.readyMoney, 40);
+    const operation = cleanStr(d.operation, 120);
+    if (!capital || !monthly || !buffer || coverRows.length === 0) return null;
+    return {
+      kind: 'startup',
+      capital,
+      coverRows,
+      monthly,
+      buffer,
+      bufferMonths,
+      readyMoney,
+      operation,
+    };
+  }
+  return null;
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -82,7 +159,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  const { subject, html } = calculatorResultsEmail(meta.title, headline, lines);
+  const data = cleanData(body?.data, calculator);
+  const { subject, html } =
+    data?.kind === 'cpm'
+      ? cpmResultsEmail(data)
+      : data?.kind === 'startup'
+        ? startupResultsEmail(data)
+        : calculatorResultsEmail(meta.title, headline, lines);
   const r = await sendClientEmail(email, subject, html);
   if (!r.ok) {
     return NextResponse.json(

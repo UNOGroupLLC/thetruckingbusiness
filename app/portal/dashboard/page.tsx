@@ -117,7 +117,7 @@ function Timeline({
           return (
             <div key={label} role="listitem" className="text-center">
               <span
-                className={`inline-flex h-[30px] w-[30px] items-center justify-center rounded-none text-[12.5px] font-extrabold ${
+                className={`inline-flex h-[30px] w-[30px] items-center justify-center rounded-full text-[12.5px] font-extrabold ${
                   done
                     ? 'text-white'
                     : isCurrent

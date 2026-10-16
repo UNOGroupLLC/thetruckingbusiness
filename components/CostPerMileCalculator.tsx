@@ -33,33 +33,34 @@ type FieldKey =
   | "businessOther"
   | "profitMargin";
 
-/** Original default values straight from the source HTML (used by RESET). */
+/** Default values: the owner's realistic operating numbers (Oct 2026 audit),
+ *  also used by RESET. Fuel defaults to the manual monthly-cost mode. */
 const DEFAULT_VALUES: Record<FieldKey, number> = {
-  loadedMiles: 8500,
-  deadheadMiles: 1500,
+  loadedMiles: 5200,
+  deadheadMiles: 900,
   mpg: 6.5,
   dieselPrice: 3.75,
-  fuelMonthly: 0,
-  truckPayment: 2500,
-  trailerPayment: 700,
+  fuelMonthly: 4200,
+  truckPayment: 1300,
+  trailerPayment: 500,
   insurance: 1800,
-  eld: 100,
-  parking: 200,
-  office: 250,
-  permits: 150,
+  eld: 40,
+  parking: 100,
+  office: 150,
+  permits: 180,
   otherFixed: 0,
   def: 150,
-  maintenance: 1200,
-  tires: 400,
-  tolls: 300,
-  road: 200,
-  driverPay: 0,
+  maintenance: 800,
+  tires: 150,
+  tolls: 100,
+  road: 100,
+  driverPay: 4000,
   otherVariable: 0,
   dispatch: 0,
   factoring: 0,
-  compliance: 0,
+  compliance: 150,
   businessOther: 0,
-  profitMargin: 20,
+  profitMargin: 30,
 };
 
 interface FieldDef {
@@ -110,7 +111,11 @@ const FIXED_FIELDS: FieldDef[] = [
 const VARIABLE_FIELDS: FieldDef[] = [
   { key: "def", label: "DEF (monthly)" },
   { key: "maintenance", label: "Maintenance and Repairs (monthly)" },
-  { key: "tires", label: "Tires (monthly)" },
+  {
+    key: "tires",
+    label: "Tires (monthly set-aside)",
+    hint: "A monthly allowance set aside toward tire replacement. Tires are replaced every year or two, not monthly.",
+  },
   { key: "tolls", label: "Tolls (monthly)" },
   { key: "road", label: "Scales, Truck Washes and Other Road Expenses (monthly)" },
   {
@@ -166,6 +171,14 @@ const money = (v: number): string =>
     currency: "USD",
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
+  });
+
+/** Whole-dollar format used by the plain-language results layout. */
+const money0 = (v: number): string =>
+  v.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0,
   });
 
 const whole = (v: number): string =>
@@ -319,7 +332,26 @@ function StepProgress({
                   overflow: "hidden",
                 }}
               >
-                {n}&nbsp;&nbsp;{name}
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: filled ? NAVY : "#dde4ee",
+                    color: filled ? "#ffffff" : "#5b6b84",
+                    fontSize: 11,
+                    fontWeight: 800,
+                    marginRight: 7,
+                    verticalAlign: "middle",
+                  }}
+                >
+                  {n}
+                </span>
+                {name}
               </div>
               <div
                 className="h-[4px] rounded-none"
@@ -339,11 +371,13 @@ function EmailResultsPanel({
   headline,
   lines,
   blurb,
+  data,
 }: {
   calculator: "cost-per-mile" | "startup";
   headline: string;
   lines: string[];
   blurb: string;
+  data?: Record<string, unknown>;
 }) {
   const [email, setEmail] = useState("");
   const [website, setWebsite] = useState("");
@@ -364,13 +398,14 @@ function EmailResultsPanel({
           email: email.trim(),
           headline,
           lines,
+          data,
           company_website: website,
         }),
       });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) {
+      const resp = await res.json().catch(() => null);
+      if (!res.ok || !resp?.ok) {
         setError(
-          data?.error ||
+          resp?.error ||
             "We could not send your results. Please email us directly at hello@thetruckingbusiness.com and we will send them over."
         );
         return;
@@ -483,10 +518,19 @@ export default function CostPerMileCalculator() {
   const [values, setValues] = useState<Record<FieldKey, string>>(() =>
     toInputState(DEFAULT_VALUES),
   );
-  const [fuelMode, setFuelMode] = useState<"estimate" | "manual">("estimate");
+  const [fuelMode, setFuelMode] = useState<"estimate" | "manual">("manual");
   const [step, setStep] = useState(1);
   const [showResults, setShowResults] = useState(false);
   const wizardRef = useRef<HTMLDivElement | null>(null);
+  const emailPanelRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToEmail = () => {
+    emailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const input = emailPanelRef.current?.querySelector(
+      "input[type=email]",
+    ) as HTMLInputElement | null;
+    input?.focus({ preventScroll: true });
+  };
 
   const handleFieldChange = (key: FieldKey, raw: string) => {
     setValues((prev) => ({ ...prev, [key]: raw }));
@@ -562,6 +606,7 @@ export default function CostPerMileCalculator() {
       totalMiles,
       deadheadPct,
       fuel,
+      fixed,
       fixedCPM,
       variableCPM,
       totalCost,
@@ -578,11 +623,11 @@ export default function CostPerMileCalculator() {
    *  instead of zeroing every field out. */
   const resetCalc = () => {
     setValues(toInputState(DEFAULT_VALUES));
-    setFuelMode("estimate");
+    setFuelMode("manual");
   };
 
   const scrollToWizard = () => {
-    wizardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    wizardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   const seeResults = () => {
@@ -637,6 +682,94 @@ export default function CostPerMileCalculator() {
     `Target rate per loaded mile: ${money(results.loadedTarget)}`,
     `Fuel cost per mile: ${money(results.fuelCPM)}`,
   ];
+
+  /* Plain-language results groupings (approved mock 1). Driver pay stands
+   * alone; everything else on the road plus business costs is grouped. */
+  const loadedMilesAmt = parseAmount(values.loadedMiles);
+  const deadheadMilesAmt = parseAmount(values.deadheadMiles);
+  const driverPayAmt = parseAmount(values.driverPay);
+  const roadBusinessAmt = Math.max(
+    0,
+    results.totalCost - results.fuel - results.fixed - driverPayAmt,
+  );
+  const marginPct = Math.min(parseAmount(values.profitMargin), 95);
+  const marginLabel = String(Math.round(marginPct * 10) / 10);
+  const moneySegs: {
+    label: string;
+    desc?: string;
+    color: string;
+    darkText?: boolean;
+    value: number;
+  }[] = [
+    { label: "Fuel", color: BLUE, value: results.fuel },
+    {
+      label: "Fixed bills",
+      desc: "truck and trailer payments, insurance, permits, parking, software",
+      color: "#7d9cc4",
+      value: results.fixed,
+    },
+    {
+      label: "Driver pay",
+      desc: "what the driver earns, W2 employee pay, separate from the truck",
+      color: "#48648c",
+      value: driverPayAmt,
+    },
+    {
+      label: "Road and business costs",
+      desc: "maintenance, tires, tolls, DEF, office",
+      color: "#b9c8dc",
+      darkText: true,
+      value: roadBusinessAmt,
+    },
+  ];
+  const moneyPcts = normalizedPercents(moneySegs.map((s) => s.value));
+
+  const breakdownItems: [string, string][] = [
+    ["Total Miles Driven", whole(results.totalMiles)],
+    ["Deadhead Percentage", `${results.deadheadPct.toFixed(1)}%`],
+    ["Monthly Fuel Expense", money(results.fuel)],
+    ["Fixed Cost Per Mile", money(results.fixedCPM)],
+    ["Variable Cost Per Mile", money(results.variableCPM)],
+    ["Total Monthly Operating Cost", money(results.totalCost)],
+    ["TOTAL COST PER MILE", money(results.cpm)],
+    ["Break-Even Rate Per Total Mile", money(results.cpm)],
+    ["Target Rate Per Total Mile", money(results.targetRate)],
+    ["Break-Even Rate Per Loaded Mile", money(results.loadedBreakEven)],
+    ["Target Rate Per Loaded Mile", money(results.loadedTarget)],
+    ["Fuel Cost Per Mile", money(results.fuelCPM)],
+  ];
+
+  /** Structured payload for the redesigned results email (mock 2). */
+  const cpmEmailData: Record<string, unknown> = {
+    kind: "cpm",
+    cpm: money(results.cpm),
+    floorLoaded: money(results.loadedBreakEven),
+    targetLoaded: money(results.loadedTarget),
+    marginPct: `${marginLabel}%`,
+    moneyRows: [
+      ["Fuel", money0(results.fuel)],
+      ["Fixed bills: truck, trailer, insurance, permits", money0(results.fixed)],
+      ["Driver pay", money0(driverPayAmt)],
+      [
+        "Road and business costs: maintenance, tires, tolls, office",
+        money0(roadBusinessAmt),
+      ],
+    ],
+    moneyTotal: ["Total monthly operating cost", money0(results.totalCost)],
+    monthRows: [
+      ["Total miles driven", whole(results.totalMiles)],
+      ["Empty miles", `${whole(deadheadMilesAmt)} (${results.deadheadPct.toFixed(1)}%)`],
+    ],
+    breakdownRows: [
+      ["Fixed cost per mile", money(results.fixedCPM)],
+      ["Variable cost per mile", money(results.variableCPM)],
+      ["Fuel cost per mile", money(results.fuelCPM)],
+      ["Total cost per mile", money(results.cpm)],
+      ["Target rate per total mile", money(results.targetRate)],
+      ["Break-even rate per loaded mile", money(results.loadedBreakEven)],
+      ["Target rate per loaded mile", money(results.loadedTarget)],
+    ],
+  };
 
   const stepHelp: Record<number, string> = {
     1: "How far the truck runs in a typical month, loaded and empty. Every cost in this calculator is a monthly amount.",
@@ -808,46 +941,31 @@ export default function CostPerMileCalculator() {
 
         {showResults ? (
           <>
-            {/* Results */}
-            <section
-              className="mt-[26px] rounded-none p-6 text-white sm:p-7"
-              style={{
-                background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 88%)`,
-              }}
-              aria-live="polite"
-            >
-              <h3
-                className="mb-4 text-[20px] font-extrabold"
-                style={{ fontFamily: HEADING }}
+            {/* Results: plain-language layout (approved mock 1) */}
+            <div className="mt-[26px]" aria-live="polite">
+              {/* (a) The answer */}
+              <section
+                className="rounded-none p-[30px] text-white sm:p-8"
+                style={{
+                  background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 88%)`,
+                }}
               >
-                Results
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                <Metric label="Total Miles Driven" value={whole(results.totalMiles)} />
-                <Metric
-                  label="Deadhead Percentage"
-                  value={`${results.deadheadPct.toFixed(1)}%`}
-                />
-                <Metric label="Monthly Fuel Expense" value={money(results.fuel)} />
-                <Metric label="Fixed Cost Per Mile" value={money(results.fixedCPM)} />
-                <Metric label="Variable Cost Per Mile" value={money(results.variableCPM)} />
-                <Metric
-                  label="Total Monthly Operating Cost"
-                  value={money(results.totalCost)}
-                />
-                <Metric label="TOTAL COST PER MILE" value={money(results.cpm)} featured />
-                <Metric label="Break-Even Rate Per Total Mile" value={money(results.cpm)} />
-                <Metric label="Target Rate Per Total Mile" value={money(results.targetRate)} />
-                <Metric
-                  label="Break-Even Rate Per Loaded Mile"
-                  value={money(results.loadedBreakEven)}
-                />
-                <Metric
-                  label="Target Rate Per Loaded Mile"
-                  value={money(results.loadedTarget)}
-                />
-                <Metric label="Fuel Cost Per Mile" value={money(results.fuelCPM)} />
-              </div>
+                <p className="text-[11.5px] font-extrabold uppercase tracking-[0.16em] text-[#9fb4d8]">
+                  Your cost per mile
+                </p>
+                <p
+                  className="mt-[10px] font-black leading-none"
+                  style={{ fontFamily: HEADING, fontSize: 56, letterSpacing: "-0.02em" }}
+                >
+                  {money(results.cpm)}{" "}
+                  <small className="text-[20px] font-bold text-[#c8d5ec]">per mile</small>
+                </p>
+                <p className="mt-[10px] max-w-[560px] text-[14.5px] leading-[1.6] text-[#dbe4f2]">
+                  This is what it costs to move your truck one mile, counting
+                  every cost you entered. Every load offer you get is measured
+                  against this number.
+                </p>
+              </section>
 
               {results.warning ? (
                 <div
@@ -858,29 +976,255 @@ export default function CostPerMileCalculator() {
                 </div>
               ) : null}
 
-              <p className="mt-4 text-[13.5px] leading-relaxed text-[#d9e7f2]">
-                This calculator is an educational tool for estimating
-                operating costs. Actual costs may vary. For the most accurate
-                cost per mile, use your own accounting records, invoices,
-                mileage, and expenses.
-              </p>
-            </section>
+              {/* (b) The two rates that matter */}
+              <div className="mt-[14px] grid gap-[14px] sm:grid-cols-2">
+                <section
+                  className="rounded-none border bg-white p-6"
+                  style={{ borderColor: LINE, borderTop: `5px solid ${NAVY}` }}
+                >
+                  <p className="text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-[#5b6b84]">
+                    Do not go below
+                  </p>
+                  <p
+                    className="mt-2 font-black text-[#0a1a36]"
+                    style={{ fontFamily: HEADING, fontSize: 40 }}
+                  >
+                    {money(results.loadedBreakEven)}{" "}
+                    <small className="text-[15px] font-bold text-[#5b6b84]">
+                      per loaded mile
+                    </small>
+                  </p>
+                  <p className="mt-2 text-[13.5px] leading-[1.6] text-[#33415c]">
+                    Only {whole(loadedMilesAmt)} of your {whole(results.totalMiles)}{" "}
+                    miles are loaded, and only loaded miles pay you. A load that
+                    pays less than {money(results.loadedBreakEven)} per loaded
+                    mile costs you money instead of making it.
+                  </p>
+                  <p
+                    className="mt-3 border-l-[3px] bg-[#eef2f8] px-3 py-[9px] text-[12.5px] leading-[1.55] text-[#33415c]"
+                    style={{ borderColor: BLUE }}
+                  >
+                    <strong>Recommendation only.</strong> This floor is built
+                    from the numbers you entered. A lower rate can still be
+                    the right call on the right load, for example a load that
+                    gets you home.
+                  </p>
+                  <p className="mt-[10px] border-t pt-[10px] text-[12.5px] text-[#5b6b84]" style={{ borderColor: LINE }}>
+                    Counting every mile you drive, loaded or empty:{" "}
+                    {money(results.cpm)} per mile.
+                  </p>
+                </section>
+                <section
+                  className="rounded-none border bg-white p-6"
+                  style={{ borderColor: LINE, borderTop: `5px solid ${YELLOW}` }}
+                >
+                  <p className="text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-[#5b6b84]">
+                    Aim for this rate
+                  </p>
+                  <p
+                    className="mt-2 font-black text-[#0a1a36]"
+                    style={{ fontFamily: HEADING, fontSize: 40 }}
+                  >
+                    {money(results.loadedTarget)}{" "}
+                    <small className="text-[15px] font-bold text-[#5b6b84]">
+                      per loaded mile
+                    </small>
+                  </p>
+                  <p className="mt-2 text-[13.5px] leading-[1.6] text-[#33415c]">
+                    At {money(results.loadedTarget)} per loaded mile you cover
+                    every cost and keep {marginLabel}% as profit, the margin
+                    you picked on the last step.
+                  </p>
+                  <p className="mt-[10px] border-t pt-[10px] text-[12.5px] text-[#5b6b84]" style={{ borderColor: LINE }}>
+                    Counting every mile you drive, loaded or empty:{" "}
+                    {money(results.targetRate)} per mile.
+                  </p>
+                </section>
+              </div>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <button
-                type="button"
-                onClick={backToCalculator}
-                className="rounded-none border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
+              {/* (c) Where your money goes */}
+              <section
+                className="mt-[14px] rounded-none border bg-white p-6"
+                style={{ borderColor: LINE }}
               >
-                Back to the calculator
-              </button>
-              <button
-                type="button"
-                onClick={resetCalc}
-                className="px-2 py-3 text-[14px] font-semibold text-[#5b6b84] transition hover:text-[#0a1a36]"
+                <h3
+                  className="text-[17px] font-extrabold text-[#0a1a36]"
+                  style={{ fontFamily: HEADING }}
+                >
+                  Where your money goes
+                </h3>
+                <p className="mb-4 mt-1.5 text-[13px] leading-[1.55] text-[#5b6b84]">
+                  Your {money0(results.totalCost)} monthly cost, grouped the
+                  simple way. Driver pay stands on its own line, because
+                  paying the driver is employee money, separate from the truck.
+                </p>
+                <div className="mb-[18px] flex h-[30px]" aria-hidden="true">
+                  {moneySegs.map((s, i) => (
+                    <div
+                      key={s.label}
+                      className="flex h-full items-center justify-center text-[12.5px] font-extrabold"
+                      style={{
+                        width: `${moneyPcts ? moneyPcts[i] : 0}%`,
+                        background: s.color,
+                        color: s.darkText ? "#22314f" : "#ffffff",
+                      }}
+                    >
+                      {moneyPcts
+                        ? moneyPcts[i] >= 15
+                          ? `${s.label} ${moneyPcts[i]}%`
+                          : `${moneyPcts[i]}%`
+                        : ""}
+                    </div>
+                  ))}
+                </div>
+                {moneySegs.map((s, i) => (
+                  <div
+                    key={s.label}
+                    className="flex items-baseline gap-3 py-[11px] text-[13.5px]"
+                    style={i > 0 ? { borderTop: `1px solid ${LINE}` } : undefined}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="relative top-[1px] h-[10px] w-[10px] flex-none"
+                      style={{ background: s.color }}
+                    />
+                    <span className="flex-1 leading-[1.45] text-[#33415c]">
+                      <strong className="text-[#0e1728]">{s.label}</strong>
+                      {s.desc ? `: ${s.desc}` : ""}
+                    </span>
+                    <span className="whitespace-nowrap font-extrabold text-[#0a1a36]">
+                      {money0(s.value)} a month
+                    </span>
+                    <span className="min-w-[86px] whitespace-nowrap text-right text-[#5b6b84]">
+                      {money(results.totalMiles > 0 ? s.value / results.totalMiles : 0)}{" "}
+                      per mile
+                    </span>
+                  </div>
+                ))}
+                <div
+                  className="flex items-baseline gap-3 py-[11px] text-[14.5px]"
+                  style={{ borderTop: `2px solid ${NAVY}` }}
+                >
+                  <span className="flex-1 font-extrabold text-[#0e1728]">
+                    Everything together
+                  </span>
+                  <span className="whitespace-nowrap font-extrabold text-[#0a1a36]">
+                    {money0(results.totalCost)} a month
+                  </span>
+                  <span className="min-w-[86px] whitespace-nowrap text-right font-extrabold text-[#0a1a36]">
+                    {money(results.cpm)} per mile
+                  </span>
+                </div>
+              </section>
+
+              {/* (d) Your month in plain numbers */}
+              <section
+                className="mt-[14px] rounded-none border bg-white p-6"
+                style={{ borderColor: LINE }}
               >
-                Reset
-              </button>
+                <h3
+                  className="text-[17px] font-extrabold text-[#0a1a36]"
+                  style={{ fontFamily: HEADING }}
+                >
+                  Your month in plain numbers
+                </h3>
+                <p className="mt-1.5 text-[13px] leading-[1.55] text-[#5b6b84]">
+                  The four numbers behind the result, with nothing hidden.
+                </p>
+                {[
+                  {
+                    n: whole(results.totalMiles),
+                    t: "miles you drive in a month, loaded and empty together.",
+                  },
+                  {
+                    n: whole(deadheadMilesAmt),
+                    t: `of those miles are empty. That is ${results.deadheadPct.toFixed(1)}% of your driving that pays nothing, which is why loaded miles have to carry the cost.`,
+                  },
+                  {
+                    n: money0(results.fuel),
+                    t: "goes to fuel each month, your biggest single cost.",
+                  },
+                  {
+                    n: money0(results.totalCost),
+                    t: "is the full monthly cost of running your truck with the numbers you entered.",
+                  },
+                ].map((row, i) => (
+                  <div
+                    key={row.n + row.t}
+                    className="flex items-baseline gap-[14px] py-3"
+                    style={i > 0 ? { borderTop: `1px solid ${LINE}` } : undefined}
+                  >
+                    <span
+                      className="min-w-[118px] text-center text-[22px] font-extrabold text-[#0a1a36]"
+                      style={{ fontFamily: HEADING }}
+                    >
+                      {row.n}
+                    </span>
+                    <span className="text-[13.5px] leading-[1.55] text-[#33415c]">
+                      {row.t}
+                    </span>
+                  </div>
+                ))}
+              </section>
+
+              {/* (e) Actions */}
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={scrollToEmail}
+                  className="rounded-none px-[22px] py-[13px] text-[14px] font-extrabold text-[#0a1a36]"
+                  style={{
+                    background: YELLOW,
+                    boxShadow: "0 8px 24px rgba(255,198,26,0.35)",
+                  }}
+                >
+                  Email my results
+                </button>
+                <button
+                  type="button"
+                  onClick={backToCalculator}
+                  className="rounded-none border-[1.5px] border-[#0a1a36] px-[22px] py-3 text-[14px] font-bold text-[#0a1a36] transition hover:bg-[#0a1a36] hover:text-white"
+                >
+                  Back to the calculator
+                </button>
+                <button
+                  type="button"
+                  onClick={resetCalc}
+                  className="px-2 py-3 text-[14px] font-semibold text-[#5b6b84] transition hover:text-[#0a1a36]"
+                >
+                  Reset
+                </button>
+              </div>
+
+              {/* (f) Full breakdown */}
+              <section
+                className="mt-[22px] rounded-none border border-dashed bg-white px-[22px] py-[18px]"
+                style={{ borderColor: "#a9b7cc" }}
+              >
+                <p className="mb-3 text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-[#5b6b84]">
+                  Want every number? The full breakdown
+                </p>
+                <div className="grid gap-x-[22px] gap-y-[10px] sm:grid-cols-2 lg:grid-cols-3">
+                  {breakdownItems.map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex items-baseline justify-between gap-3 border-b pb-[5px] text-[12.5px]"
+                      style={{ borderColor: "#eef2f8" }}
+                    >
+                      <span className="text-[#5b6b84]">{label}</span>
+                      <strong className="whitespace-nowrap text-[#0e1728]">
+                        {value}
+                      </strong>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-4 text-[13.5px] leading-relaxed text-[#5b6b84]">
+                  This calculator is an educational tool for estimating
+                  operating costs. Actual costs may vary. For the most accurate
+                  cost per mile, use your own accounting records, invoices,
+                  mileage, and expenses.
+                </p>
+              </section>
             </div>
 
             {/* How to Interpret Your Results */}
@@ -914,12 +1258,15 @@ export default function CostPerMileCalculator() {
               </p>
             </section>
 
-            <EmailResultsPanel
-              calculator="cost-per-mile"
-              headline={`Your cost per mile: ${money(results.cpm)}`}
-              lines={emailLines}
-              blurb="Enter your email and we will send your full breakdown: every cost you entered, your cost per mile, and the lowest rate you should take. We also save a copy, so if you ever want help with the next step, we already have your numbers in front of us."
-            />
+            <div ref={emailPanelRef} className="scroll-mt-6">
+              <EmailResultsPanel
+                calculator="cost-per-mile"
+                headline={`Your cost per mile: ${money(results.cpm)}`}
+                lines={emailLines}
+                data={cpmEmailData}
+                blurb="Enter your email and we will send your full breakdown: every cost you entered, your cost per mile, and the lowest rate you should take. We also save a copy, so if you ever want help with the next step, we already have your numbers in front of us."
+              />
+            </div>
           </>
         ) : (
           <>
@@ -1057,13 +1404,24 @@ export default function CostPerMileCalculator() {
                 <button
                   type="button"
                   onClick={() => (step < 6 ? setStep(step + 1) : seeResults())}
-                  className="rounded-none px-[34px] py-[15px] text-[15px] font-bold text-[#0a1a36]"
+                  aria-label={step < 6 ? "Continue" : undefined}
+                  className={
+                    step < 6
+                      ? "rounded-none px-[24px] py-[13px] text-[15px] font-bold text-[#0a1a36]"
+                      : "rounded-none px-[34px] py-[15px] text-[15px] font-bold text-[#0a1a36]"
+                  }
                   style={{
                     background: YELLOW,
                     boxShadow: "0 10px 22px rgba(255,198,26,0.3)",
                   }}
                 >
-                  {step < 6 ? "Continue" : "See my results"}
+                  {step < 6 ? (
+                    <span aria-hidden="true" className="text-[22px] font-black leading-none">
+                      &gt;
+                    </span>
+                  ) : (
+                    "See my results"
+                  )}
                 </button>
               </div>
             </div>

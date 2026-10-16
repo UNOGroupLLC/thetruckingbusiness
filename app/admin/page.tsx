@@ -1567,7 +1567,7 @@ function OrderDetail({
             {timeline.map((t, i) => (
               <div key={t.label} role="listitem" className="text-center">
                 <span
-                  className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-none text-[12.5px] font-extrabold"
+                  className="inline-flex h-[30px] w-[30px] items-center justify-center rounded-full text-[12.5px] font-extrabold"
                   style={
                     t.done
                       ? { background: NAVY, color: '#fff' }

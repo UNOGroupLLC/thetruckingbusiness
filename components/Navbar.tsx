@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 const LINKS = [
   { href: '/#start', label: 'Start Your Business' },
-  { href: '/#compliance', label: 'DOT Compliance' },
+  { href: '/#start', label: 'DOT Compliance' },
   { href: '/calculators', label: 'Calculators' },
   { href: '/pricing', label: 'Services' },
   { href: '/resources/blog', label: 'Resources' },
@@ -30,7 +30,7 @@ export default function Navbar() {
 
         <nav className="nav-links" aria-label="Primary">
           {LINKS.map((l) => (
-            <Link key={l.href} href={l.href}>
+            <Link key={l.label} href={l.href}>
               {l.label}
             </Link>
           ))}
@@ -62,7 +62,7 @@ export default function Navbar() {
       <nav className={`mobile-menu${open ? ' open' : ''}`} aria-label="Mobile">
         {LINKS.map((l) => (
           <Link
-            key={l.href}
+            key={l.label}
             href={l.href}
             onClick={() => setOpen(false)}
             className="btn btn-o"

@@ -34,9 +34,9 @@ export const STEPS: RoadmapStep[] = [
   },
   {
     t: 'Registrations',
-    s: 'UCR, IRP, IFTA',
+    s: 'UCR, IRP, IFTA, HVUT 2290',
     d: 'UCR, apportioned plates (IRP), and fuel tax (IFTA) depend on your operation and states of travel.',
-    c: ['UCR registered', 'IRP cab card issued', 'IFTA license & decals'],
+    c: ['UCR registered', 'IRP cab card issued', 'IFTA license & decals', 'HVUT 2290 filed'],
   },
   {
     t: 'Driver & Vehicle',

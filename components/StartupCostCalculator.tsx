@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRef, useState } from 'react';
 
 /* ------------------------------------------------------------------ */
@@ -27,47 +28,47 @@ const BUSINESS_ITEMS: CalcItem[] = [
 ];
 
 const EQUIPMENT_ITEMS: CalcItem[] = [
-  { id: 'truckDown', name: 'Truck Down Payment or Purchase', value: 15000, type: 'variable', note: 'Amount per truck.', perTruck: true },
-  { id: 'trailerDown', name: 'Trailer Down Payment or Purchase', value: 5000, type: 'variable', note: 'Amount per trailer.', perTruck: true },
+  { id: 'truckDown', name: 'Truck Down Payment or Purchase', value: 3500, type: 'variable', note: 'Amount per truck.', perTruck: true },
+  { id: 'trailerDown', name: 'Trailer Down Payment or Purchase', value: 2000, type: 'variable', note: 'Amount per trailer.', perTruck: true },
   { id: 'initialMaintenance', name: 'Initial Maintenance, Repairs & Inspection', value: 2500, type: 'variable', note: 'Initial preparation allowance per truck.', perTruck: true },
   { id: 'safety', name: 'Safety Equipment & Supplies', value: 400, type: 'variable', note: 'Fire extinguisher, warning triangles, and other applicable supplies.', perTruck: true },
-  { id: 'eldSetup', name: 'ELD Equipment / Initial Activation', value: 250, type: 'variable', note: 'Price depends on provider and plan.', perTruck: true },
-  { id: 'gps', name: 'GPS, Tablet & Other Electronics', value: 500, type: 'variable', note: 'Optional.', perTruck: true },
+  { id: 'eldSetup', name: 'ELD Equipment / Initial Activation', value: 40, type: 'variable', note: 'Price depends on provider and plan.', perTruck: true },
+  { id: 'gps', name: 'GPS, Tablet & Other Electronics', value: 20, type: 'variable', note: 'Optional.', perTruck: true },
 ];
 
 const PERMIT_ITEMS: CalcItem[] = [
   { id: 'insuranceDown', name: 'Commercial Insurance Down Payment', value: 3500, type: 'variable', note: 'Replace with your actual insurance quote.', perTruck: true },
-  { id: 'hvut', name: 'Form 2290 / HVUT', value: 550, type: 'variable', note: 'Editable estimate; actual tax depends on the vehicle and its use.', perTruck: true },
+  { id: 'hvut', name: 'HVUT 2290', value: 550, type: 'variable', note: 'Editable estimate; actual tax depends on the vehicle and its use.', perTruck: true },
   { id: 'irp', name: 'IRP Registration', value: 1800, type: 'variable', note: 'Varies by jurisdiction and other factors.', perTruck: true, interstate: true },
   { id: 'ifta', name: 'IFTA Account / Decals', value: 20, type: 'variable', note: 'Fees and procedures depend on the jurisdiction.', interstate: true },
-  { id: 'statePermits', name: 'Additional State Permits', value: 300, type: 'variable', note: 'Only when applicable to your routes and operation.', interstate: true },
-  { id: 'titlePlate', name: 'Title, Plates, Registration & State Fees', value: 500, type: 'variable', note: 'Varies by state and vehicle.', perTruck: true },
-  { id: 'markings', name: 'USDOT / Legal Name Markings', value: 150, type: 'variable', note: 'Marking cost per truck.', perTruck: true },
+  { id: 'statePermits', name: 'Additional State Permits', value: 0, type: 'variable', note: 'Only when applicable to your routes and operation.', interstate: true },
+  { id: 'titlePlate', name: 'Title, Plates, Registration & State Fees', value: 200, type: 'variable', note: 'Varies by state and vehicle.', perTruck: true },
+  { id: 'markings', name: 'USDOT / Legal Name Markings', value: 80, type: 'variable', note: 'Marking cost per truck.', perTruck: true },
 ];
 
 const COMPLIANCE_ITEMS: CalcItem[] = [
-  { id: 'drugProgram', name: 'DOT Drug & Alcohol Program / Consortium', value: 150, type: 'variable', note: 'When 49 CFR Part 382 requirements apply.', perDriver: true },
-  { id: 'preDrug', name: 'Pre-Employment Drug Test', value: 75, type: 'variable', note: 'Per CDL driver when required.', perDriver: true },
+  { id: 'drugProgram', name: 'DOT Drug & Alcohol Program / Consortium', value: 90, type: 'variable', note: 'When 49 CFR Part 382 requirements apply.', perDriver: true },
+  { id: 'preDrug', name: 'Pre-Employment Drug Test', value: 70, type: 'variable', note: 'Per CDL driver when required.', perDriver: true },
   { id: 'clearinghouse', name: 'Clearinghouse Query / Compliance Service', value: 25, type: 'variable', note: 'Use the actual provider or query cost.', perDriver: true },
   { id: 'mvr', name: 'MVR / Driving Record Review', value: 25, type: 'variable', note: 'Per driver; fees depend on the source/state.', perDriver: true },
   { id: 'medical', name: 'DOT Medical Examination', value: 125, type: 'variable', note: 'If the driver does not have a current medical certificate.', perDriver: true },
   { id: 'dqFile', name: 'Driver Qualification File Setup', value: 0, type: 'variable', note: 'Enter software or service cost if using a provider.', perDriver: true },
-  { id: 'vehicleInspection', name: 'Periodic Vehicle Inspection', value: 125, type: 'variable', note: 'Estimated cost per vehicle.', perTruck: true },
+  { id: 'vehicleInspection', name: 'Periodic Vehicle Inspection', value: 100, type: 'variable', note: 'Estimated cost per vehicle.', perTruck: true },
 ];
 
 const MONTHLY_ITEMS: CalcItem[] = [
-  { id: 'truckPayment', name: 'Monthly Truck Payment', value: 2200, type: 'variable', note: 'Per truck.', perTruck: true },
-  { id: 'trailerPayment', name: 'Monthly Trailer Payment', value: 700, type: 'variable', note: 'Per trailer.', perTruck: true },
+  { id: 'truckPayment', name: 'Monthly Truck Payment', value: 1300, type: 'variable', note: 'Per truck.', perTruck: true },
+  { id: 'trailerPayment', name: 'Monthly Trailer Payment', value: 500, type: 'variable', note: 'Per trailer.', perTruck: true },
   { id: 'insuranceMonthly', name: 'Monthly Insurance Premium', value: 1800, type: 'variable', note: 'Per truck. Replace with your actual quote.', perTruck: true },
-  { id: 'fuel', name: 'Fuel', value: 5500, type: 'variable', note: 'Estimated monthly amount per truck.', perTruck: true },
-  { id: 'maintenanceReserve', name: 'Maintenance & Tire Reserve', value: 1200, type: 'variable', note: 'Estimated monthly amount per truck.', perTruck: true },
-  { id: 'eldMonthly', name: 'ELD / Fleet Software', value: 50, type: 'variable', note: 'Per truck.', perTruck: true },
-  { id: 'tollsParking', name: 'Tolls, Scales & Parking', value: 500, type: 'variable', note: 'Estimated monthly amount per truck.', perTruck: true },
-  { id: 'driverPay', name: 'Driver Pay / Owner Compensation', value: 0, type: 'variable', note: 'Per driver.', perDriver: true },
+  { id: 'fuel', name: 'Fuel', value: 4200, type: 'variable', note: 'Estimated monthly amount per truck.', perTruck: true },
+  { id: 'maintenanceReserve', name: 'Maintenance & Tire Reserve', value: 950, type: 'variable', note: 'Estimated monthly amount per truck.', perTruck: true },
+  { id: 'eldMonthly', name: 'ELD / Fleet Software', value: 40, type: 'variable', note: 'Per truck.', perTruck: true },
+  { id: 'tollsParking', name: 'Tolls, Scales & Parking', value: 300, type: 'variable', note: 'Estimated monthly amount per truck.', perTruck: true },
+  { id: 'driverPay', name: 'Driver Pay / Owner Compensation', value: 4000, type: 'variable', note: 'Per driver.', perDriver: true },
   { id: 'dispatch', name: 'Dispatch / Operations Management', value: 0, type: 'variable', note: 'Enter your monthly cost if applicable.' },
-  { id: 'bookkeeping', name: 'Accounting, Bookkeeping & Software', value: 250, type: 'variable', note: 'Estimated monthly amount.' },
-  { id: 'phone', name: 'Phone & Internet', value: 150, type: 'variable', note: 'Estimated monthly amount.' },
-  { id: 'otherMonthly', name: 'Other Monthly Expenses', value: 500, type: 'variable', note: 'Office, banking, subscriptions, and other expenses.' },
+  { id: 'bookkeeping', name: 'Accounting, Bookkeeping & Software', value: 150, type: 'variable', note: 'Estimated monthly amount.' },
+  { id: 'phone', name: 'Phone & Internet', value: 100, type: 'variable', note: 'Estimated monthly amount.' },
+  { id: 'otherMonthly', name: 'Other Monthly Expenses', value: 100, type: 'variable', note: 'Office, banking, subscriptions, and other expenses.' },
 ];
 
 const ALL_ITEMS: CalcItem[] = [
@@ -181,7 +182,26 @@ function StepProgress({
                   overflow: 'hidden',
                 }}
               >
-                {n}&nbsp;&nbsp;{name}
+                <span
+                  aria-hidden="true"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    background: filled ? NAVY : '#dde4ee',
+                    color: filled ? '#ffffff' : '#5b6b84',
+                    fontSize: 11,
+                    fontWeight: 800,
+                    marginRight: 7,
+                    verticalAlign: 'middle',
+                  }}
+                >
+                  {n}
+                </span>
+                {name}
               </div>
               <div
                 className="h-[4px] rounded-none"
@@ -329,11 +349,13 @@ function EmailResultsPanel({
   headline,
   lines,
   blurb,
+  data,
 }: {
   calculator: 'cost-per-mile' | 'startup';
   headline: string;
   lines: string[];
   blurb: string;
+  data?: Record<string, unknown>;
 }) {
   const [email, setEmail] = useState('');
   const [website, setWebsite] = useState('');
@@ -354,13 +376,14 @@ function EmailResultsPanel({
           email: email.trim(),
           headline,
           lines,
+          data,
           company_website: website,
         }),
       });
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) {
+      const resp = await res.json().catch(() => null);
+      if (!res.ok || !resp?.ok) {
         setError(
-          data?.error ||
+          resp?.error ||
             'We could not send your results. Please email us directly at hello@thetruckingbusiness.com and we will send them over.'
         );
         return;
@@ -483,6 +506,15 @@ export default function StartupCostCalculator() {
   const [step, setStep] = useState(1);
   const [showResults, setShowResults] = useState(false);
   const wizardRef = useRef<HTMLDivElement | null>(null);
+  const emailPanelRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToEmail = () => {
+    emailPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const input = emailPanelRef.current?.querySelector(
+      'input[type=email]'
+    ) as HTMLInputElement | null;
+    input?.focus({ preventScroll: true });
+  };
 
   const interstate = operationType === 'interstate';
 
@@ -533,7 +565,7 @@ export default function StartupCostCalculator() {
   };
 
   const scrollToWizard = () => {
-    wizardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    wizardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const seeResults = () => {
@@ -592,9 +624,72 @@ export default function StartupCostCalculator() {
     `Driver and compliance: ${money(compliance)}`,
     `One-time startup costs: ${money(startup)}`,
     `Estimated monthly cost: ${money(monthly)}`,
-    `Operating reserve (${monthText}): ${money(reserve)}`,
-    `Estimated start-up capital: ${money(grand)}`,
+    `Safety buffer (${monthText}, recommended): ${money(reserve)}`,
+    `Estimated start-up capital: ${money(startup)}`,
+    `Total with buffer: ${money(grand)}`,
   ];
+
+  /* Plain-language results groupings (approved mock 4). Start-up capital is
+   * the one-time money only; the reserve is a separate recommended buffer. */
+  const driverPayItem = MONTHLY_ITEMS.find((i) => i.id === 'driverPay');
+  const driverPayTotal = driverPayItem ? itemTotal(driverPayItem) : 0;
+  const monthTextCap = monthText.charAt(0).toUpperCase() + monthText.slice(1);
+  const coverSegs: {
+    label: string;
+    desc: string;
+    color: string;
+    darkText?: boolean;
+    value: number;
+  }[] = [
+    { label: 'Truck and equipment', desc: 'down payments, first repairs, safety gear', color: '#7d9cc4', value: equipment },
+    { label: 'Insurance and permits', desc: 'getting legal to roll', color: BLUE, value: permits },
+    { label: 'Business and FMCSA', desc: 'formation, authority, filings', color: '#48648c', value: business },
+    { label: 'Driver and compliance', desc: 'testing, consortium, medical, files', color: '#b9c8dc', darkText: true, value: compliance },
+  ];
+  const coverPcts = normalizedPercents(coverSegs.map((s) => s.value));
+  const coverRows: { label: string; desc: string; color: string; value: number }[] = [
+    { label: 'Business and FMCSA', desc: 'formation, authority, filings', color: '#48648c', value: business },
+    { label: 'Truck and equipment', desc: 'down payments, first repairs, safety gear', color: '#7d9cc4', value: equipment },
+    { label: 'Insurance, registration and permits', desc: 'getting legal to roll', color: BLUE, value: permits },
+    { label: 'Driver and compliance', desc: 'testing, consortium, medical, files', color: '#b9c8dc', value: compliance },
+  ];
+
+  const startupBreakdownItems: [string, string][] = [
+    [
+      'Operation',
+      `${truckCount} ${truckCount === 1 ? 'truck' : 'trucks'}, ${driverCount} ${
+        driverCount === 1 ? 'driver' : 'drivers'
+      }, ${interstate ? 'Interstate' : 'Intrastate only'}`,
+    ],
+    ['Business and FMCSA', money(business)],
+    ['Truck and equipment', money(equipment)],
+    ['Insurance, registration and permits', money(permits)],
+    ['Driver and compliance', money(compliance)],
+    ['One-time startup costs', money(startup)],
+    ['Estimated monthly cost', money(monthly)],
+    [`Safety buffer, ${monthText} (recommended)`, money(reserve)],
+    ['Estimated start-up capital', money(startup)],
+    ['Total with buffer', money(grand)],
+  ];
+
+  /** Structured payload for the redesigned results email (mock 3). */
+  const startupEmailData: Record<string, unknown> = {
+    kind: 'startup',
+    capital: money(startup),
+    coverRows: [
+      ['Business and FMCSA', money(business)],
+      ['Truck and equipment', money(equipment)],
+      ['Insurance, registration and permits', money(permits)],
+      ['Driver and compliance', money(compliance)],
+    ],
+    monthly: money(monthly),
+    buffer: money(reserve),
+    bufferMonths: monthText,
+    readyMoney: money(grand),
+    operation: `${truckCount} ${truckCount === 1 ? 'truck' : 'trucks'}, ${driverCount} ${
+      driverCount === 1 ? 'driver' : 'drivers'
+    }, ${interstate ? 'Interstate' : 'Intrastate only'}`,
+  };
 
   const breakdownRows: [string, string][] = [
     ['Business & FMCSA', money(business)],
@@ -652,9 +747,9 @@ export default function StartupCostCalculator() {
               <button type="button" className="btn btn-y" onClick={scrollToWizard}>
                 Start the calculator
               </button>
-              <button type="button" className="btn btn-ghost" onClick={scrollToWizard}>
+              <Link href="/resources/blog/how-to-start-a-trucking-company" className="btn btn-ghost">
                 See how it works
-              </button>
+              </Link>
             </div>
           </div>
 
@@ -736,78 +831,222 @@ export default function StartupCostCalculator() {
         </div>
 
         {showResults ? (
-          <div className="mt-[26px] grid gap-5">
-            {/* Total bar */}
+          <div className="mt-[26px]" aria-live="polite">
+            {/* (a) The answer: one-time start-up capital only (approved mock 4) */}
             <section
-              aria-live="polite"
-              className="rounded-none p-6 text-white sm:p-7"
+              className="rounded-none p-[30px] text-white sm:p-8"
               style={{ background: `linear-gradient(135deg, ${NAVY} 0%, ${NAVY2} 88%)` }}
             >
-              <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-[minmax(0,1fr)_auto]">
-                <div>
-                  <h3
-                    className="text-[20px] font-extrabold"
-                    style={{ fontFamily: HEADING }}
-                  >
-                    ESTIMATED START-UP CAPITAL
-                  </h3>
-                  <p className="mt-1.5 max-w-2xl text-[13.5px] leading-relaxed text-white/80">
-                    Includes selected start-up expenses plus an operating reserve of {monthText}.
-                  </p>
-                </div>
-                <div
-                  className="text-left text-[32px] font-black sm:text-right"
-                  style={{ fontFamily: HEADING, color: YELLOW }}
-                >
-                  {money(grand)}
-                </div>
-              </div>
+              <p className="text-[11.5px] font-extrabold uppercase tracking-[0.16em] text-[#9fb4d8]">
+                Estimated start-up capital
+              </p>
+              <p
+                className="mt-[10px] font-black leading-none"
+                style={{ fontFamily: HEADING, fontSize: 56, letterSpacing: '-0.02em' }}
+              >
+                {money(startup)}
+              </p>
+              <p className="mt-[10px] max-w-[560px] text-[14.5px] leading-[1.6] text-[#dbe4f2]">
+                Everything it costs to open your company and put your truck on the road, paid
+                once. Your monthly running costs and a recommended safety buffer are below, kept
+                separate on purpose so the starting number stays honest.
+              </p>
             </section>
 
-            {/* Category breakdown */}
+            {/* (b) Running costs + the recommended buffer, side by side */}
+            <div className="mt-[14px] grid gap-[14px] sm:grid-cols-2">
+              <section
+                className="rounded-none border bg-white p-6"
+                style={{ borderColor: LINE, borderTop: `5px solid ${NAVY}` }}
+              >
+                <p className="text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-[#5b6b84]">
+                  To keep running
+                </p>
+                <p
+                  className="mt-2 font-black text-[#0a1a36]"
+                  style={{ fontFamily: HEADING, fontSize: 40 }}
+                >
+                  {money(monthly)}{' '}
+                  <small className="text-[15px] font-bold text-[#5b6b84]">a month</small>
+                </p>
+                <p className="mt-2 text-[13.5px] leading-[1.6] text-[#33415c]">
+                  What the truck costs every month once you are rolling: payments, insurance,
+                  fuel, driver pay, and the rest of the monthly bills.
+                </p>
+                <p
+                  className="mt-[10px] border-t pt-[10px] text-[12.5px] text-[#5b6b84]"
+                  style={{ borderColor: LINE }}
+                >
+                  This is separate from your start-up capital. It is what the business has to
+                  cover every month.
+                </p>
+              </section>
+              <section
+                className="rounded-none bg-white p-6"
+                style={{ border: '1.5px dashed #8fa5c4', borderTop: '5px solid #7d9cc4' }}
+              >
+                <p className="text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-[#5b6b84]">
+                  Safety buffer · Recommendation
+                </p>
+                <p
+                  className="mt-2 font-black text-[#0a1a36]"
+                  style={{ fontFamily: HEADING, fontSize: 40 }}
+                >
+                  {money(reserve)}{' '}
+                  <small className="text-[15px] font-bold text-[#5b6b84]">{monthText}</small>
+                </p>
+                <p className="mt-2 text-[13.5px] leading-[1.6] text-[#33415c]">
+                  {monthTextCap} of running costs set aside before you start, so a slow first
+                  month, a repair, or a late paying broker does not end the business.
+                </p>
+                <p
+                  className="mt-3 border-l-[3px] bg-[#eef2f8] px-3 py-[9px] text-[12.5px] leading-[1.55] text-[#33415c]"
+                  style={{ borderColor: BLUE }}
+                >
+                  <strong>Recommendation only.</strong> This buffer is not part of your start-up
+                  capital. You can start without it, but most new carriers are glad they had it.
+                </p>
+              </section>
+            </div>
+
+            {/* (c) What the start money covers */}
             <section
-              className="rounded-none border bg-white p-6 sm:p-7"
+              className="mt-[14px] rounded-none border bg-white p-6"
               style={{ borderColor: LINE }}
             >
               <h3
                 className="text-[17px] font-extrabold text-[#0a1a36]"
                 style={{ fontFamily: HEADING }}
               >
-                Your breakdown
+                What the start money covers
               </h3>
-              <dl className="mt-2">
-                {breakdownRows.map(([label, value]) => (
+              <p className="mb-4 mt-1.5 text-[13px] leading-[1.55] text-[#5b6b84]">
+                Your {money(startup)} of start-up capital, group by group. This is the money
+                that gets you legal and rolling.
+              </p>
+              <div className="mb-[18px] flex h-[30px]" aria-hidden="true">
+                {coverSegs.map((s, i) => (
                   <div
-                    key={label}
-                    className="flex justify-between gap-4 border-b py-2.5 text-[13.5px]"
-                    style={{ borderColor: LINE }}
+                    key={s.label}
+                    className="flex h-full items-center justify-center text-[12.5px] font-extrabold"
+                    style={{
+                      width: `${coverPcts ? coverPcts[i] : 0}%`,
+                      background: s.color,
+                      color: s.darkText ? '#22314f' : '#ffffff',
+                    }}
                   >
-                    <dt className="text-[#5b6b84]">{label}</dt>
-                    <dd className="text-right font-bold text-[#16233c]">{value}</dd>
+                    {coverPcts
+                      ? coverPcts[i] >= 15
+                        ? `${s.label} ${coverPcts[i]}%`
+                        : `${coverPcts[i]}%`
+                      : ''}
                   </div>
                 ))}
-              </dl>
-              <div
-                className="mt-3.5 rounded-none border bg-[#f6f7f9] p-3.5"
-                style={{ borderColor: LINE }}
-              >
-                <div className="text-[12.5px] text-[#5b6b84]">Operating Reserve</div>
-                <div
-                  className="text-[20px] font-extrabold text-[#16233c]"
-                  style={{ fontFamily: HEADING }}
-                >
-                  {money(reserve)}
-                </div>
-                <div className="mt-1 text-[12.5px] text-[#5b6b84]">
-                  {monthText} of operating expenses
-                </div>
               </div>
-              <p className="mt-3 text-[12.5px] leading-relaxed text-[#5b6b84]">
-                Change any amount to use your actual quotes. Yellow values are editable estimates.
+              {coverRows.map((r, i) => (
+                <div
+                  key={r.label}
+                  className="flex items-baseline gap-3 py-[11px] text-[13.5px]"
+                  style={i > 0 ? { borderTop: `1px solid ${LINE}` } : undefined}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="relative top-[1px] h-[10px] w-[10px] flex-none"
+                    style={{ background: r.color }}
+                  />
+                  <span className="flex-1 leading-[1.45] text-[#33415c]">
+                    <strong className="text-[#0e1728]">{r.label}</strong>: {r.desc}
+                  </span>
+                  <span className="whitespace-nowrap font-extrabold text-[#0a1a36]">
+                    {money(r.value)}
+                  </span>
+                </div>
+              ))}
+              <div
+                className="flex items-baseline gap-3 py-[11px] text-[14.5px]"
+                style={{ borderTop: `2px solid ${NAVY}` }}
+              >
+                <span className="flex-1 font-extrabold text-[#0e1728]">
+                  Estimated start-up capital
+                </span>
+                <span className="whitespace-nowrap font-extrabold text-[#0a1a36]">
+                  {money(startup)}
+                </span>
+              </div>
+              <p className="mb-1 mt-[18px] text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-[#5b6b84]">
+                If you add the recommended buffer
               </p>
+              <div
+                className="flex items-baseline gap-3 py-[11px] text-[13.5px]"
+                style={{ borderTop: `1px solid ${LINE}` }}
+              >
+                <span className="flex-1 leading-[1.45] text-[#33415c]">
+                  Start-up capital {money(startup)}, plus the safety buffer of {money(reserve)}
+                </span>
+                <span className="whitespace-nowrap font-extrabold text-[#0a1a36]">
+                  {money(grand)} in ready money
+                </span>
+              </div>
             </section>
 
-            <div className="flex flex-wrap items-center gap-3">
+            {/* (d) Your startup in plain numbers */}
+            <section
+              className="mt-[14px] rounded-none border bg-white p-6"
+              style={{ borderColor: LINE }}
+            >
+              <h3
+                className="text-[17px] font-extrabold text-[#0a1a36]"
+                style={{ fontFamily: HEADING }}
+              >
+                Your startup in plain numbers
+              </h3>
+              <p className="mt-1.5 text-[13px] leading-[1.55] text-[#5b6b84]">
+                The four numbers behind the result, with nothing hidden.
+              </p>
+              {[
+                {
+                  n: money(startup),
+                  t: 'paid once, before your first load: the company, the truck, the insurance setup, and the driver setup. This is your start-up capital.',
+                },
+                {
+                  n: money(monthly),
+                  t: `is what the truck costs each month once you are rolling, with the driver paying himself ${money(driverPayTotal)} of it.`,
+                },
+                {
+                  n: money(reserve),
+                  t: `is the recommended safety buffer, ${monthText} of running costs. It is not part of your start-up capital.`,
+                },
+                {
+                  n: money(grand),
+                  t: 'is the full ready money if you follow the buffer recommendation: start-up capital and buffer together.',
+                },
+              ].map((row, i) => (
+                <div
+                  key={row.n + row.t}
+                  className="flex items-baseline gap-[14px] py-3"
+                  style={i > 0 ? { borderTop: `1px solid ${LINE}` } : undefined}
+                >
+                  <span
+                    className="min-w-[118px] text-center text-[22px] font-extrabold text-[#0a1a36]"
+                    style={{ fontFamily: HEADING }}
+                  >
+                    {row.n}
+                  </span>
+                  <span className="text-[13.5px] leading-[1.55] text-[#33415c]">{row.t}</span>
+                </div>
+              ))}
+            </section>
+
+            {/* (e) Actions */}
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                onClick={scrollToEmail}
+                className="rounded-none px-[22px] py-[13px] text-[14px] font-extrabold text-[#0a1a36]"
+                style={{ background: YELLOW, boxShadow: '0 8px 24px rgba(255,198,26,0.35)' }}
+              >
+                Email my results
+              </button>
               <button
                 type="button"
                 onClick={backToCalculator}
@@ -820,16 +1059,44 @@ export default function StartupCostCalculator() {
                 onClick={resetAll}
                 className="px-2 py-3 text-[14px] font-semibold text-[#5b6b84] transition hover:text-[#0a1a36]"
               >
-                Reset Calculator
+                Reset
               </button>
             </div>
 
-            <EmailResultsPanel
-              calculator="startup"
-              headline={`Estimated start-up capital: ${money(grand)}`}
-              lines={emailLines}
-              blurb="Enter your email and we will send your full breakdown: every cost you entered, your one-time total, your monthly costs, and your reserve. We also save a copy, so if you ever want help with the next step, we already have your numbers in front of us."
-            />
+            {/* (f) Full breakdown */}
+            <section
+              className="mt-[22px] rounded-none border border-dashed bg-white px-[22px] py-[18px]"
+              style={{ borderColor: '#a9b7cc' }}
+            >
+              <p className="mb-3 text-[11.5px] font-extrabold uppercase tracking-[0.14em] text-[#5b6b84]">
+                Want every number? The full breakdown
+              </p>
+              <div className="grid gap-x-[22px] gap-y-[10px] sm:grid-cols-2 lg:grid-cols-3">
+                {startupBreakdownItems.map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="flex items-baseline justify-between gap-3 border-b pb-[5px] text-[12.5px]"
+                    style={{ borderColor: '#eef2f8' }}
+                  >
+                    <span className="text-[#5b6b84]">{label}</span>
+                    <strong className="whitespace-nowrap text-[#0e1728]">{value}</strong>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-4 text-[12.5px] leading-relaxed text-[#5b6b84]">
+                Change any amount to use your actual quotes. Yellow values are editable estimates.
+              </p>
+            </section>
+
+            <div ref={emailPanelRef} className="mt-[26px] scroll-mt-6">
+              <EmailResultsPanel
+                calculator="startup"
+                headline={`Estimated start-up capital: ${money(startup)}`}
+                lines={emailLines}
+                data={startupEmailData}
+                blurb="Enter your email and we will send your full breakdown: every cost you entered, your one-time total, your monthly costs, and the recommended safety buffer. We also save a copy, so if you ever want help with the next step, we already have your numbers in front of us."
+              />
+            </div>
           </div>
         ) : (
           <>
@@ -1011,10 +1278,21 @@ export default function StartupCostCalculator() {
                   <button
                     type="button"
                     onClick={() => (step < 6 ? setStep(step + 1) : seeResults())}
-                    className="rounded-none px-[34px] py-[15px] text-[15px] font-bold text-[#0a1a36]"
+                    aria-label={step < 6 ? 'Continue' : undefined}
+                    className={
+                      step < 6
+                        ? 'rounded-none px-[24px] py-[13px] text-[15px] font-bold text-[#0a1a36]'
+                        : 'rounded-none px-[34px] py-[15px] text-[15px] font-bold text-[#0a1a36]'
+                    }
                     style={{ background: YELLOW, boxShadow: '0 10px 22px rgba(255,198,26,0.3)' }}
                   >
-                    {step < 6 ? 'Continue' : 'See my results'}
+                    {step < 6 ? (
+                      <span aria-hidden="true" className="text-[22px] font-black leading-none">
+                        &gt;
+                      </span>
+                    ) : (
+                      'See my results'
+                    )}
                   </button>
                 </div>
               </WizardCard>

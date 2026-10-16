@@ -143,12 +143,15 @@ export default function PricingPage() {
                       <p className="font-bold text-navy">{item.name}</p>
                       <p className="text-[12.5px] text-steel">{item.tagline}</p>
                     </td>
-                    <td className="whitespace-nowrap px-5 py-4 text-right font-extrabold text-navy">
+                    <td className="w-[190px] whitespace-nowrap px-5 py-4 font-extrabold text-navy">
                       {formatUSD(item.price)}
                       <span className="text-[12.5px] font-semibold text-steel"> {item.billing}</span>
                     </td>
                     <td className="whitespace-nowrap px-5 py-4 text-right">
-                      <Link href={`/checkout/${item.slug}`} className="btn-primary px-4 py-2 text-[13px]">
+                      <Link
+                        href={`/checkout/${item.slug}`}
+                        className="btn-primary w-[307px] max-w-full px-4 py-2 text-[13px]"
+                      >
                         {item.cta}
                       </Link>
                     </td>
