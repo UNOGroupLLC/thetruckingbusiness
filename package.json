@@ -8,11 +8,12 @@
     "start": "next start"
   },
   "dependencies": {
+    "jszip": "^3.10.2",
+    "marked": "^12.0.0",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "stripe": "^23.0.0",
-    "marked": "^12.0.0"
+    "stripe": "^23.0.0"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4",
