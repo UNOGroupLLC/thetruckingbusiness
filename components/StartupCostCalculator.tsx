@@ -105,14 +105,20 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-/* UCR 2027 fee brackets: FMCSA final rule 91 FR 56063; 2027 registration year opened Oct 1, 2026 */
-function ucrFee(count: number): number {
-  if (count <= 2) return 55;
-  if (count <= 5) return 167;
-  if (count <= 20) return 333;
-  if (count <= 100) return 1163;
-  if (count <= 1000) return 5548;
-  return 54165;
+/* UCR 2027 fee brackets: FMCSA final rule 91 FR 56063; 2027 registration year opened Oct 1, 2026.
+ * The visitor picks their fleet size bracket; the fee follows the bracket. */
+const UCR_BRACKETS: { label: string; max: number; fee: number }[] = [
+  { label: '0 to 2 trucks', max: 2, fee: 55 },
+  { label: '3 to 5 trucks', max: 5, fee: 167 },
+  { label: '6 to 20 trucks', max: 20, fee: 333 },
+  { label: '21 to 100 trucks', max: 100, fee: 1163 },
+  { label: '101 to 1,000 trucks', max: 1000, fee: 5548 },
+  { label: '1,001 or more trucks', max: Number.POSITIVE_INFINITY, fee: 54165 },
+];
+
+function ucrBracketIndex(count: number): number {
+  const idx = UCR_BRACKETS.findIndex((b) => count <= b.max);
+  return idx >= 0 ? idx : UCR_BRACKETS.length - 1;
 }
 
 /** Round shares of a total to whole percents that sum to exactly 100
@@ -502,6 +508,7 @@ export default function StartupCostCalculator() {
   const [driverCount, setDriverCount] = useState(1);
   const [operationType, setOperationType] = useState<'interstate' | 'intrastate'>('interstate');
   const [reserveMonths, setReserveMonths] = useState(3);
+  const [ucrBracket, setUcrBracket] = useState(() => ucrBracketIndex(1));
   const [rows, setRows] = useState<Record<string, RowState>>(initialRows);
   const [step, setStep] = useState(1);
   const [showResults, setShowResults] = useState(false);
@@ -540,7 +547,7 @@ export default function StartupCostCalculator() {
   const business = categoryTotal(BUSINESS_ITEMS);
   const equipment = categoryTotal(EQUIPMENT_ITEMS);
   const permitsBase = categoryTotal(PERMIT_ITEMS);
-  const ucr = interstate ? ucrFee(truckCount) : 0;
+  const ucr = interstate ? UCR_BRACKETS[ucrBracket].fee : 0;
   const permits = permitsBase + ucr;
   const compliance = categoryTotal(COMPLIANCE_ITEMS);
   const monthly = categoryTotal(MONTHLY_ITEMS);
@@ -561,6 +568,7 @@ export default function StartupCostCalculator() {
     setDriverCount(1);
     setOperationType('interstate');
     setReserveMonths(3);
+    setUcrBracket(ucrBracketIndex(1));
     setRows(initialRows());
   };
 
@@ -596,23 +604,21 @@ export default function StartupCostCalculator() {
     </div>
   );
 
-  /* Live preview shares for the hero card, from the same live totals. */
-  const segValues = [equipment, permits + compliance, reserve];
+  /* Live preview shares for the hero card, from the same live totals.
+   * The overview headline is the one-time startup cost only; the reserve
+   * stays out of it and appears at the bottom of the card as a
+   * recommendation (owner ruling, Oct 16, 2026). */
+  const segValues = [equipment, permits + compliance, business];
   const segPcts = normalizedPercents(segValues);
-  const hasTotal = grand > 0;
+  const hasTotal = startup > 0;
   const segColors = ['#ffc61a', '#eef1f6', '#c9a227'];
-  const segLabels = [
-    'Truck and equipment',
-    'Insurance, permits and compliance',
-    `Operating reserve, ${monthText}`,
-  ];
+  const segLabels = ['Truck and equipment', 'Insurance, permits and compliance', 'Business and FMCSA'];
 
   const truckWord = truckCount === 1 ? 'one truck' : `${truckCount} trucks`;
   const driverWord = driverCount === 1 ? 'one driver' : `${driverCount} drivers`;
-  const reserveWord = reserveMonths === 1 ? 'one month' : `${reserveMonths} months`;
   const finePrint = `An example startup with ${truckWord} and ${driverWord}, ${
     interstate ? 'running interstate' : 'running intrastate only'
-  }, with ${reserveWord} of reserve. Your numbers will differ.`;
+  }. Your numbers will differ.`;
 
   const emailLines = [
     `Operation: ${truckCount} ${truckCount === 1 ? 'truck' : 'trucks'}, ${driverCount} ${
@@ -774,7 +780,7 @@ export default function StartupCostCalculator() {
                   className="mt-1.5 text-[52px] font-black leading-none"
                   style={{ fontFamily: HEADING, color: YELLOW, letterSpacing: '-0.01em' }}
                 >
-                  {hasTotal ? money(grand) : '-'}
+                  {hasTotal ? money(startup) : '-'}
                 </div>
               </div>
               <div className="pb-1.5 text-right">
@@ -809,7 +815,21 @@ export default function StartupCostCalculator() {
                 </div>
               ))}
             </div>
-            <p className="mt-5 text-[12.5px] leading-relaxed text-[#8296b3]">{finePrint}</p>
+            <div className="mt-5 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.16)' }}>
+              <div className="flex items-baseline justify-between gap-4">
+                <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#8fa3c4]">
+                  Safety buffer · Recommendation
+                </span>
+                <span className="text-[17px] font-bold text-white">
+                  {hasTotal ? money(reserve) : '-'}
+                </span>
+              </div>
+              <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#8296b3]">
+                {monthTextCap} of monthly costs set aside. Recommended, but not part of the startup
+                cost above. With the buffer, your ready money would be {money(grand)}.
+              </p>
+            </div>
+            <p className="mt-4 text-[12.5px] leading-relaxed text-[#8296b3]">{finePrint}</p>
           </div>
         </div>
       </section>
@@ -1225,17 +1245,31 @@ export default function StartupCostCalculator() {
                           <div>
                             <strong className="text-[15px] text-[#0a1a36]">2027 UCR Registration</strong>
                             <div className="mt-1 text-[12.5px] leading-relaxed text-[#5b6b84]">
-                              Fee automatically calculated based on the number of vehicles entered ({truckCount}).
+                              Choose your fleet size. The official 2027 fee for that bracket is what you pay.
                             </div>
                             <span className="mt-1.5 inline-block rounded-none bg-green-100 px-2.5 py-0.5 text-[11px] font-extrabold uppercase tracking-wide text-green-800">
                               Official 2027 Fee
                             </span>
                           </div>
-                          <div
-                            className="text-[20px] font-extrabold text-[#0a1a36]"
-                            style={{ fontFamily: HEADING }}
-                          >
-                            {money(ucr)}
+                          <div className="w-full sm:w-[240px]">
+                            <label htmlFor="calc-ucrBracket" className="sr-only">
+                              UCR fleet size bracket
+                            </label>
+                            <select
+                              id="calc-ucrBracket"
+                              value={ucrBracket}
+                              onChange={(e) => setUcrBracket(Number(e.target.value))}
+                              className="w-full rounded-none border-[1.5px] border-[#ccd6e4] bg-white px-3 py-[10px] text-[15px] font-semibold text-[#0a1a36] outline-none focus:border-[#1755a8]"
+                            >
+                              {UCR_BRACKETS.map((b, i) => (
+                                <option key={b.label} value={i}>
+                                  {b.label} ({money(b.fee)})
+                                </option>
+                              ))}
+                            </select>
+                            <div className="mt-1 text-left text-[12.5px] text-[#5b6b84] sm:text-right">
+                              Fee: <strong className="text-[#0a1a36]">{money(ucr)}</strong>
+                            </div>
                           </div>
                         </div>
                       ) : (
@@ -1305,14 +1339,19 @@ export default function StartupCostCalculator() {
               aria-live="polite"
             >
               <span className="text-[13.5px] text-[#c3d0e4]">Your startup total updates as you go.</span>
-              <span
-                className="whitespace-nowrap text-[20px] font-black"
-                style={{ fontFamily: HEADING, color: YELLOW }}
-              >
-                {money(grand)}
-                <small className="ml-[7px] text-[12.5px] font-semibold text-[#8fa3c4]">
-                  estimated total
-                </small>
+              <span className="text-right">
+                <span
+                  className="whitespace-nowrap text-[20px] font-black"
+                  style={{ fontFamily: HEADING, color: YELLOW }}
+                >
+                  {money(startup)}
+                  <small className="ml-[7px] text-[12.5px] font-semibold text-[#8fa3c4]">
+                    estimated startup cost
+                  </small>
+                </span>
+                <span className="block text-[12.5px] font-semibold text-[#8fa3c4]">
+                  With the recommended buffer: {money(grand)}
+                </span>
               </span>
             </div>
 

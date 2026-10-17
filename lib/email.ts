@@ -596,7 +596,9 @@ const CALC_LOGO_URL = 'https://www.thetruckingbusiness.com/logo-receipt.png';
 
 /** Shared shell for the redesigned calculator results emails: navy header
  *  with the real logo lockup (logo tile + Libre Franklin wordmark, the same
- *  asset the receipt emails use), yellow rule, white card, help footer. */
+ *  asset the receipt emails use), yellow rule, white card, help footer.
+ *  The logo tile is framed with a thin navy line and a white border so it
+ *  pops against the navy header (owner pick, Option B, Oct 16, 2026). */
 function calcShell(calculatorTitle: string, body: string): string {
   const C_NAVY = '#0a1a36';
   const C_YELLOW = '#ffc61a';
@@ -610,7 +612,7 @@ function calcShell(calculatorTitle: string, body: string): string {
 <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="max-width:600px;width:100%;background:#ffffff;border-radius:0;overflow:hidden;box-shadow:0 2px 12px rgba(10,26,54,0.08);">
 <tr><td style="background:${C_NAVY};padding:28px 34px 24px;">
 <table cellpadding="0" cellspacing="0" role="presentation"><tr>
-<td style="background:#ffffff;width:46px;height:46px;" align="center" valign="middle"><img src="${CALC_LOGO_URL}" width="38" alt="The Trucking Business" style="display:block;"></td>
+<td style="background:${C_NAVY};border:2px solid #ffffff;padding:3px;" valign="middle"><table cellpadding="0" cellspacing="0" role="presentation"><tr><td style="background:#ffffff;width:46px;height:46px;" align="center" valign="middle"><img src="${CALC_LOGO_URL}" width="38" alt="The Trucking Business" style="display:block;"></td></tr></table></td>
 <td style="padding-left:12px;" valign="middle">
 <p style="margin:0;color:#ffffff;font-family:${HEADING_FONT};font-size:19px;font-weight:900;letter-spacing:-0.5px;line-height:0.95;">THE TRUCKING<br>BUSINESS</p>
 <p style="margin:3px 0 0;color:#9fb4d8;font-size:8px;font-weight:600;letter-spacing:2px;">THETRUCKINGBUSINESS.COM</p>
