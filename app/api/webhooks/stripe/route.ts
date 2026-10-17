@@ -3,6 +3,7 @@ import Stripe from 'stripe';
 import {
   backendConfigured,
   dbUpsert,
+  dbUpdate,
   dbSelect,
   sendOwnerEmail,
   sendClientEmail,
@@ -189,6 +190,11 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Set by the refund and subscription-cancelled handlers below when a
+  // database write fails, so the webhook answers 500 and Stripe retries
+  // instead of the change vanishing silently.
+  let deferredWriteFailed = false;
+
   // Refund issued in Stripe (the owner issues refunds in his Stripe login;
   // this event is how the admin learns about it). Resolve the order from
   // the checkout session that produced the charge, then record the
@@ -208,21 +214,26 @@ export async function POST(req: NextRequest) {
         );
         const total = rows.rows[0]?.amount_cents ?? charge.amount;
         const fully = charge.amount_refunded >= total;
-        await dbUpsert(
-          'orders',
-          {
-            id: orderId,
+        // True PATCH (dbUpdate), never a partial-row upsert: orders has
+        // NOT NULL columns without defaults, so the old upsert failed and
+        // refunds never reached the admin (the Oct 16 audit bug family).
+        const saved = (
+          await dbUpdate('orders', 'id', orderId, {
             refunded_cents: charge.amount_refunded,
             pay_status: fully ? 'refunded' : 'paid',
-          },
-          'id'
-        );
-        await logOrderEvent(
-          orderId,
-          'Stripe',
-          fully ? 'refund_full' : 'refund_partial',
-          `$${(charge.amount_refunded / 100).toLocaleString('en-US')} refunded`
-        );
+          })
+        ).ok;
+        if (saved) {
+          await logOrderEvent(
+            orderId,
+            'Stripe',
+            fully ? 'refund_full' : 'refund_partial',
+            `$${(charge.amount_refunded / 100).toLocaleString('en-US')} refunded`
+          );
+        } else {
+          deferredWriteFailed = true;
+          console.error(`[stripe webhook] refund write failed for order ${orderId}`);
+        }
       }
     } catch (e) {
       console.error('[stripe webhook] charge.refunded handling failed:', e);
@@ -240,13 +251,27 @@ export async function POST(req: NextRequest) {
         orderId = sessions.data[0]?.metadata?.orderId;
       }
       if (orderId && backendConfigured()) {
-        await dbUpsert('orders', { id: orderId, pay_status: 'cancelled' }, 'id');
-        await logOrderEvent(orderId, 'Stripe', 'subscription_cancelled');
+        // True PATCH (dbUpdate), never a partial-row upsert (same family).
+        const saved = (
+          await dbUpdate('orders', 'id', orderId, { pay_status: 'cancelled' })
+        ).ok;
+        if (saved) {
+          await logOrderEvent(orderId, 'Stripe', 'subscription_cancelled');
+        } else {
+          deferredWriteFailed = true;
+          console.error(`[stripe webhook] cancellation write failed for order ${orderId}`);
+        }
       }
     } catch (e) {
       console.error('[stripe webhook] subscription.deleted handling failed:', e);
     }
   }
 
+  if (deferredWriteFailed) {
+    return NextResponse.json(
+      { ok: false, error: 'A database write failed; Stripe will retry.' },
+      { status: 500 }
+    );
+  }
   return NextResponse.json({ ok: true });
 }

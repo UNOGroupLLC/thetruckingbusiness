@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backendConfigured, dbUpsert, logOrderEvent } from '@/lib/server';
+import { backendConfigured, dbUpdate, logOrderEvent } from '@/lib/server';
 
 /**
  * POST /api/orders/[id]/filing — owner pressed "Start filing".
- * Marks the order as filing (intake fully locked). Always ok:true.
+ * Marks the order as filing (intake fully locked). Reports honestly:
+ * ok is true only when the change actually saved.
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   // Same ADMIN_KEY lock as GET /api/orders: when ADMIN_KEY is set in the
@@ -18,14 +19,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   let persisted = false;
   if (backendConfigured()) {
+    // True PATCH (dbUpdate), never a partial-row upsert: the orders table
+    // has NOT NULL columns without defaults, so an upsert carrying only
+    // these fields fails even when the order exists (the Oct 16 audit bug).
     persisted = (
-      await dbUpsert(
-        'orders',
-        { id, filing_status: 'filing', filing_started_at: new Date().toISOString() },
-        'id'
-      )
+      await dbUpdate('orders', 'id', id, {
+        filing_status: 'filing',
+        filing_started_at: new Date().toISOString(),
+      })
     ).ok;
     if (persisted) await logOrderEvent(id, 'Owner', 'filing_started');
   }
-  return NextResponse.json({ ok: true, persisted });
+  return NextResponse.json(
+    { ok: persisted, persisted },
+    { status: persisted ? 200 : 500 }
+  );
 }

@@ -33,7 +33,8 @@ export default function ContactPage() {
           eyebrow pill, .hero-h1 with a yellow <em>, .hero-sub. The contact
           methods sit on the navy as frosted glass panels (Office wide on the
           left, Email over Call stacked on the right); the form card is solid
-          white and hangs over the light tail below the hero. */}
+          white and sits fully on the navy with the panels (no overlap into
+          the light section below; owner ruling Oct 17, 2026). */}
       <section className="contact-hero">
         {/* Dashed route line — a nod to the roadmap route motif used across the site. */}
         <svg
@@ -147,8 +148,6 @@ export default function ContactPage() {
         </div>
       </section>
 
-      {/* Light tail the form card hangs over */}
-      <div className="contact-tail" aria-hidden="true" />
     </>
   );
 }

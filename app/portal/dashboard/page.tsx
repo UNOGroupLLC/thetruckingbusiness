@@ -48,7 +48,10 @@ const STEPS = [
 function pillFor(status: IntakeStatus | undefined): { label: string; cls: string } {
   switch (status) {
     case 'submitted':
-      return { label: 'Intake submitted', cls: 'bg-amber-100 text-amber-800' };
+      // The first submission is certified by the signature inside the form
+      // itself, so a submitted intake reads as certified final. The
+      // separate certification only exists after a correction.
+      return { label: 'Certified final', cls: 'bg-green-100 text-green-800' };
     case 'corrected':
       return { label: 'Correction saved', cls: 'bg-amber-100 text-amber-800' };
     case 'certified':
@@ -72,10 +75,15 @@ function payPillFor(order: OrderRecord): { label: string; cls: string } {
 function stepPlan(status: IntakeStatus | undefined): { doneCount: number; current: number } {
   switch (status) {
     case 'submitted':
+      // Certified at submission (the form's own signature), so steps 1 to 3
+      // are done and Filing in progress is the active step.
+      return { doneCount: 3, current: 3 };
     case 'corrected':
-      return { doneCount: 2, current: -1 };
+      // A correction is saved; the client still owes the certification, so
+      // Certified final is the step in progress.
+      return { doneCount: 2, current: 2 };
     case 'certified':
-      return { doneCount: 3, current: -1 };
+      return { doneCount: 3, current: 3 };
     case 'filing':
       return { doneCount: 3, current: 3 };
     default:
@@ -468,8 +476,15 @@ function FilingInfoCard({ order }: { order: OrderRecord }) {
   const lastVersion = order.intakeVersions?.[order.intakeVersions.length - 1];
   const certifiedName = lastVersion?.certifiedName ?? intake?.signature;
   const certifiedDateRaw = lastVersion?.certifiedDate ?? intake?.signDate;
+  // 'submitted' counts as certified: the intake's own signature certified
+  // it (name and date fall back to that signature above). 'corrected' does
+  // not count, because corrected answers are only certified once the client
+  // certifies them on the review screen.
   const certified =
-    (order.intakeStatus === 'certified' || order.intakeStatus === 'filing') && entries.length > 0;
+    (order.intakeStatus === 'submitted' ||
+      order.intakeStatus === 'certified' ||
+      order.intakeStatus === 'filing') &&
+    entries.length > 0;
   return (
     <div
       className="mt-[14px] rounded-none border bg-white p-[18px]"

@@ -100,15 +100,16 @@ h3 {
    .eyebrow-pill, .hero-h1 and .hero-sub classes. The contact methods are
    frosted glass panels on the navy (same glass language as .eyebrow-pill:
    translucent white, 1px rgba border, backdrop blur); the form card is the
-   single solid white focal point, hanging over the light tail below.
+   single solid white focal point, sitting fully on the navy like the
+   panels (owner ruling Oct 17, 2026: no overlap into the section below).
    One type ladder page-wide: labels 11px / 800 / uppercase / 0.16em tracking
    (yellow on glass, navy on the form card), form card title 20px / 900,
    body text 16px, meta text 13px. Spacing rhythm: 8 / 12 / 16 / 24. */
 .contact-hero {
   position: relative;
-  display: flow-root; /* contain the grid's negative bottom margin (no collapse, no clipping) */
+  display: flow-root;
   background: linear-gradient(160deg, #0f2a5c 0%, #0a1a36 62%);
-  padding: 88px 0 0;
+  padding: 88px 0 88px;
 }
 .contact-route {
   position: absolute;
@@ -117,16 +118,12 @@ h3 {
   width: min(620px, 72vw);
   pointer-events: none;
 }
-.contact-tail {
-  background: #f6f7f9;
-  height: 168px; /* 80px form-card overlap + 88px clear space below it */
-}
 .contact-grid {
   display: grid;
   grid-template-columns: 1.1fr 1.05fr;
   gap: 24px;
   align-items: stretch;
-  margin: 48px 0 -80px;
+  margin: 48px 0 0;
   position: relative;
   z-index: 2;
 }

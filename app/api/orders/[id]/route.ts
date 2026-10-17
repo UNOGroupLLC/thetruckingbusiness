@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   backendConfigured,
   dbSelect,
-  dbUpsert,
+  dbUpdate,
   logOrderEvent,
   storageSignedUrl,
 } from '@/lib/server';
@@ -236,8 +236,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   let persisted = false;
   if (backendConfigured()) {
-    persisted = (await dbUpsert('orders', patch, 'id')).ok;
-    for (const e of events) await logOrderEvent(id, 'Owner', e.action, e.detail);
+    // True PATCH (dbUpdate), never a partial-row upsert: the orders table
+    // has NOT NULL columns without defaults, so an upsert carrying only the
+    // changed fields fails even when the order exists (the Oct 16 audit
+    // bug that silently broke priority, assignee, and Mark complete).
+    const { id: _rowId, ...fields } = patch;
+    persisted = (await dbUpdate('orders', 'id', id, fields)).ok;
+    // The activity trail only records changes that actually saved.
+    if (persisted) {
+      for (const e of events) await logOrderEvent(id, 'Owner', e.action, e.detail);
+    }
   }
-  return NextResponse.json({ ok: true, persisted });
+  return NextResponse.json(
+    { ok: persisted, persisted },
+    { status: persisted ? 200 : 500 }
+  );
 }

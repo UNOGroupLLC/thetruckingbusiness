@@ -632,6 +632,7 @@ function OrdersSection({
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
+  const [writeError, setWriteError] = useState('');
 
   useEffect(() => {
     setPage(0);
@@ -704,7 +705,7 @@ function OrdersSection({
   async function patchOrders(ids: string[], patch: Record<string, unknown>) {
     setBusy(true);
     try {
-      await Promise.all(
+      const results = await Promise.all(
         ids
           .filter((id) => orders.find((o) => o.id === id)?.source === 'database')
           .map((id) =>
@@ -714,6 +715,12 @@ function OrdersSection({
             }).catch(() => null)
           )
       );
+      // A save that did not land must say so, never refresh in silence.
+      if (results.some((r) => !r || !r.ok)) {
+        setWriteError('One or more changes did not save. Check your connection and try again.');
+      } else {
+        setWriteError('');
+      }
     } finally {
       setBusy(false);
       setSelected(new Set());
@@ -808,6 +815,14 @@ function OrdersSection({
           </button>
         ))}
       </div>
+
+      {writeError && (
+        <div className="mt-4 border p-3" style={{ borderColor: '#dc2626', background: '#fef2f2' }}>
+          <p className={`${T_BODY} font-bold`} style={{ color: '#b91c1c' }}>
+            {writeError}
+          </p>
+        </div>
+      )}
 
       {/* Index card */}
       <div className="mt-4 overflow-hidden rounded-none border border-[#dde3ec] bg-white shadow-sm">
@@ -993,7 +1008,16 @@ function OrdersSection({
                                   adminFetch(`/api/orders/${encodeURIComponent(o.id)}`, {
                                     method: 'PATCH',
                                     body: JSON.stringify({ priority: false }),
-                                  }).then(onRefresh).catch(() => {});
+                                  })
+                                    .then((res) => {
+                                      if (!res.ok)
+                                        setWriteError('That change did not save. Check your connection and try again.');
+                                      else setWriteError('');
+                                      onRefresh();
+                                    })
+                                    .catch(() =>
+                                      setWriteError('That change did not save. Check your connection and try again.')
+                                    );
                                 }
                               }}
                             >
@@ -1011,7 +1035,16 @@ function OrdersSection({
                                   adminFetch(`/api/orders/${encodeURIComponent(o.id)}`, {
                                     method: 'PATCH',
                                     body: JSON.stringify({ priority: true }),
-                                  }).then(onRefresh).catch(() => {});
+                                  })
+                                    .then((res) => {
+                                      if (!res.ok)
+                                        setWriteError('That change did not save. Check your connection and try again.');
+                                      else setWriteError('');
+                                      onRefresh();
+                                    })
+                                    .catch(() =>
+                                      setWriteError('That change did not save. Check your connection and try again.')
+                                    );
                                 }
                               }}
                             >
@@ -1351,6 +1384,7 @@ function OrderDetail({
   const [editReason, setEditReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
+  const [actionError, setActionError] = useState('');
 
   async function loadDetail() {
     if (!isDb) return;
@@ -1395,7 +1429,22 @@ function OrderDetail({
       at: detail?.intake?.submittedAt,
       done: Boolean(live.intakeStatus),
     },
-    { label: 'Certified final', at: certified?.date, done: live.intakeStatus === 'certified' || stage === 'filing' },
+    {
+      label: 'Certified final',
+      // A submitted intake is already certified by the signature inside the
+      // form, so for an order that never needed a correction the
+      // certification moment is the submission itself. The separate
+      // certification record only exists after a correction.
+      at:
+        certified?.date ??
+        (live.intakeStatus === 'submitted' || stage === 'filing'
+          ? detail?.intake?.submittedAt
+          : undefined),
+      done:
+        live.intakeStatus === 'submitted' ||
+        live.intakeStatus === 'certified' ||
+        stage === 'filing',
+    },
     { label: 'Filing started', at: live.filingStartedAt, done: stage === 'filing' },
   ];
   // Progress line fill, same treatment as the client portal timeline: the
@@ -1405,10 +1454,16 @@ function OrderDetail({
 
   async function patch(patchBody: Record<string, unknown>) {
     if (!isDb) return;
-    await adminFetch(`/api/orders/${encodeURIComponent(live.id)}`, {
+    const res = await adminFetch(`/api/orders/${encodeURIComponent(live.id)}`, {
       method: 'PATCH',
       body: JSON.stringify(patchBody),
     }).catch(() => null);
+    // A save that did not land must say so, never refresh in silence.
+    if (!res || !res.ok) {
+      setActionError('That change did not save. Check your connection and try again.');
+    } else {
+      setActionError('');
+    }
     onRefresh();
     loadDetail();
   }
@@ -1470,10 +1525,18 @@ function OrderDetail({
     startFiling(live.id);
     syncFiling(live.id);
     if (isDb) {
-      await adminFetch(`/api/orders/${encodeURIComponent(live.id)}/filing`, {
+      const res = await adminFetch(`/api/orders/${encodeURIComponent(live.id)}/filing`, {
         method: 'POST',
         body: '{}',
       }).catch(() => null);
+      const data = res ? await res.json().catch(() => null) : null;
+      if (!res || !res.ok || data?.persisted === false) {
+        setActionError(
+          'Filing did not start. The change did not save, so the intake is not locked. Check your connection and try again.'
+        );
+      } else {
+        setActionError('');
+      }
     }
     onRefresh();
     loadDetail();
@@ -1484,6 +1547,13 @@ function OrderDetail({
       <button onClick={onBack} className={`${T_SMALL} font-extrabold`} style={{ color: '#1755a8' }}>
         ← Back to orders
       </button>
+      {actionError && (
+        <div className="mt-3 border p-3" style={{ borderColor: '#dc2626', background: '#fef2f2' }}>
+          <p className={`${T_BODY} font-bold`} style={{ color: '#b91c1c' }}>
+            {actionError}
+          </p>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <h2 className={T_TITLE} style={{ color: NAVY }}>{live.id}</h2>
         <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${pay.cls}`}>{pay.label}</span>
@@ -1941,6 +2011,7 @@ interface Inquiry {
 
 function InquiriesSection({ onCount }: { onCount: (n: number) => void }) {
   const [items, setItems] = useState<Inquiry[]>([]);
+  const [patchError, setPatchError] = useState('');
   const [state, setState] = useState<'loading' | 'ready' | 'unavailable'>('loading');
 
   async function load() {
@@ -1965,10 +2036,15 @@ function InquiriesSection({ onCount }: { onCount: (n: number) => void }) {
   }, []);
 
   async function patch(id: string, body: Record<string, unknown>) {
-    await adminFetch(`/api/inquiries/${encodeURIComponent(id)}`, {
+    const res = await adminFetch(`/api/inquiries/${encodeURIComponent(id)}`, {
       method: 'PATCH',
       body: JSON.stringify(body),
     }).catch(() => null);
+    if (!res || !res.ok) {
+      setPatchError('That change did not save. Check your connection and try again.');
+    } else {
+      setPatchError('');
+    }
     load();
   }
 
@@ -1992,6 +2068,13 @@ function InquiriesSection({ onCount }: { onCount: (n: number) => void }) {
       </p>
       {state === 'loading' && (
         <p className={`mt-4 ${T_BODY}`} style={{ color: MUTED }}>Loading inquiries…</p>
+      )}
+      {patchError && (
+        <div className="mt-4 border p-3" style={{ borderColor: '#dc2626', background: '#fef2f2' }}>
+          <p className={`${T_BODY} font-bold`} style={{ color: '#b91c1c' }}>
+            {patchError}
+          </p>
+        </div>
       )}
       {state === 'unavailable' && (
         <div className="card mt-4">
@@ -2276,6 +2359,7 @@ function FinishedSection({
       .map(([m, rows]) => ({ month: m, rows, total: rows.reduce((s, o) => s + o.amount, 0) }));
   }, [yearOrders]);
   const [openMonths, setOpenMonths] = useState<Set<string>>(new Set());
+  const [reopenMsg, setReopenMsg] = useState('');
   useEffect(() => {
     // Default: the newest month of the year you are looking at is open.
     setOpenMonths(months.length ? new Set([`${activeYear}-${months[0].month}`]) : new Set());
@@ -2284,10 +2368,15 @@ function FinishedSection({
 
   async function reopen(o: OrderRecord) {
     if (o.source !== 'database') return;
-    await adminFetch(`/api/orders/${encodeURIComponent(o.id)}`, {
+    const res = await adminFetch(`/api/orders/${encodeURIComponent(o.id)}`, {
       method: 'PATCH',
       body: JSON.stringify({ completed_at: null }),
     }).catch(() => null);
+    if (!res || !res.ok) {
+      setReopenMsg('That order did not reopen. The change did not save. Check your connection and try again.');
+    } else {
+      setReopenMsg('');
+    }
     onRefresh();
   }
 
@@ -2360,6 +2449,14 @@ function FinishedSection({
         signed intake and power of attorney, the documents both ways, and the full activity
         trail. Kept for at least 7 years, never deleted.
       </p>
+
+      {reopenMsg && (
+        <div className="mt-4 border p-3" style={{ borderColor: '#dc2626', background: '#fef2f2' }}>
+          <p className={`${T_BODY} font-bold`} style={{ color: '#b91c1c' }}>
+            {reopenMsg}
+          </p>
+        </div>
+      )}
 
       {sorted.length === 0 ? (
         <div className="mt-4 border border-[#dde3ec] bg-white p-5 shadow-sm">

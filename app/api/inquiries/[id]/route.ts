@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { backendConfigured, dbUpsert } from '@/lib/server';
+import { backendConfigured, dbUpdate } from '@/lib/server';
 
 /**
  * PATCH /api/inquiries/[id] — update an inquiry's workflow state.
@@ -25,7 +25,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
   let persisted = false;
   if (backendConfigured()) {
-    persisted = (await dbUpsert('contact_messages', patch, 'id')).ok;
+    // True PATCH (dbUpdate), never a partial-row upsert: contact_messages
+    // has NOT NULL columns without defaults (name, email, topic, message),
+    // so an upsert carrying only the changed fields fails even when the
+    // inquiry exists (the Oct 16 audit bug family).
+    const { id: _rowId, ...fields } = patch;
+    persisted = (await dbUpdate('contact_messages', 'id', id, fields)).ok;
   }
-  return NextResponse.json({ ok: true, persisted });
+  return NextResponse.json(
+    { ok: persisted, persisted },
+    { status: persisted ? 200 : 500 }
+  );
 }
