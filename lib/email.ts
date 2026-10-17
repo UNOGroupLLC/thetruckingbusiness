@@ -387,7 +387,8 @@ export function contactEmail(
   name: string,
   email: string,
   topic: string,
-  message: string
+  message: string,
+  orderNumber?: string
 ): { subject: string; html: string } {
   const body = esc(message).replace(/\n/g, '<br>');
   return {
@@ -398,6 +399,7 @@ export function contactEmail(
       kv([
         ['Name', esc(name)],
         ['Email', esc(email)],
+        ...(orderNumber ? [['Order number', esc(orderNumber)] as [string, string]] : []),
         ['Topic', esc(topic)],
       ]) +
         sectionTitle('Message') +

@@ -35,7 +35,7 @@ type CalculatorKey = keyof typeof CALCULATORS;
 /* Calculator results emails go out from hello@ (owner ruling, Oct 16, 2026),
  * so a visitor's reply lands in the inbox the team reads. Every other email
  * keeps the shared EMAIL_FROM (orders@). */
-const CALC_RESULTS_FROM = 'hello@thetruckingbusiness.com';
+const CALC_RESULTS_FROM = 'The Trucking Business <hello@thetruckingbusiness.com>';
 
 const stripTags = (s: string): string => s.replace(/<[^>]*>/g, '').trim();
 

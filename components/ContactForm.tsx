@@ -13,6 +13,7 @@ import { CONTACT_TOPICS, DEFAULT_CONTACT_TOPIC } from '@/lib/contact';
 export default function ContactForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [orderNumber, setOrderNumber] = useState('');
   const [topic, setTopic] = useState<string>(DEFAULT_CONTACT_TOPIC);
   const [message, setMessage] = useState('');
   const [website, setWebsite] = useState('');
@@ -31,6 +32,7 @@ export default function ContactForm() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim(),
+          orderNumber: orderNumber.trim(),
           topic,
           message: message.trim(),
           company_website: website,
@@ -87,7 +89,17 @@ export default function ContactForm() {
           autoComplete="email"
         />
       </Field>
-      <Field label="Topic">
+      <Field label="Order number (if you have one)">
+        <input
+          className="input"
+          type="text"
+          value={orderNumber}
+          onChange={(e) => setOrderNumber(e.target.value)}
+          placeholder="TTB-123456"
+          autoComplete="off"
+        />
+      </Field>
+      <Field label="What is this about?">
         <select
           className="input"
           required

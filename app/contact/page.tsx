@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 const NEXT_STEPS = [
   'Send your message.',
   'We reply by email.',
-  'Order question? Add your order number.',
+  'Order questions move fastest with an order number.',
 ];
 
 const ICON_PROPS = {

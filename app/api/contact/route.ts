@@ -17,7 +17,7 @@ import { CONTACT_TOPICS, DEFAULT_CONTACT_TOPIC } from '@/lib/contact';
 /* The owner notification goes out from inquiry@ (owner ruling, Oct 16, 2026),
  * so contact form messages are easy to spot and filter in the inbox. The
  * recipient is still the owner inbox, and reply-to is still the visitor. */
-const CONTACT_FROM = 'inquiry@thetruckingbusiness.com';
+const CONTACT_FROM = 'The Trucking Business <inquiry@thetruckingbusiness.com>';
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
 
@@ -27,6 +27,10 @@ export async function POST(req: NextRequest) {
 
   const name = String(body?.name ?? '').trim();
   const email = String(body?.email ?? '').trim();
+  const orderNumber = String(body?.orderNumber ?? '')
+    .replace(/<[^>]*>/g, '')
+    .trim()
+    .slice(0, 40);
   const rawTopic = String(body?.topic ?? '').trim();
   const topic = (CONTACT_TOPICS as readonly string[]).includes(rawTopic)
     ? rawTopic
@@ -43,14 +47,19 @@ export async function POST(req: NextRequest) {
   // Save to the admin Inquiries inbox as well as emailing the owner, so
   // messages are tracked, assignable, and never lost in an email thread.
   if (backendConfigured()) {
-    await dbInsert('contact_messages', { name, email, topic, message });
+    await dbInsert('contact_messages', {
+      name,
+      email,
+      topic,
+      message: orderNumber ? `Order number: ${orderNumber}\n\n${message}` : message,
+    });
   }
 
   if (!emailConfigured()) {
     return NextResponse.json({ ok: true });
   }
 
-  const { subject, html } = contactEmail(name, email, topic, message);
+  const { subject, html } = contactEmail(name, email, topic, message, orderNumber);
   const r = await sendOwnerEmail(subject, html, email, undefined, CONTACT_FROM);
   if (!r.ok) {
     return NextResponse.json(

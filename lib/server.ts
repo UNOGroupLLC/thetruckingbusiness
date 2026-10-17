@@ -18,6 +18,16 @@ const RESEND_KEY = process.env.RESEND_API_KEY ?? '';
 const OWNER_EMAIL = process.env.OWNER_EMAIL ?? '';
 const EMAIL_FROM = process.env.EMAIL_FROM ?? 'orders@thetruckingbusiness.com';
 
+/* Every email the site sends shows the sender name "The Trucking Business"
+ * in the inbox, never the bare address (owner ruling, Oct 16, 2026: the
+ * inbox was showing "hello", "orders", "inquiry"). A From value that
+ * already carries a display name is left untouched. */
+const FROM_DISPLAY_NAME = 'The Trucking Business';
+function withFromName(from: string): string {
+  const v = from.trim();
+  return v.includes('<') ? v : `${FROM_DISPLAY_NAME} <${v}>`;
+}
+
 export function backendConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_KEY);
 }
@@ -208,7 +218,7 @@ async function sendEmail(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: from ?? EMAIL_FROM,
+        from: withFromName(from ?? EMAIL_FROM),
         to: [to],
         subject,
         html,
