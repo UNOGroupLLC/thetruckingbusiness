@@ -128,10 +128,15 @@ export interface SyncDocumentResult {
 }
 
 /**
- * Owner document upload: multipart POST (server persists + emails the
- * customer). Unlike the other sync helpers this one reports back: the
- * promise resolves with the route's result so the admin panel can confirm
- * the save (or show the failure) instead of guessing.
+ * Owner document upload (Oct 17, 2026, F9): three steps. A signed upload
+ * URL from our server, the file straight from the browser to Storage,
+ * then a register call that records it (server persists the row and
+ * emails the customer). The file never passes through our own server,
+ * so neither the host's 4.5 MB function body cap nor the old 64 KB
+ * keepalive cap (F7) can refuse it. Unlike the other sync helpers this
+ * one reports back: the promise resolves with the register result so
+ * the admin panel can confirm the save (or show the failure) instead
+ * of guessing.
  */
 export async function syncDocument(
   orderId: string,
@@ -141,16 +146,56 @@ export async function syncDocument(
   file: File
 ): Promise<SyncDocumentResult> {
   try {
-    const form = new FormData();
-    form.append('file', file);
-    form.append('slotKey', slotKey);
-    form.append('slotLabel', slotLabel);
-    form.append('orderInfo', JSON.stringify(order));
+    if (file.size > 50 * 1024 * 1024) {
+      return { ok: false, error: 'That file is too large. The limit is 50 MB per file.' };
+    }
+    // Step 1: ask our server for a signed upload URL for this file.
+    const signRes = await fetch(
+      `/api/orders/${encodeURIComponent(orderId)}/documents/sign`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...adminKeyHeaders() },
+        body: JSON.stringify({ slotKey, fileName: file.name, size: file.size }),
+      }
+    );
+    const signData = (await signRes.json().catch(() => null)) as {
+      ok?: boolean;
+      path?: string;
+      uploadUrl?: string;
+      error?: string;
+    } | null;
+    if (!signRes.ok || !signData?.ok || !signData.path || !signData.uploadUrl) {
+      return {
+        ok: false,
+        error: signData?.error ?? 'We could not save that document. Please try again.',
+      };
+    }
+    // Step 2: send the file straight to Storage. The signed URL is the
+    // authorization, so no admin key goes along, and never keepalive:
+    // browsers cap keepalive bodies at about 64 KB (finding F7).
+    const put = await fetch(signData.uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-upsert': 'false',
+      },
+      body: file,
+    });
+    if (!put.ok) {
+      return { ok: false, error: 'We could not upload that document. Please try again.' };
+    }
+    // Step 3: register the stored file so the server records it and
+    // emails the customer.
     const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}/documents`, {
       method: 'POST',
-      headers: { ...adminKeyHeaders() },
-      body: form,
-      keepalive: true,
+      headers: { 'Content-Type': 'application/json', ...adminKeyHeaders() },
+      body: JSON.stringify({
+        slotKey,
+        slotLabel,
+        storagePath: signData.path,
+        fileName: file.name,
+        orderInfo: order,
+      }),
     });
     const data = (await res.json().catch(() => null)) as
       | { ok?: boolean; persisted?: boolean; emailed?: boolean; error?: string }

@@ -448,10 +448,11 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
 
   if (slots.length === 0) return null;
 
-  async function onFile(slotKey: string, slotLabel: string, file: File | undefined) {
-    if (!file || !isDb) return;
-    setUploading(slotKey);
-    setDocMsg(null);
+  async function uploadOne(
+    slotKey: string,
+    slotLabel: string,
+    file: File
+  ): Promise<{ ok: boolean; error?: string }> {
     try {
       let dataUrl: string | undefined;
       if (file.size <= 3 * 1024 * 1024) {
@@ -486,18 +487,54 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
         file
       );
       if (result.ok) {
-        setDocMsg({ ok: true, text: `Upload complete: ${file.name} saved.` });
+        return { ok: true };
       } else {
         // The save failed: drop the optimistic entry so the screen never
         // claims a document exists when it was not saved, and say so.
         removeDocument(order.id, doc.id);
-        setDocMsg({
+        return {
           ok: false,
-          text: result.error ?? 'We could not save that document. Please try again.',
-        });
+          error: result.error ?? 'We could not save that document. Please try again.',
+        };
       }
-    } finally {
-      setUploading(null);
+    } catch {
+      return { ok: false, error: 'We could not save that document. Please try again.' };
+    }
+  }
+
+  // Multi-file picking (Oct 17, 2026, F9): the owner can select several
+  // files for one slot in a single pass. Each file uploads on its own
+  // and the message reports the honest count.
+  async function onFiles(slotKey: string, slotLabel: string, files: File[]) {
+    if (files.length === 0 || !isDb) return;
+    setUploading(slotKey);
+    setDocMsg(null);
+    let saved = 0;
+    let firstError: string | undefined;
+    for (const file of files) {
+      const r = await uploadOne(slotKey, slotLabel, file);
+      if (r.ok) saved += 1;
+      else if (!firstError) firstError = r.error;
+    }
+    setUploading(null);
+    if (saved === files.length) {
+      setDocMsg({
+        ok: true,
+        text:
+          files.length === 1
+            ? `Upload complete: ${files[0].name} saved.`
+            : `Upload complete: ${saved} files saved.`,
+      });
+    } else if (saved > 0) {
+      setDocMsg({
+        ok: false,
+        text: `${saved} of ${files.length} files saved. ${firstError ?? 'Please try the rest again.'}`,
+      });
+    } else {
+      setDocMsg({
+        ok: false,
+        text: firstError ?? 'We could not save that document. Please try again.',
+      });
     }
   }
 
@@ -550,9 +587,10 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
                   type="file"
                   accept=".pdf,.png,.jpg,.jpeg"
                   className="hidden"
+                  multiple
                   disabled={!isDb}
                   onChange={(e) => {
-                    onFile(s.key, s.label, e.target.files?.[0]);
+                    void onFiles(s.key, s.label, Array.from(e.target.files ?? []));
                     e.target.value = '';
                   }}
                 />
@@ -1445,7 +1483,18 @@ function OrderDetail({
         live.intakeStatus === 'certified' ||
         stage === 'filing',
     },
-    { label: 'Filing started', at: live.filingStartedAt, done: stage === 'filing' },
+    {
+      label: 'Filing started',
+      // A completed order has by definition finished its filing work, even
+      // when the team never pressed Start filing on the way (the upload and
+      // Mark complete path the owner actually took). The strip must keep
+      // up with the work: on a completed order this step reads done, dated
+      // by the filing start when there is one and by the completion
+      // otherwise. The activity trail keeps the true sequence either way.
+      at: live.filingStartedAt ?? (completed ? live.completedAt : undefined),
+      done: stage === 'filing' || completed,
+    },
+    { label: 'Completed', at: live.completedAt, done: completed },
   ];
   // Progress line fill, same treatment as the client portal timeline: the
   // line fills up to the furthest completed step.
@@ -1557,9 +1606,15 @@ function OrderDetail({
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <h2 className={T_TITLE} style={{ color: NAVY }}>{live.id}</h2>
         <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${pay.cls}`}>{pay.label}</span>
-        <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${stagePill(stage)}`}>
-          {STAGE_LABEL[stage]}
-        </span>
+        {completed ? (
+          <span className="rounded-none bg-green-100 px-2.5 py-1 text-[11px] font-extrabold text-green-800">
+            Completed
+          </span>
+        ) : (
+          <span className={`rounded-none px-2.5 py-1 text-[11px] font-extrabold ${stagePill(stage)}`}>
+            {STAGE_LABEL[stage]}
+          </span>
+        )}
         {live.priority && (
           <span className="rounded-none bg-amber-100 px-2.5 py-1 text-[11px] font-extrabold text-amber-800">
             ★ Priority
@@ -1588,14 +1643,16 @@ function OrderDetail({
               <option value={OWNER}>Owner (me)</option>
             </select>
           </label>
-          <button
-            onClick={() => patch({ priority: !live.priority })}
-            className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold`}
-            style={{ color: NAVY }}
-          >
-            {live.priority ? 'Remove priority' : 'Mark priority'}
-          </button>
-          {canFile && (
+          {!completed && (
+            <button
+              onClick={() => patch({ priority: !live.priority })}
+              className={`${T_SMALL} rounded-none border border-[#dde3ec] px-3 py-1.5 font-bold`}
+              style={{ color: NAVY }}
+            >
+              {live.priority ? 'Remove priority' : 'Mark priority'}
+            </button>
+          )}
+          {canFile && !completed && (
             <button
               onClick={handleStartFiling}
               className={`${T_SMALL} rounded-none px-3 py-1.5 font-extrabold text-white`}
@@ -1626,14 +1683,14 @@ function OrderDetail({
         <div className="relative" role="list" aria-label="Order progress">
           <div
             aria-hidden
-            className="absolute left-[12.5%] right-[12.5%] top-[15px] h-[3px] rounded-none bg-[#e6ebf2]"
+            className="absolute left-[10%] right-[10%] top-[15px] h-[3px] rounded-none bg-[#e6ebf2]"
           >
             <div
               className="h-full rounded-none"
               style={{ width: `${progressFillPct}%`, background: NAVY }}
             />
           </div>
-          <div className="relative z-[1] grid grid-cols-4">
+          <div className="relative z-[1] grid grid-cols-5">
             {timeline.map((t, i) => (
               <div key={t.label} role="listitem" className="text-center">
                 <span

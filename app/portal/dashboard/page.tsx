@@ -712,12 +712,57 @@ function UploadsCard({
       return next;
     });
     try {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('slotKey', slotKey);
+      // Direct upload (Oct 17, 2026, F9): ask for a signed upload URL,
+      // send the file straight to storage, then register it. The file
+      // never passes through our server, so big phone photos and long
+      // PDFs upload fine.
+      const signRes = await fetch(
+        `/api/portal/orders/${encodeURIComponent(order.id)}/documents/sign`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-portal-token': token },
+          body: JSON.stringify({
+            slotKey,
+            fileName: file.name,
+            size: file.size,
+            type: file.type,
+          }),
+        }
+      );
+      const signData = await signRes.json().catch(() => null);
+      if (!signRes.ok || !signData?.ok || !signData.uploadUrl || !signData.path) {
+        setErrors((prev) => ({
+          ...prev,
+          [slotKey]: signData?.error ?? 'Something went wrong. Please try again.',
+        }));
+        return;
+      }
+      const put = await fetch(signData.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          'x-upsert': 'false',
+        },
+        body: file,
+      });
+      if (!put.ok) {
+        setErrors((prev) => ({
+          ...prev,
+          [slotKey]: 'Something went wrong. Please try again.',
+        }));
+        return;
+      }
       const res = await fetch(
         `/api/portal/orders/${encodeURIComponent(order.id)}/documents`,
-        { method: 'POST', headers: { 'x-portal-token': token }, body: form }
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-portal-token': token },
+          body: JSON.stringify({
+            slotKey,
+            storagePath: signData.path,
+            fileName: file.name,
+          }),
+        }
       );
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
@@ -922,10 +967,15 @@ function UploadsCard({
                 accept=".pdf,.jpg,.jpeg,.png,.heic,.heif"
                 className="hidden"
                 aria-label={`Upload ${slot.label}`}
+                multiple
                 onChange={(e) => {
-                  const f = e.target.files?.[0];
+                  const picked = Array.from(e.target.files ?? []);
                   e.target.value = '';
-                  if (f) void upload(slot.key, f);
+                  if (picked.length > 0) {
+                    void (async () => {
+                      for (const f of picked) await upload(slot.key, f);
+                    })();
+                  }
                 }}
               />
             </div>
@@ -933,7 +983,7 @@ function UploadsCard({
         })}
       </div>
       <p className={`${T_SMALL} mt-3 leading-[1.6]`} style={{ color: MUTED }}>
-        PDF, JPG, PNG or HEIC (the format iPhones use), up to 10 MB each. Your files are
+        PDF, JPG, PNG or HEIC (the format iPhones use), up to 50 MB each. Your files are
         private. They are stored securely and only our team can see them.
       </p>
     </div>

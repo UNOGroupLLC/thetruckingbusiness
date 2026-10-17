@@ -389,6 +389,68 @@ export async function storageSignedUrl(
 }
 
 /**
+ * Create a signed UPLOAD URL for one Storage object (Oct 17, 2026, F9).
+ * The browser sends the file straight to Storage with this URL, so the
+ * bytes never pass through our Vercel function. That removes the host's
+ * 4.5 MB function body cap, which silently limited every upload even
+ * where our own code allowed more. Returns the absolute URL, or null
+ * when storage isn't configured or the signing fails.
+ */
+export async function storageSignedUploadUrl(
+  bucket: string,
+  path: string
+): Promise<string | null> {
+  if (!backendConfigured()) return null;
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/storage/v1/object/upload/sign/${bucket}/${path}`,
+      {
+        method: 'POST',
+        headers: { ...supabaseRestHeaders(SUPABASE_KEY), 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { url?: string; signedURL?: string; signedUrl?: string };
+    const rel = data.url ?? data.signedURL ?? data.signedUrl;
+    if (!rel) return null;
+    return rel.startsWith('http') ? rel : `${SUPABASE_URL}/storage/v1${rel}`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read one Storage object's real size in bytes without downloading it:
+ * a one-byte Range request whose Content-Range (or Content-Length)
+ * header carries the total. Returns null when the object is missing or
+ * the check fails. The register step of a direct upload uses this to
+ * prove the file actually arrived and to enforce the size cap against
+ * the stored object rather than the client's claim.
+ */
+export async function storageObjectSize(bucket: string, path: string): Promise<number | null> {
+  if (!backendConfigured()) return null;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/authenticated/${bucket}/${path}`, {
+      method: 'GET',
+      headers: { ...supabaseRestHeaders(SUPABASE_KEY), Range: 'bytes=0-0' },
+    });
+    if (!res.ok) return null;
+    const range = res.headers.get('content-range');
+    const total = range ? Number(range.split('/').pop()) : NaN;
+    const length = Number(res.headers.get('content-length') ?? '');
+    await res.body?.cancel().catch(() => undefined);
+    if (Number.isFinite(total)) return total;
+    if (Number.isFinite(length) && length > 1) return length;
+    // A one-byte object legitimately reports length 1 with no range.
+    if (res.status === 206 || res.status === 200) return length === 1 ? 1 : null;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Best-effort removal of one Storage object. Used to clean up the file
  * when its database row could not be recorded, so a failed upload never
  * leaves an orphaned file behind. Never throws.
