@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
   if (!backendConfigured()) {
     return NextResponse.json(
-      { ok: false, error: 'We could not save that document. Please try again.' },
+      { ok: false, error: 'We could not start the upload. Please try again.' },
       { status: 503 }
     );
   }
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const uploadUrl = await storageSignedUploadUrl('order-documents', path);
   if (!uploadUrl) {
     return NextResponse.json(
-      { ok: false, error: 'We could not save that document. Please try again.' },
+      { ok: false, error: 'We could not start the upload. Please try again.' },
       { status: 502 }
     );
   }

@@ -167,20 +167,40 @@ export async function syncDocument(
     if (!signRes.ok || !signData?.ok || !signData.path || !signData.uploadUrl) {
       return {
         ok: false,
-        error: signData?.error ?? 'We could not save that document. Please try again.',
+        error: signData?.error ?? 'We could not start the upload. Please try again.',
       };
     }
     // Step 2: send the file straight to Storage. The signed URL is the
     // authorization, so no admin key goes along, and never keepalive:
-    // browsers cap keepalive bodies at about 64 KB (finding F7).
-    const put = await fetch(signData.uploadUrl, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': file.type || 'application/octet-stream',
-        'x-upsert': 'false',
-      },
-      body: file,
-    });
+    // browsers cap keepalive bodies at about 64 KB (finding F7). This
+    // step has its own catch and its own message: a stalled or refused
+    // transfer must never fall through to the generic save error, so a
+    // failure report always names the step that failed (Oct 17, F9
+    // live failure: a long hang ended in the generic message and the
+    // step could not be told apart). The 240 second ceiling turns an
+    // endless stall into a named timeout; 50 MB fits inside it on any
+    // connection faster than about 1.7 Mbps.
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 240_000);
+    let put: Response;
+    try {
+      put = await fetch(signData.uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          'x-upsert': 'false',
+        },
+        body: file,
+        signal: controller.signal,
+      });
+    } catch {
+      return {
+        ok: false,
+        error: 'We could not upload that document. Please check your connection and try again.',
+      };
+    } finally {
+      clearTimeout(timer);
+    }
     if (!put.ok) {
       return { ok: false, error: 'We could not upload that document. Please try again.' };
     }

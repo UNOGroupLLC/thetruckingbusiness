@@ -737,14 +737,23 @@ function UploadsCard({
         }));
         return;
       }
-      const put = await fetch(signData.uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'application/octet-stream',
-          'x-upsert': 'false',
-        },
-        body: file,
-      });
+      let put: Response;
+      try {
+        put = await fetch(signData.uploadUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': file.type || 'application/octet-stream',
+            'x-upsert': 'false',
+          },
+          body: file,
+        });
+      } catch {
+        setErrors((prev) => ({
+          ...prev,
+          [slotKey]: 'We could not upload that file. Please check your connection and try again.',
+        }));
+        return;
+      }
       if (!put.ok) {
         setErrors((prev) => ({
           ...prev,
