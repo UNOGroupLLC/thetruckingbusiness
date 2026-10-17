@@ -32,6 +32,11 @@ const CALCULATORS = {
 
 type CalculatorKey = keyof typeof CALCULATORS;
 
+/* Calculator results emails go out from hello@ (owner ruling, Oct 16, 2026),
+ * so a visitor's reply lands in the inbox the team reads. Every other email
+ * keeps the shared EMAIL_FROM (orders@). */
+const CALC_RESULTS_FROM = 'hello@thetruckingbusiness.com';
+
 const stripTags = (s: string): string => s.replace(/<[^>]*>/g, '').trim();
 
 const cleanStr = (v: unknown, max = 120): string =>
@@ -166,7 +171,7 @@ export async function POST(req: NextRequest) {
       : data?.kind === 'startup'
         ? startupResultsEmail(data)
         : calculatorResultsEmail(meta.title, headline, lines);
-  const r = await sendClientEmail(email, subject, html);
+  const r = await sendClientEmail(email, subject, html, undefined, CALC_RESULTS_FROM);
   if (!r.ok) {
     return NextResponse.json(
       {

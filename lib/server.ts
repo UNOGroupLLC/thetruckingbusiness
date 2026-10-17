@@ -196,7 +196,8 @@ async function sendEmail(
   subject: string,
   html: string,
   replyTo?: string,
-  attachments?: EmailAttachment[]
+  attachments?: EmailAttachment[],
+  from?: string
 ): Promise<DbResult> {
   if (!emailConfigured()) return { ok: false, status: 0, error: 'email not configured' };
   try {
@@ -207,7 +208,7 @@ async function sendEmail(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: EMAIL_FROM,
+        from: from ?? EMAIL_FROM,
         to: [to],
         subject,
         html,
@@ -225,25 +226,30 @@ async function sendEmail(
   }
 }
 
-/** Notify the owner. Pass `replyTo` to let the owner answer the sender in one click. */
+/** Notify the owner. Pass `replyTo` to let the owner answer the sender in one click.
+ *  Pass `from` only where the owner has ruled a different sender for that
+ *  kind of notification (contact form notifications use inquiry@). */
 export async function sendOwnerEmail(
   subject: string,
   html: string,
   replyTo?: string,
-  attachments?: EmailAttachment[]
+  attachments?: EmailAttachment[],
+  from?: string
 ): Promise<DbResult> {
-  return sendEmail(OWNER_EMAIL, subject, html, replyTo, attachments);
+  return sendEmail(OWNER_EMAIL, subject, html, replyTo, attachments, from);
 }
 
-/** Notify the customer. */
+/** Notify the customer. Pass `from` only where the owner has ruled a
+ *  different sender for that kind of email (calculator results use hello@). */
 export async function sendClientEmail(
   to: string,
   subject: string,
   html: string,
-  attachments?: EmailAttachment[]
+  attachments?: EmailAttachment[],
+  from?: string
 ): Promise<DbResult> {
   if (!to || !to.includes('@')) return { ok: false, status: 0, error: 'bad recipient' };
-  return sendEmail(to.trim(), subject, html, undefined, attachments);
+  return sendEmail(to.trim(), subject, html, undefined, attachments, from);
 }
 
 /**

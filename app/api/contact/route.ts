@@ -13,6 +13,11 @@ import { CONTACT_TOPICS, DEFAULT_CONTACT_TOPIC } from '@/lib/contact';
  * sender, so the owner can answer in one click. In demo mode (Resend not
  * configured) the form still returns success so it never looks broken.
  */
+
+/* The owner notification goes out from inquiry@ (owner ruling, Oct 16, 2026),
+ * so contact form messages are easy to spot and filter in the inbox. The
+ * recipient is still the owner inbox, and reply-to is still the visitor. */
+const CONTACT_FROM = 'inquiry@thetruckingbusiness.com';
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
 
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { subject, html } = contactEmail(name, email, topic, message);
-  const r = await sendOwnerEmail(subject, html, email);
+  const r = await sendOwnerEmail(subject, html, email, undefined, CONTACT_FROM);
   if (!r.ok) {
     return NextResponse.json(
       {
