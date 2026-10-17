@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import {
@@ -711,6 +711,14 @@ function IntakeInner() {
     };
   });
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  // Completed view gate: a submitted intake reopens read-only until the
+  // client explicitly chooses "Make a correction".
+  const [editing, setEditing] = useState(false);
+  // Snapshot of the answers exactly as loaded, so a correction save can
+  // tell whether anything actually changed. An unchanged save must not
+  // spend the one correction.
+  const initialRef = useRef(values);
   // Lifecycle: form -> (correction) -> certify -> locked. 'schedule' is the
   // Complete Package kickoff-call offer shown right after first submission.
   const [step, setStep] = useState<'form' | 'certify' | 'schedule'>(() =>
@@ -768,6 +776,7 @@ function IntakeInner() {
   const intro = intakeMeta.intro;
 
   function set(key: string, value: string) {
+    setNotice('');
     setValues((v) => ({ ...v, [key]: value }));
   }
 
@@ -797,12 +806,14 @@ function IntakeInner() {
       return;
     }
     setError('');
+    setNotice('');
     setWstep(currentStep + 1);
     window.scrollTo(0, 0);
   }
 
   function goBack() {
     setError('');
+    setNotice('');
     setWstep(Math.max(currentStep - 1, 1));
     window.scrollTo(0, 0);
   }
@@ -820,7 +831,7 @@ function IntakeInner() {
       setError('Order not found. Please restart checkout.');
       return;
     }
-    const missing = visibleFields.filter((f) => f.required !== false && !values[f.key]?.trim());
+    const missing = missingIn(visibleFields);
     if (missing.length > 0) {
       setError(`Please complete: ${missing.map((f) => f.label).join(', ')}.`);
       return;
@@ -834,6 +845,18 @@ function IntakeInner() {
       canCorrect && current.intake && Object.keys(current.intake).length > 0;
 
     if (doingCorrection) {
+      // An unchanged save must not spend the one correction: if every
+      // answer still matches the loaded snapshot, say so and stop here.
+      const changed = Object.entries(data).some(
+        ([k, v]) => (v ?? '') !== (initialRef.current[k] ?? '')
+      );
+      if (!changed) {
+        setError('');
+        setNotice(
+          'You did not change anything, so your answers stay exactly as you submitted them. Your one correction is still available whenever you need it.'
+        );
+        return;
+      }
       // The one allowed correction -> v2, then certification.
       saveIntakeCorrection(current.id, data);
       syncIntake(current.id, orderInfo(), data, labels, { status: 'corrected', version: 2 });
@@ -934,12 +957,13 @@ function IntakeInner() {
             Order <span className="font-bold text-charcoal">{order.id}</span> · {order.packageName}
           </p>
           <div className="mt-4 rounded-none border border-navy/20 bg-white px-4 py-3">
-            <p className="text-[13.5px] font-bold text-navy">🔒 {cert}</p>
+            <p className="text-[13.5px] font-bold text-navy">
+              {status === 'certified' ? `✓ Certified · ${cert}` : `🔒 ${cert}`}
+            </p>
             <p className="mt-1 text-[13.5px] text-steel">
               {status === 'filing'
-                ? 'We have started your filing — your information can no longer be changed.'
-                : 'Your answers are locked. We will use them to start your filing.'}{' '}
-              Need a change? Contact us and we&rsquo;ll handle it.
+                ? 'We have started your filing — your information can no longer be changed. Need a change? Contact us and we’ll handle it.'
+                : 'You certified these answers as final, so they are locked and can no longer be changed. If something changes, call us at +1 (725) 244-6771 and we will help.'}
             </p>
           </div>
           <div className="card mt-6">
@@ -953,6 +977,102 @@ function IntakeInner() {
               ))}
             </dl>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Completed view (owner-approved mock v2, Oct 16, 2026): reopening a
+  // submitted intake lands on a calm read-only page with the banner and
+  // the answers, not the editable form. The correction starts only when
+  // the client chooses "Make a correction".
+  if (step === 'form' && canCorrect && !editing) {
+    const submittedAt = fresh?.intakeVersions?.[0]?.submittedAt ?? order.createdAt;
+    const submittedDate = new Date(submittedAt).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+    return (
+      <div className="sharp bg-mist py-14">
+        <div className="mx-auto max-w-2xl px-4">
+          <p className="eyebrow">Step 3 of 3 — intake</p>
+          <h1 className="mt-2 text-[28px] font-extrabold text-navy md:text-[36px]">{title}</h1>
+          <p className="mt-2 text-steel">
+            Order <span className="font-bold text-charcoal">{order.id}</span> · {order.packageName}
+          </p>
+
+          <div className="mt-5 flex items-center gap-3 border border-[#15803d] bg-[#f0faf3] px-4 py-3">
+            <span className="flex h-[30px] w-[30px] flex-none items-center justify-center bg-[#15803d] font-extrabold text-white">✓</span>
+            <div>
+              <p className="font-bold text-[#14532d]">Completed</p>
+              <p className="text-[13.5px] text-steel">Submitted on {submittedDate}.</p>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-none border border-highway/60 bg-highway/10 px-4 py-3">
+            <p className="text-[13.5px] font-bold text-navy">You&rsquo;ve already submitted this intake ✓</p>
+            <p className="mt-1 text-[13.5px] text-steel">
+              Your answers are loaded below. <strong>If everything looks right, you are done, and there is nothing else you need to do.</strong>{' '}
+              Only if something is wrong: you have <strong>one correction</strong>. Edit your answers
+              and save, then you will certify the corrected answers as final.
+            </p>
+          </div>
+
+          <div className="card mt-6">
+            <h2 className="border-b border-[#dde3ec] pb-2 text-[17px] font-extrabold text-navy">What you sent us</h2>
+            <dl className="mt-3 space-y-1">
+              {reviewRows.map((r) => (
+                <div key={r.label} className="flex justify-between gap-4 border-b border-[#dde3ec] py-2 text-[13.5px]">
+                  <dt className="text-steel">{r.label}</dt>
+                  <dd className="text-right font-medium text-charcoal">{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <div className="mt-6 flex flex-wrap items-center gap-4 border border-[#dde3ec] bg-white px-5 py-4">
+            <p className="min-w-[220px] flex-1 text-[13.5px] text-steel">
+              <strong className="text-charcoal">Something above is wrong?</strong> Start your
+              correction and your answers open for editing.
+            </p>
+            <button
+              type="button"
+              className="btn-outline-dark"
+              onClick={() => {
+                setEditing(true);
+                window.scrollTo(0, 0);
+              }}
+            >
+              Make a correction
+            </button>
+          </div>
+
+          {order.packageSlug === 'complete' && (
+            <div className="card mt-6">
+              <h2 className="border-b border-[#dde3ec] pb-2 text-[17px] font-extrabold text-navy">Your kickoff call</h2>
+              <p className="mt-2 text-[13.5px] text-steel">
+                Your Complete Package includes a one-on-one walkthrough of your filings and next
+                steps. Pick a time that works for you, or skip it and we will handle everything by
+                email.
+              </p>
+              <div className="mt-4">
+                <ScheduleCall
+                  orderId={order.id}
+                  order={{
+                    id: order.id,
+                    packageName: order.packageName,
+                    amount: formatUSD(order.amount),
+                    buyerName: order.buyerName,
+                    buyerEmail: order.buyerEmail,
+                    createdAt: order.createdAt,
+                    buyerPhone: values.phone ?? '',
+                  }}
+                  onDone={() => router.push(`/fulfillment?order=${order.id}`)}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -1018,16 +1138,6 @@ function IntakeInner() {
           Order <span className="font-bold text-charcoal">{order.id}</span> · {order.packageName}
         </p>
         <p className="mt-2 text-[13.5px] text-steel">{intro}</p>
-        {alreadySubmitted && !isLocked && (
-          <div className="mt-4 rounded-none border border-highway/60 bg-highway/10 px-4 py-3">
-            <p className="text-[13.5px] font-bold text-navy">You&rsquo;ve already submitted this intake ✓</p>
-            <p className="mt-1 text-[13.5px] text-steel">
-              Your answers are loaded below. You have <strong>one correction</strong> left — edit
-              and save, then you&rsquo;ll certify the corrections as final.
-            </p>
-          </div>
-        )}
-
         {/* Progress indicator: one wizard step per form section. */}
         <div className="relative mx-1 mt-6">
           <div
@@ -1164,6 +1274,9 @@ function IntakeInner() {
             </div>
           ))}
           {error && <p role="alert" className="text-[13.5px] font-semibold text-[#dc2626]">{error}</p>}
+          {notice && (
+            <p className="border border-[#15803d] bg-[#f0faf3] px-3.5 py-2.5 text-[13.5px] font-semibold text-[#14532d]">{notice}</p>
+          )}
           <div className="flex gap-2.5">
             {currentStep > 1 && (
               <button type="button" className="btn-outline-dark" onClick={goBack}>
@@ -1176,7 +1289,7 @@ function IntakeInner() {
               </button>
             ) : (
               <button type="submit" className="btn-primary flex-1">
-                {alreadySubmitted ? 'Save corrections' : 'Submit details'}
+                {alreadySubmitted ? 'Save corrections' : 'Submit'}
               </button>
             )}
           </div>
