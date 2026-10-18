@@ -551,6 +551,68 @@ function FilingInfoCard({ order }: { order: OrderRecord }) {
 
 /* ------------------------------- Documents ------------------------------- */
 
+/**
+ * Download control for the automatic Audit Assistance Kit slot. The kit
+ * is one master file stored once (see /api/portal/products/audit-kit);
+ * this checks on mount whether the master file exists yet. Until it
+ * does, the slot keeps the plain "Included with your purchase" wording
+ * rather than a button that leads nowhere. Oct 18, 2026.
+ */
+function KitDownloadButton() {
+  const [ready, setReady] = useState(false);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/portal/products/audit-kit', {
+          headers: { 'x-portal-token': getPortalToken() },
+        });
+        const j = (await res.json().catch(() => null)) as { ok?: boolean } | null;
+        if (live && j?.ok) setReady(true);
+      } catch {
+        /* stays not ready */
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, []);
+  if (!ready) {
+    return (
+      <span className={`${T_SMALL} shrink-0`} style={{ color: MUTED }}>
+        Included with your purchase
+      </span>
+    );
+  }
+  async function download() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const res = await fetch('/api/portal/products/audit-kit', {
+        headers: { 'x-portal-token': getPortalToken() },
+      });
+      const j = (await res.json().catch(() => null)) as { ok?: boolean; url?: string } | null;
+      if (j?.ok && j.url) window.location.href = j.url;
+    } catch {
+      /* the button stays available to try again */
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={download}
+      disabled={busy}
+      className="shrink-0 text-[12.5px] font-extrabold hover:underline"
+      style={{ color: '#1755a8' }}
+    >
+      {busy ? 'Preparing…' : 'Download'}
+    </button>
+  );
+}
+
 function DocumentsCard({ order }: { order: OrderRecord }) {
   const pkg = getPackage(order.packageSlug);
   const expected = pkg?.expectedDocuments ?? [];
@@ -608,6 +670,8 @@ function DocumentsCard({ order }: { order: OrderRecord }) {
                 >
                   Download
                 </a>
+              ) : slot.auto && slot.key === 'audit-kit' ? (
+                <KitDownloadButton />
               ) : slot.auto ? (
                 <span className={`${T_SMALL} shrink-0`} style={{ color: MUTED }}>
                   Included with your purchase

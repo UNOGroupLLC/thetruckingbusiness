@@ -4,6 +4,8 @@ import {
   dbInsert,
   storageRemove,
   storageUpload,
+  storageCopy,
+  AUDIT_KIT_MASTER_PATH,
   sendClientEmail,
   emailConfigured,
   logOrderEvent,
@@ -61,6 +63,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       ).ok;
       if (persisted) {
         await logOrderEvent(id, 'Owner', 'document_uploaded', slotLabel || slotKey);
+        if (slotKey === 'audit-kit') {
+          // Refresh the master kit copy: the portal's automatic kit
+          // download serves that one stored file to every kit buyer.
+          await storageCopy('order-documents', path, AUDIT_KIT_MASTER_PATH);
+        }
       } else {
         // The row was not recorded: remove the uploaded file so a failed
         // save never leaves an orphaned file in the bucket.

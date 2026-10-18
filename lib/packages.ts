@@ -269,6 +269,14 @@ export const SEED_PACKAGES: Package[] = [
     expectedDocuments: [
       { key: 'ucr-confirm-annual', label: 'UCR registration confirmation (annual)' },
       { key: 'mcs150-confirm', label: 'MCS-150 update confirmation' },
+      { key: 'query-result', label: 'Annual Clearinghouse query result' },
+    ],
+    requestedDocuments: [
+      {
+        key: 'driver-consent',
+        label: 'Signed driver consent form',
+        hint: 'Signed by each driver on your roster. We cannot run their annual queries without it.',
+      },
     ],
     intake: 'compliance',
     inclusions: [
@@ -323,7 +331,10 @@ export const SEED_PACKAGES: Package[] = [
     placeholder: false,
     category: 'package',
     cta: 'Buy Audit Plus',
-    expectedDocuments: [],
+    expectedDocuments: [
+      { key: 'audit-kit', label: 'Audit prep kit (digital download)', auto: true },
+      { key: 'gap-report', label: 'Written gap report' },
+    ],
     requestedDocuments: [
       {
         key: 'dq-files',

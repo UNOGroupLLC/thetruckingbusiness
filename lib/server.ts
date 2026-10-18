@@ -471,3 +471,38 @@ export async function storageRemove(bucket: string, path: string): Promise<void>
     /* best effort only */
   }
 }
+
+/**
+ * The one master copy of the Audit Assistance Kit file. The kit is a
+ * digital product: the portal's automatic kit slot serves this single
+ * stored file to every buyer whose package includes it (the Complete
+ * Package, the standalone kit, and Audit Assistance Plus). Staff set or
+ * replace it by uploading the finished kit file into the kit slot on
+ * any order; the document routes copy that upload here. Oct 18, 2026.
+ */
+export const AUDIT_KIT_MASTER_PATH = 'products/audit-kit/audit-assistance-kit.zip';
+
+/**
+ * Copy one Storage object to another path in the same bucket, replacing
+ * any object already there. Best effort: returns whether the copy is in
+ * place. Used to refresh the master kit file from a staff upload.
+ */
+export async function storageCopy(
+  bucket: string,
+  fromPath: string,
+  toPath: string
+): Promise<boolean> {
+  if (!backendConfigured()) return false;
+  try {
+    await storageRemove(bucket, toPath);
+    const res = await fetch(`${SUPABASE_URL}/storage/v1/object/copy`, {
+      method: 'POST',
+      headers: { ...supabaseRestHeaders(SUPABASE_KEY), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bucketId: bucket, sourceKey: fromPath, destinationKey: toPath }),
+    });
+    if (!res.ok) return false;
+    return (await storageObjectSize(bucket, toPath)) !== null;
+  } catch {
+    return false;
+  }
+}
