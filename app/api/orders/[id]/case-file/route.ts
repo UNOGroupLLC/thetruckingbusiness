@@ -8,6 +8,7 @@ import {
   storageUpload,
 } from '@/lib/server';
 import { formatUSD } from '@/lib/packages';
+import { intakeFieldMeta } from '@/lib/intake-fields';
 
 /**
  * The order's sealed case file, stored in Supabase Storage (Oct 17, 2026).
@@ -103,11 +104,6 @@ function esc(v: unknown): string {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-}
-
-function humanizeKey(key: string): string {
-  const spaced = key.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
 function dateLabel(iso?: string | null): string {
@@ -242,7 +238,7 @@ async function assemble(id: string) {
         .filter(([, v]) => typeof v === 'string' && v.trim() !== '')
         .map(
           ([k, v]) =>
-            `<tr><td style="padding:7px 10px;border:1px solid #dde3ec;color:#5b6a82;">${esc(humanizeKey(k))}</td><td style="padding:7px 10px;border:1px solid #dde3ec;">${esc(v)}</td></tr>`
+            `<tr><td style="padding:7px 10px;border:1px solid #dde3ec;color:#5b6a82;">${esc(intakeFieldMeta(o.intake_service, k).label)}</td><td style="padding:7px 10px;border:1px solid #dde3ec;">${esc(v)}</td></tr>`
         )
         .join('')
     : '';

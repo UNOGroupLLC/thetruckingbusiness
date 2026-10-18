@@ -18,6 +18,7 @@ import {
 import { syncFiling, syncDocument, adminKeyHeaders, storedAdminKey } from '@/lib/sync';
 import type { SyncStep } from '@/lib/sync';
 import type { Package, OrderRecord } from '@/lib/store';
+import { intakeFieldMeta, LOCKED_INTAKE_KEYS } from '@/lib/intake-fields';
 import Field from '@/components/Field';
 
 /**
@@ -1903,18 +1904,64 @@ function OrderDetail({
             {intakeData ? (
               <>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  {Object.entries(editData ?? intakeData).map(([k, v]) => (
-                    <Field key={k} label={k}>
-                      <input
-                        className="input"
-                        value={v}
-                        disabled={!isDb}
-                        onChange={(e) =>
-                          setEditData((prev) => ({ ...(prev ?? intakeData), [k]: e.target.value }))
-                        }
-                      />
-                    </Field>
-                  ))}
+                  {Object.entries(editData ?? intakeData).map(([k, v]) => {
+                    // Labels and controls come from the same field
+                    // definitions the client answered (lib/intake-fields):
+                    // proper English labels instead of raw data keys,
+                    // dropdowns for answers the client picked from a list,
+                    // and the signature pair read only, because staff must
+                    // never retype a client's certification.
+                    const meta = intakeFieldMeta(live.intakeService, k);
+                    const locked = LOCKED_INTAKE_KEYS.includes(k);
+                    const setVal = (val: string) =>
+                      setEditData((prev) => ({ ...(prev ?? intakeData), [k]: val }));
+                    const opts =
+                      meta.options && v && !meta.options.includes(v)
+                        ? [v, ...meta.options]
+                        : meta.options;
+                    return (
+                      <Field key={k} label={meta.label}>
+                        {locked ? (
+                          <>
+                            <input className="input" value={v} disabled />
+                            <span className={`${T_SMALL} mt-1 block`} style={{ color: MUTED }}>
+                              Client certification. Read only.
+                            </span>
+                          </>
+                        ) : meta.type === 'select' ||
+                          meta.type === 'state' ||
+                          meta.type === 'checkbox' ? (
+                          <select
+                            className="input"
+                            value={v}
+                            disabled={!isDb}
+                            onChange={(e) => setVal(e.target.value)}
+                          >
+                            {(opts ?? []).map((o) => (
+                              <option key={o} value={o}>
+                                {o}
+                              </option>
+                            ))}
+                          </select>
+                        ) : meta.type === 'date' ? (
+                          <input
+                            type="date"
+                            className="input"
+                            value={v}
+                            disabled={!isDb}
+                            onChange={(e) => setVal(e.target.value)}
+                          />
+                        ) : (
+                          <input
+                            className="input"
+                            value={v}
+                            disabled={!isDb}
+                            onChange={(e) => setVal(e.target.value)}
+                          />
+                        )}
+                      </Field>
+                    );
+                  })}
                 </div>
                 {isDb && (
                   <>

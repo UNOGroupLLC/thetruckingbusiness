@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { backendConfigured, dbSelect, dbUpsert, logOrderEvent } from '@/lib/server';
+import { LOCKED_INTAKE_KEYS } from '@/lib/intake-fields';
 
 /**
  * POST /api/orders/[id]/intake/admin-edit — the team corrects a customer's
@@ -24,6 +25,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!id || !data || typeof data !== 'object') {
     return NextResponse.json({ ok: false, error: 'Missing intake data.' }, { status: 400 });
   }
+  // The signature and sign date are the client's own certification.
+  // Whatever a client sends, a staff edit never rewrites them.
+  for (const k of LOCKED_INTAKE_KEYS) delete data[k];
   if (!backendConfigured()) {
     return NextResponse.json({ ok: true, persisted: false });
   }
