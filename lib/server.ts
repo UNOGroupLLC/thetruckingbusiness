@@ -279,6 +279,10 @@ export async function storageUpload(
       headers: {
         ...supabaseRestHeaders(SUPABASE_KEY),
         'Content-Type': contentType,
+        // Upsert so a rebuilt object (the stored case file and its
+        // manifest) replaces the previous copy at the same path.
+        // Callers with one-shot unique paths are unaffected.
+        'x-upsert': 'true',
       },
       body: bytes,
     });

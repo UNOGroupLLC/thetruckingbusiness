@@ -16,6 +16,7 @@ import {
   type OrderDocument,
 } from '@/lib/store';
 import { syncFiling, syncDocument, adminKeyHeaders, storedAdminKey } from '@/lib/sync';
+import type { SyncStep } from '@/lib/sync';
 import type { Package, OrderRecord } from '@/lib/store';
 import Field from '@/components/Field';
 
@@ -131,23 +132,56 @@ function orderMatches(o: OrderRecord, q: string): boolean {
     .includes(q);
 }
 
-/** Download one order's sealed case file (ZIP when the server can build
- *  it, the summary HTML when it cannot) via the admin-only route. */
-async function downloadCaseFile(id: string): Promise<void> {
+interface CaseFileStatus {
+  ok: boolean;
+  state?: 'ready' | 'stale' | 'missing';
+  builtAt?: string;
+  docCount?: number;
+  format?: 'zip' | 'html';
+  url?: string;
+}
+
+/** Case file status from the admin-only route. The sealed file is built
+ *  once and stored in Supabase Storage, so this only reports on the
+ *  stored copy; no file bytes pass through the site. */
+async function fetchCaseFileStatus(id: string): Promise<CaseFileStatus | null> {
   try {
     const res = await adminFetch(`/api/orders/${encodeURIComponent(id)}/case-file`);
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = (res.headers.get('Content-Type') ?? '').includes('zip')
-      ? `${id}-case-file.zip`
-      : `${id}-case-file.html`;
-    a.click();
-    URL.revokeObjectURL(url);
+    if (!res.ok) return null;
+    return (await res.json().catch(() => null)) as CaseFileStatus | null;
   } catch {
-    /* download unavailable; the order detail still shows everything */
+    return null;
+  }
+}
+
+/** Build (or rebuild) the stored case file now, then report its status. */
+async function buildCaseFile(id: string): Promise<CaseFileStatus | null> {
+  try {
+    const res = await adminFetch(`/api/orders/${encodeURIComponent(id)}/case-file`, {
+      method: 'POST',
+      body: '{}',
+    });
+    if (!res.ok) return null;
+    return (await res.json().catch(() => null)) as CaseFileStatus | null;
+  } catch {
+    return null;
+  }
+}
+
+/** Download one order's sealed case file. Downloads open the stored
+ *  file's signed URL, so every download is the identical sealed file.
+ *  When no current stored copy exists yet (an order finished before
+ *  this feature, or documents changed since the build), build it first. */
+async function downloadCaseFile(id: string): Promise<void> {
+  let status = await fetchCaseFileStatus(id);
+  if (!status) return;
+  if (status.state !== 'ready') {
+    status = await buildCaseFile(id);
+  }
+  if (status?.state === 'ready' && status.url) {
+    const a = document.createElement('a');
+    a.href = status.url;
+    a.click();
   }
 }
 
@@ -182,6 +216,7 @@ const EVENT_LABEL: Record<string, string> = {
   document_new_copy_requested: 'Clearer copy requested',
   filing_started: 'Filing started',
   order_completed: 'Order completed',
+  case_file_built: 'Case file built',
   order_reopened: 'Order reopened',
   assigned: 'Assigned',
   priority_on: 'Marked priority',
@@ -434,8 +469,21 @@ function CopyEditor() {
   );
 }
 
-/** Per-order document slots: expected docs from the package + upload/remove. */
-function OrderDocuments({ order }: { order: OrderRecord }) {
+/** Per-order document slots: expected docs from the package + upload/remove.
+ *  The slot's current file comes from the SERVER's documents (detail)
+ *  merged with this session's optimistic entries: the order object on
+ *  its own carries no documents for database orders (Oct 17, F9
+ *  repair: the slot read "Waiting for upload" forever while the
+ *  office copy below listed the files). */
+function OrderDocuments({
+  order,
+  serverDocs,
+  onSaved,
+}: {
+  order: OrderRecord;
+  serverDocs?: ServerDoc[];
+  onSaved?: () => void;
+}) {
   const pkg = getPackage(order.packageSlug);
   const slots = pkg?.expectedDocuments ?? [];
   // Documents can only be saved against a real (database) order; demo
@@ -445,13 +493,18 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
   // Result of the last document action, shown until the next one so an
   // upload is never silently assumed to have saved.
   const [docMsg, setDocMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // Which step an in-flight upload is on, so a stall shows WHERE it
+  // stopped instead of a bare "Uploading..." (Oct 17, F9 repair).
+  const [stepLabel, setStepLabel] = useState<string | null>(null);
+  const staffDocs = (serverDocs ?? []).filter((d) => d.direction !== 'from_client');
 
   if (slots.length === 0) return null;
 
   async function uploadOne(
     slotKey: string,
     slotLabel: string,
-    file: File
+    file: File,
+    onStep?: (step: SyncStep) => void
   ): Promise<{ ok: boolean; error?: string }> {
     try {
       let dataUrl: string | undefined;
@@ -484,7 +537,8 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
         },
         slotKey,
         slotLabel,
-        file
+        file,
+        onStep
       );
       if (result.ok) {
         return { ok: true };
@@ -511,12 +565,24 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
     setDocMsg(null);
     let saved = 0;
     let firstError: string | undefined;
+    const labelFor = (step: SyncStep, name: string) =>
+      step === 'start'
+        ? 'Starting the upload…'
+        : step === 'send'
+          ? `Sending ${name}…`
+          : step === 'record'
+            ? 'Recording the document…'
+            : `Sending ${name}…`;
     for (const file of files) {
-      const r = await uploadOne(slotKey, slotLabel, file);
+      const r = await uploadOne(slotKey, slotLabel, file, (step) =>
+        setStepLabel(labelFor(step, file.name))
+      );
       if (r.ok) saved += 1;
       else if (!firstError) firstError = r.error;
     }
     setUploading(null);
+    setStepLabel(null);
+    if (saved > 0) onSaved?.();
     if (saved === files.length) {
       setDocMsg({
         ok: true,
@@ -543,9 +609,19 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
       <ul className="space-y-2">
         {slots.map((s) => {
           // Newest file wins for the slot: a replaced document must be the
-          // one shown here, not the first version ever uploaded.
-          const slotDocs = (order.documents ?? []).filter((d) => d.slotKey === s.key);
+          // one shown here, not the first version ever uploaded. Server
+          // documents come first; this session's optimistic entries add
+          // only files the server list does not already show.
+          const slotDocs = [
+            ...staffDocs.filter((d) => d.slotKey === s.key),
+            ...(order.documents ?? []).filter(
+              (d) =>
+                d.slotKey === s.key &&
+                !staffDocs.some((sd) => sd.slotKey === s.key && sd.fileName === d.fileName)
+            ),
+          ];
           const doc = slotDocs[slotDocs.length - 1];
+          const docIsLocal = doc ? !staffDocs.some((sd) => sd.id === doc.id) : false;
           const inputId = `doc-${order.id}-${s.key}`;
           return (
             <li key={s.key} className="flex items-center justify-between gap-3 rounded-none bg-[#f6f7f9] px-3 py-2.5">
@@ -562,7 +638,7 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
-                {doc && (
+                {doc && docIsLocal && (
                   <button
                     className={`${T_SMALL} font-bold text-red-700 hover:underline`}
                     onClick={() => {
@@ -606,6 +682,11 @@ function OrderDocuments({ order }: { order: OrderRecord }) {
         >
           {docMsg.ok ? '✓ ' : ''}
           {docMsg.text}
+        </p>
+      )}
+      {uploading && stepLabel && (
+        <p className={`mt-2 ${T_SMALL} font-bold`} style={{ color: NAVY }} role="status">
+          {stepLabel}
         </p>
       )}
       <p className={`mt-2 ${T_SMALL}`} style={{ color: MUTED }}>
@@ -1423,6 +1504,8 @@ function OrderDetail({
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState('');
   const [actionError, setActionError] = useState('');
+  const [caseFile, setCaseFile] = useState<CaseFileStatus | null>(null);
+  const [caseBusy, setCaseBusy] = useState(false);
 
   async function loadDetail() {
     if (!isDb) return;
@@ -1442,6 +1525,18 @@ function OrderDetail({
     loadDetail();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [order.id]);
+
+  async function loadCaseFile() {
+    if (!isDb) return;
+    const status = await fetchCaseFileStatus(order.id);
+    if (status) setCaseFile(status);
+  }
+
+  const completedAtDep = detail?.order?.completedAt ?? order.completedAt;
+  useEffect(() => {
+    if (completedAtDep) loadCaseFile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.id, completedAtDep]);
 
   const live = detail?.order ?? order;
   const stage = stageOf(live);
@@ -1563,6 +1658,32 @@ function OrderDetail({
     )
       return;
     await patch({ completed_at: new Date().toISOString() });
+    // Build the sealed case file now that the order is finished, and
+    // store it with the order. If this ever does not land, the Download
+    // button builds it on the first click instead.
+    const built = await buildCaseFile(live.id);
+    if (built) setCaseFile(built);
+  }
+
+  async function handleCaseDownload() {
+    setCaseBusy(true);
+    try {
+      await downloadCaseFile(live.id);
+      const status = await fetchCaseFileStatus(live.id);
+      if (status) setCaseFile(status);
+    } finally {
+      setCaseBusy(false);
+    }
+  }
+
+  async function handleCaseRebuild() {
+    setCaseBusy(true);
+    try {
+      const status = await buildCaseFile(live.id);
+      if (status) setCaseFile(status);
+    } finally {
+      setCaseBusy(false);
+    }
   }
 
   async function handleReopen() {
@@ -1723,12 +1844,23 @@ function OrderDetail({
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button
-              onClick={() => downloadCaseFile(live.id)}
+              onClick={handleCaseDownload}
+              disabled={caseBusy}
               className={`${T_SMALL} border px-3 py-1.5 font-extrabold`}
               style={{ borderColor: '#15803d', color: '#166534', background: '#fff' }}
             >
-              Download case file
+              {caseBusy ? 'Building case file…' : 'Download case file'}
             </button>
+            {isDb && caseFile?.state === 'stale' && (
+              <button
+                onClick={handleCaseRebuild}
+                disabled={caseBusy}
+                className={`${T_SMALL} border px-3 py-1.5 font-extrabold`}
+                style={{ borderColor: '#15803d', color: '#166534', background: '#fff' }}
+              >
+                Rebuild case file
+              </button>
+            )}
             {isDb && (
               <button
                 onClick={handleReopen}
@@ -1739,6 +1871,21 @@ function OrderDetail({
               </button>
             )}
           </div>
+          {isDb && caseFile?.state === 'ready' && (
+            <p className={`${T_SMALL} mt-2 font-semibold`} style={{ color: '#166534' }}>
+              Case file on record · built {caseFile.builtAt ? formatDate(caseFile.builtAt) : ''}
+              {typeof caseFile.docCount === 'number'
+                ? ` · ${caseFile.docCount} document${caseFile.docCount === 1 ? '' : 's'}`
+                : ''}
+              . Every download is that same sealed file.
+            </p>
+          )}
+          {isDb && caseFile?.state === 'stale' && (
+            <p className={`${T_SMALL} mt-2 font-semibold`} style={{ color: '#166534' }}>
+              Documents changed since the case file was built. Rebuild it so the sealed copy
+              matches the order.
+            </p>
+          )}
         </div>
       )}
 
@@ -1808,7 +1955,14 @@ function OrderDetail({
           <div className="rounded-none border border-[#dde3ec] bg-white p-4 shadow-sm">
             <h3 className={T_CARD} style={{ color: NAVY }}>Documents</h3>
             <div className="mt-3">
-              <OrderDocuments order={live} />
+              <OrderDocuments
+                order={live}
+                serverDocs={detail?.documents}
+                onSaved={() => {
+                  loadDetail();
+                  loadCaseFile();
+                }}
+              />
             </div>
             {detail &&
               detail.documents.filter((d) => d.direction !== 'from_client').length > 0 && (

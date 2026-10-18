@@ -57,6 +57,7 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: 'usd',
             unit_amount: amountCents,
+            tax_behavior: 'exclusive',
             product_data: { name: itemName, description: pkg.tagline },
             ...(isSubscription
               ? { recurring: { interval: pkg.billing === '/year' ? 'year' : 'month' } }
@@ -77,6 +78,12 @@ export async function POST(req: NextRequest) {
       },
       success_url: `${origin}/receipt?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/pricing`,
+      // Stripe Tax is dormant until STRIPE_TAX_ENABLED=1 is set in Vercel.
+      // Dashboard Tax setup and the Florida collection decision come first;
+      // with the flag off, checkout behaves exactly as it does today.
+      ...(process.env.STRIPE_TAX_ENABLED === '1'
+        ? { automatic_tax: { enabled: true } }
+        : {}),
       // Payment methods (cards + BNPL like Affirm/Afterpay/Klarna) are
       // controlled in the Stripe Dashboard → Settings → Payment methods.
     };

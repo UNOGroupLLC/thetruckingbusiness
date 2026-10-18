@@ -13,6 +13,7 @@ import {
   mergeServerOrders,
 } from '@/lib/store';
 import type { IntakeStatus, OrderRecord } from '@/lib/store';
+import { fetchWithTimeout } from '@/lib/sync';
 
 /**
  * CLIENT PORTAL: presentation rebuilt to the approved portal mockup v1
@@ -712,11 +713,39 @@ function UploadsCard({
       return next;
     });
     try {
+      // Proven road for everyday files (Oct 17, 2026, F9 repair): one
+      // multipart POST through our own server, the path client uploads
+      // used successfully before the direct rebuild. Files over 4 MB
+      // take the direct road below, so the host's function body cap
+      // never applies to them.
+      if (file.size <= 4 * 1024 * 1024) {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('slotKey', slotKey);
+        const res = await fetch(
+          `/api/portal/orders/${encodeURIComponent(order.id)}/documents/server`,
+          { method: 'POST', headers: { 'x-portal-token': token }, body: form }
+        );
+        const data = await res.json().catch(() => null);
+        if (!res.ok || !data?.ok) {
+          setErrors((prev) => ({
+            ...prev,
+            [slotKey]: data?.error ?? 'Something went wrong. Please try again.',
+          }));
+          return;
+        }
+        setSuccesses((prev) => ({
+          ...prev,
+          [slotKey]: { orderId: order.id, fileName: file.name },
+        }));
+        onUploaded?.();
+        return;
+      }
       // Direct upload (Oct 17, 2026, F9): ask for a signed upload URL,
       // send the file straight to storage, then register it. The file
       // never passes through our server, so big phone photos and long
       // PDFs upload fine.
-      const signRes = await fetch(
+      const signRes = await fetchWithTimeout(
         `/api/portal/orders/${encodeURIComponent(order.id)}/documents/sign`,
         {
           method: 'POST',
@@ -727,7 +756,8 @@ function UploadsCard({
             size: file.size,
             type: file.type,
           }),
-        }
+        },
+        20_000
       );
       const signData = await signRes.json().catch(() => null);
       if (!signRes.ok || !signData?.ok || !signData.uploadUrl || !signData.path) {
@@ -739,14 +769,18 @@ function UploadsCard({
       }
       let put: Response;
       try {
-        put = await fetch(signData.uploadUrl, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': file.type || 'application/octet-stream',
-            'x-upsert': 'false',
+        put = await fetchWithTimeout(
+          signData.uploadUrl,
+          {
+            method: 'PUT',
+            headers: {
+              'Content-Type': file.type || 'application/octet-stream',
+              'x-upsert': 'false',
+            },
+            body: file,
           },
-          body: file,
-        });
+          240_000
+        );
       } catch {
         setErrors((prev) => ({
           ...prev,
@@ -761,7 +795,7 @@ function UploadsCard({
         }));
         return;
       }
-      const res = await fetch(
+      const res = await fetchWithTimeout(
         `/api/portal/orders/${encodeURIComponent(order.id)}/documents`,
         {
           method: 'POST',
@@ -771,7 +805,8 @@ function UploadsCard({
             storagePath: signData.path,
             fileName: file.name,
           }),
-        }
+        },
+        30_000
       );
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
